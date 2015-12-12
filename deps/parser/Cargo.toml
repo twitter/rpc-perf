@@ -1,0 +1,12 @@
+[package]
+name = "parser"
+version = "0.1.0"
+authors = ["Brian Martin <bmartin@twitter.com>"]
+
+license = "apache-2.0"
+
+description = "rpc-perf response parsers"
+
+[dependencies]
+log = "0.3.3"
+crc = "1.2.0"

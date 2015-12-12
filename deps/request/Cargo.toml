@@ -1,0 +1,11 @@
+[package]
+name = "request"
+version = "0.1.0"
+authors = ["Brian Martin <bmartin@twitter.com>"]
+
+license = "apache-2.0"
+
+description = "rpc-perf request builder"
+
+[dependencies]
+crc = "1.2.0"

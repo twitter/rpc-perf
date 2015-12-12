@@ -1,0 +1,15 @@
+[general]
+threads = 4
+connections = 25
+interval = 1
+duration = 10
+
+[[workload]]
+name = "set"
+command = "set"
+rate = 10000
+
+[[workload]]
+name = "get"
+command = "get"
+rate = 50000
