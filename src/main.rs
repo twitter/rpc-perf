@@ -46,6 +46,7 @@ use std::io::prelude::{Read, Write};
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::thread;
 use std::sync::mpsc;
+use std::process;
 
 use client::Client;
 use config::{BenchmarkConfig, BenchmarkWorkload};
@@ -104,7 +105,12 @@ pub fn start(address: SocketAddr,
         }
     }
     info!("Connections: {} Failures: {}", connections, failures);
-    event_loop.run(&mut client).unwrap();
+    if failures == connections {
+        error!("All connections have failed");
+        process::exit(1);
+    } else {
+        event_loop.run(&mut client).unwrap();
+    }
 }
 
 fn print_usage(program: &str, opts: Options) {
