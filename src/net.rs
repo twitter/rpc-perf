@@ -52,7 +52,12 @@ pub fn to_mio_tcp_stream<T: ToSocketAddrs>(addr: T,
                 if proto == InternetProtocol::Any || proto == InternetProtocol::IpV4 {
                     match TcpSocket::v4().unwrap().connect(&a) {
                         Ok((socket, _)) => {
-                            return Ok(socket);
+                            match socket.take_socket_error() {
+                                Ok(_) => {
+                                    return Ok(socket);
+                                }
+                                Err(_) => {}
+                            }
                         }
                         Err(_) => {}
                     }
@@ -60,7 +65,12 @@ pub fn to_mio_tcp_stream<T: ToSocketAddrs>(addr: T,
                 if proto == InternetProtocol::Any || proto == InternetProtocol::IpV6 {
                     match TcpSocket::v6().unwrap().connect(&a) {
                         Ok((socket, _)) => {
-                            return Ok(socket);
+                            match socket.take_socket_error() {
+                                Ok(_) => {
+                                    return Ok(socket);
+                                }
+                                Err(_) => {}
+                            }
                         }
                         Err(_) => {}
                     }
