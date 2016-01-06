@@ -93,9 +93,7 @@ pub fn start(address: SocketAddr,
                                                 mio::PollOpt::edge() | mio::PollOpt::oneshot())
                                   .unwrap();
                     }
-                    _ => {
-                        debug!("too many established connections")
-                    }
+                    _ => debug!("too many established connections"),
                 }
             }
             Err(e) => {
@@ -122,28 +120,17 @@ pub fn main() {
     let args: Vec<String> = env::args().collect();
     let program = args[0].clone();
 
-    let _ = log::set_logger(|max_log_level| {
-        max_log_level.set(LogLevelFilter::Info);
-        return Box::new(SimpleLogger);
-    });
-
     let mut opts = Options::new();
 
     opts.optopt("s", "server", "server address", "HOST:PORT");
-    opts.optopt("c", "connections", "connections per thread", "INTEGER");
     opts.optopt("t", "threads", "number of threads", "INTEGER");
-    opts.optopt("d", "duration", "duration of window in seconds", "INTERGER");
+    opts.optopt("c", "connections", "connections per thread", "INTEGER");
+    opts.optopt("d", "duration", "number of seconds per window", "INTERGER");
     opts.optopt("w", "windows", "number of windows in test", "INTEGER");
     opts.optopt("r", "rate", "global requests per second", "INTEGER");
     opts.optopt("p", "protocol", "client protocol", "STRING");
-    opts.optopt("m", "command", "request command", "STRING");
+    opts.optopt("m", "method", "request command", "STRING");
     opts.optopt("b", "bytes", "value size in bytes", "INTEGER");
-    opts.optopt("", "io_poll_timeout_ms", "io_poll_timeout_ms", "INTEGER");
-    opts.optopt("", "notify_capacity", "notify_capacity", "INTEGER");
-    opts.optopt("", "messages_per_tick", "messages_per_tick", "INTEGER");
-    opts.optopt("", "timer_tick_ms", "timer_tick_ms", "INTEGER");
-    opts.optopt("", "timer_wheel_size", "timer_wheel_size", "INTEGER");
-    opts.optopt("", "timer_capacity", "timer_capacity", "INTEGER");
     opts.optopt("", "config", "TOML config file", "FILE");
     opts.optopt("", "trace", "write histogram data to file", "FILE");
     opts.optflag("", "nodelay", "enable tcp nodelay");
@@ -151,48 +138,70 @@ pub fn main() {
     opts.optflag("", "flush", "flush cache prior to test");
     opts.optflag("", "ipv4", "force IPv4 only");
     opts.optflag("", "ipv6", "force IPv6 only");
+    opts.optflagmulti("v", "verbose", "verbosity (stacking)");
     opts.optflag("h", "help", "print this help menu");
 
     let matches = match opts.parse(&args[1..]) {
-        Ok(m) => {
-            m
-        }
-        Err(f) => {
-            panic!(f.to_string())
-        }
+        Ok(m) => m,
+        Err(f) => panic!(f.to_string()),
     };
-    if matches.opt_present("h") {
+
+    if matches.opt_present("help") {
         print_usage(&program, opts);
         return;
     }
-    if !matches.opt_present("s") {
+
+    // defaults
+    let log_filter;
+    let mut config: BenchmarkConfig = Default::default();
+    let client_protocol: Protocol;
+
+    match matches.opt_count("verbose") {
+        0 => {
+            log_filter = LogLevelFilter::Info;
+        }
+        1 => {
+            log_filter = LogLevelFilter::Debug;
+        }
+        _ => {
+            log_filter = LogLevelFilter::Trace;
+        }
+    }
+
+    let _ = log::set_logger(|max_log_level| {
+        max_log_level.set(log_filter);
+        return Box::new(SimpleLogger);
+    });
+
+    // done manually to prevent getopts panic!()
+    if !matches.opt_present("server") {
         error!("require server parameter");
         print_usage(&program, opts);
         return;
     }
-    let server = matches.opt_str("s").unwrap();
-    let trace = matches.opt_str("trace");
 
-    // start with the default config
-    let mut c: BenchmarkConfig = Default::default();
+    let server = matches.opt_str("server").unwrap();
+
+    let trace = matches.opt_str("trace");
 
     // load config from file if specified
     if matches.opt_present("config") {
         let toml = matches.opt_str("config").unwrap();
 
-        c = config::load_config(toml).unwrap();
+        config = config::load_config(toml).unwrap();
     }
 
     // override config with commandline options
 
     // these map to general section, and can override config
-    if matches.opt_present("p") {
-        c.protocol = matches.opt_str("p").unwrap();
+    if matches.opt_present("protocol") {
+        config.protocol = matches.opt_str("protocol").unwrap();
     }
-    if matches.opt_present("t") {
-        match matches.opt_str("t").unwrap().parse() {
+
+    if matches.opt_present("threads") {
+        match matches.opt_str("threads").unwrap().parse() {
             Ok(threads) => {
-                c.threads = threads;
+                config.threads = threads;
             }
             Err(e) => {
                 error!("Bad parameter: {} Cause: {}", "threads", e);
@@ -200,10 +209,11 @@ pub fn main() {
             }
         }
     }
-    if matches.opt_present("c") {
-        match matches.opt_str("c").unwrap().parse() {
+
+    if matches.opt_present("connections") {
+        match matches.opt_str("connections").unwrap().parse() {
             Ok(connections) => {
-                c.connections = connections;
+                config.connections = connections;
             }
             Err(e) => {
                 error!("Bad parameter: {} Cause: {}", "connections", e);
@@ -211,10 +221,11 @@ pub fn main() {
             }
         }
     }
-    if matches.opt_present("w") {
-        match matches.opt_str("w").unwrap().parse() {
+
+    if matches.opt_present("windows") {
+        match matches.opt_str("windows").unwrap().parse() {
             Ok(windows) => {
-                c.windows = windows;
+                config.windows = windows;
             }
             Err(e) => {
                 error!("Bad parameter: {} Cause: {}", "windows", e);
@@ -222,10 +233,11 @@ pub fn main() {
             }
         }
     }
-    if matches.opt_present("d") {
-        match matches.opt_str("d").unwrap().parse() {
+
+    if matches.opt_present("duration") {
+        match matches.opt_str("duration").unwrap().parse() {
             Ok(duration) => {
-                c.duration = duration;
+                config.duration = duration;
             }
             Err(e) => {
                 error!("Bad parameter: {} Cause: {}", "duration", e);
@@ -233,18 +245,19 @@ pub fn main() {
             }
         }
     }
+
     if matches.opt_present("nodelay") {
-        c.nodelay = true;
+        config.nodelay = true;
     }
 
     // these map to workload and conflict with config for simplicity
-    if c.workloads.len() == 0 {
-        let mut w: BenchmarkWorkload = Default::default();
+    if config.workloads.len() == 0 {
+        let mut workload: BenchmarkWorkload = Default::default();
 
-        if matches.opt_present("r") {
-            match matches.opt_str("r").unwrap().parse() {
+        if matches.opt_present("rate") {
+            match matches.opt_str("rate").unwrap().parse() {
                 Ok(rate) => {
-                    w.rate = rate;
+                    workload.rate = rate;
                 }
                 Err(e) => {
                     error!("Bad parameter: {} Cause: {}", "rate", e);
@@ -252,10 +265,11 @@ pub fn main() {
                 }
             }
         }
+
         if matches.opt_present("b") {
             match matches.opt_str("b").unwrap().parse() {
                 Ok(bytes) => {
-                    w.bytes = bytes;
+                    workload.bytes = bytes;
                 }
                 Err(e) => {
                     error!("Bad parameter: {} Cause: {}", "bytes", e);
@@ -263,63 +277,43 @@ pub fn main() {
                 }
             }
         }
+
         if matches.opt_present("m") {
-            w.command = matches.opt_str("m").unwrap();
+            workload.command = matches.opt_str("m").unwrap();
         }
+
         if matches.opt_present("flush") {
-            w.flush = true;
+            workload.flush = true;
         }
+
         if matches.opt_present("hit") {
-            w.hit = true;
+            workload.hit = true;
         }
-        let _ = c.workloads.push(w);
-    } else if matches.opt_present("r") || matches.opt_present("r") || matches.opt_present("b") ||
-       matches.opt_present("m") {
+
+        let _ = config.workloads.push(workload);
+
+    } else if matches.opt_present("rate") || matches.opt_present("bytes") ||
+       matches.opt_present("method") {
         error!("workload is specified in config and commandline");
         print_usage(&program, opts);
         return;
     }
 
-    // this stuff is pretty advanced, might be useless
-    let mut io_poll_timeout_ms = 1_000;
-    if matches.opt_present("io_poll_timeout_ms") {
-        io_poll_timeout_ms = matches.opt_str("io_poll_timeout_ms").unwrap().parse().unwrap();
-    }
-    let mut notify_capacity = 4_096;
-    if matches.opt_present("notify_capacity") {
-        notify_capacity = matches.opt_str("notify_capacity").unwrap().parse().unwrap();
-    }
-    let mut messages_per_tick = 256;
-    if matches.opt_present("messages_per_tick") {
-        messages_per_tick = matches.opt_str("messages_per_tick").unwrap().parse().unwrap();
-    }
-    let mut timer_tick_ms = 100;
-    if matches.opt_present("timer_tick_ms") {
-        timer_tick_ms = matches.opt_str("timer_tick_ms").unwrap().parse().unwrap();
-    }
-    let mut timer_wheel_size = 1_024;
-    if matches.opt_present("timer_wheel_size") {
-        timer_wheel_size = matches.opt_str("timer_wheel_size").unwrap().parse().unwrap();
-    }
-    let mut timer_capacity = 65_536;
-    if matches.opt_present("timer_capacity") {
-        timer_capacity = matches.opt_str("timer_capacity").unwrap().parse().unwrap();
-    }
-
     let workq = BoundedQueue::<Vec<u8>>::with_capacity(BUCKET_SIZE);
 
-    let client_protocol: Protocol;
 
-    match Protocol::new(&*c.protocol) {
+
+    match Protocol::new(&*config.protocol) {
         Ok(p) => {
             client_protocol = p;
         }
         Err(_) => {
-            panic!("Bad protocol: {}", &*c.protocol);
+            panic!("Bad protocol: {}", &*config.protocol);
         }
     }
 
     let mut internet_protocol = InternetProtocol::Any;
+
     if matches.opt_present("ipv4") && matches.opt_present("ipv6") {
         error!("Use only --ipv4 or --ipv6");
         print_usage(&program, opts);
@@ -332,48 +326,43 @@ pub fn main() {
         internet_protocol = InternetProtocol::IpV6;
     }
 
-    let evconfig = mio::EventLoopConfig {
-        io_poll_timeout_ms: io_poll_timeout_ms,
-        notify_capacity: notify_capacity,
-        messages_per_tick: messages_per_tick,
-        timer_tick_ms: timer_tick_ms,
-        timer_wheel_size: timer_wheel_size,
-        timer_capacity: timer_capacity,
-    };
+    let evconfig = mio::EventLoopConfig::default();
 
     info!("rpc-perf {} initializing...", VERSION);
     info!("-----");
     info!("Config:");
     info!("Config: Server: {} Protocol: {} IP: {:?}",
           server,
-          c.protocol,
+          config.protocol,
           internet_protocol);
     info!("Config: Threads: {} Connections: {}",
-          c.threads,
-          c.connections);
-    info!("Config: Windows: {} Duration: {}", c.windows, c.duration);
+          config.threads,
+          config.connections);
+    info!("Config: Windows: {} Duration: {}",
+          config.windows,
+          config.duration);
     info!("-----");
     info!("Workload:");
 
-    for i in 0..c.workloads.len() {
-        let wl = c.workloads[i].clone();
+    for i in 0..config.workloads.len() {
+        let w = config.workloads[i].clone();
         info!("Workload {}: Command: {} Bytes: {} Rate: {} Hit: {} Flush: {}",
               i,
-              wl.command,
-              wl.bytes,
-              wl.rate,
-              wl.hit,
-              wl.flush);
+              w.command,
+              w.bytes,
+              w.rate,
+              w.hit,
+              w.flush);
 
         let mut workload = workload::Hotkey::new(i,
-                                                 c.protocol.clone(),
-                                                 wl.command,
-                                                 wl.bytes,
-                                                 wl.rate as u64,
+                                                 config.protocol.clone(),
+                                                 w.command,
+                                                 w.bytes,
+                                                 w.rate as u64,
                                                  workq.clone(),
                                                  1,
-                                                 wl.hit,
-                                                 wl.flush)
+                                                 w.hit,
+                                                 w.flush)
                                .unwrap();
 
         thread::spawn(move || {
@@ -390,12 +379,12 @@ pub fn main() {
     info!("-----");
     info!("Connecting...");
     // spawn client threads
-    for _ in 0..c.threads {
+    for _ in 0..config.threads {
         let stats_tx = stats_tx.clone();
         let server = socket_addr.clone();
-        let connections = c.connections.clone();
+        let connections = config.connections.clone();
         let work_rx = workq.clone();
-        let nodelay = c.nodelay.clone();
+        let nodelay = config.nodelay.clone();
         let internet_protocol = internet_protocol.clone();
 
         thread::spawn(move || {
@@ -455,7 +444,7 @@ pub fn main() {
             }
         }
         let now = time::precise_time_ns();
-        if now - printed_at >= (c.duration as u64 * ONE_SECOND as u64) {
+        if now - printed_at >= (config.duration as u64 * ONE_SECOND as u64) {
             let rate = ONE_SECOND as u64 * (ok + miss) / (now - printed_at) as u64;
             let mut sr = 0;
             let mut hr = 0;
@@ -495,13 +484,12 @@ pub fn main() {
                             Some(bucket) => {
                                 if bucket.count() > 0 {
                                     let line = format!("{} {} {}\n",
-                                                       (window * c.duration),
+                                                       (window * config.duration),
                                                        bucket.value(),
                                                        bucket.count())
                                                    .into_bytes();
                                     let _ = trace_file.write_all(&line);
                                 }
-
                             }
                             None => {
                                 break;
@@ -518,9 +506,9 @@ pub fn main() {
             miss = 0;
             error = 0;
             closed = 0;
-            printed_at = now;
             window += 1;
-            if window >= c.windows {
+            printed_at = now;
+            if window >= config.windows {
                 break;
             }
         }

@@ -77,58 +77,55 @@ impl State {
 
                     let raw = mem::replace(self, State::Closed).unwrap_read_buf();
 
-                        // protocol dependant parsing
-                        match protocol {
-                            Protocol::Echo => {
-                                resp = echo::Response { response: raw.clone() }.parse();
-                            }
-                            Protocol::Memcache => {
-                                match String::from_utf8(raw.clone()) {
-                                    Ok(msg) => {
-                                        resp = memcache::Response { response: msg.clone() }.parse();
-                                    }
-                                    Err(_) => {
-                                        resp = ParsedResponse::Invalid;
-                                    }
+                    // protocol dependant parsing
+                    match protocol {
+                        Protocol::Echo => {
+                            resp = echo::Response { response: raw.clone() }.parse();
+                        }
+                        Protocol::Memcache => {
+                            match String::from_utf8(raw.clone()) {
+                                Ok(msg) => {
+                                    resp = memcache::Response { response: msg.clone() }.parse();
                                 }
-                                //resp = memcache::Response { response: msg.clone() }.parse();
-                            }
-                            Protocol::Redis => {
-                                match String::from_utf8(raw.clone()) {
-                                    Ok(msg) => {
-                                        resp = redis::Response { response: msg.clone() }.parse();
-                                    }
-                                    Err(_) => {
-                                        resp = ParsedResponse::Invalid;
-                                    }
+                                Err(_) => {
+                                    resp = ParsedResponse::Invalid;
                                 }
-                                //resp = redis::Response { response: msg.clone() }.parse();
-                            }
-                            Protocol::Ping => {
-                                //resp = ping::Response { response: msg.clone() }.parse();
-                                match String::from_utf8(raw.clone()) {
-                                    Ok(msg) => {
-                                        resp = ping::Response { response: msg.clone() }.parse();
-                                    }
-                                    Err(_) => {
-                                        resp = ParsedResponse::Invalid;
-                                    }
-                                }
-                            }
-                            Protocol::Unknown => {
-                                panic!("unhandled protocol!");
                             }
                         }
+                        Protocol::Redis => {
+                            match String::from_utf8(raw.clone()) {
+                                Ok(msg) => {
+                                    resp = redis::Response { response: msg.clone() }.parse();
+                                }
+                                Err(_) => {
+                                    resp = ParsedResponse::Invalid;
+                                }
+                            }
+                        }
+                        Protocol::Ping => {
+                            match String::from_utf8(raw.clone()) {
+                                Ok(msg) => {
+                                    resp = ping::Response { response: msg.clone() }.parse();
+                                }
+                                Err(_) => {
+                                    resp = ParsedResponse::Invalid;
+                                }
+                            }
+                        }
+                        Protocol::Unknown => {
+                            panic!("unhandled protocol!");
+                        }
+                    }
 
-                        // if incomplete replace the buffer contents, otherwise transition
-                        match resp {
-                            ParsedResponse::Incomplete => {
-                                mem::replace(self, State::Reading(raw));
-                                return resp;
-                            }
-                            _ => { }
+                    // if incomplete replace the buffer contents, otherwise transition
+                    match resp {
+                        ParsedResponse::Incomplete => {
+                            mem::replace(self, State::Reading(raw));
+                            return resp;
                         }
-                    
+                        _ => {}
+                    }
+
 
                     self.transition_to_writing();
                     return resp;
