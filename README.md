@@ -28,11 +28,11 @@ NOTE: Some of the options may conflict with usage of a config file. In such case
 # display help
 ./target/release/rpc-perf --help
 # memcache get hit
-./target/release/rpc-perf --server 127.0.0.1:11211 --protocol memcache --command get --hit
+./target/release/rpc-perf --server 127.0.0.1:11211 --protocol memcache --method get --hit
 # memcache get miss
-./target/release/rpc-perf --server 127.0.0.1:11211 --protocol memcache --command get --flush
+./target/release/rpc-perf --server 127.0.0.1:11211 --protocol memcache --method get --flush
 # redis get with ratelimit of 50kqps
-./target/release/rpc-perf --server 127.0.0.1:6379 --protocol redis --command get --hit --rate 50000
+./target/release/rpc-perf --server 127.0.0.1:6379 --protocol redis --method get --hit --rate 50000
 ```
 
 ## Features

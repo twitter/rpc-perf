@@ -6,10 +6,10 @@ duration = 10
 
 [[workload]]
 name = "set"
-command = "set"
+method = "set"
 rate = 10000
 
 [[workload]]
 name = "get"
-command = "get"
+method = "get"
 rate = 50000
