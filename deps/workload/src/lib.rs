@@ -21,6 +21,7 @@ extern crate request;
 extern crate ratelimit;
 extern crate time;
 extern crate rand;
+extern crate shuteye;
 
 use rand::{thread_rng, Rng};
 
@@ -148,6 +149,7 @@ impl Hotkey {
                 if self.flush {
                     let flush = memcache::flush_all().into_bytes();
                     let _ = self.queue.push(flush);
+                    shuteye::sleep(shuteye::Timespec::from_nano(1_000_000 as i64).unwrap());
                 }
                 match &*self.command {
                     "set" => {
@@ -156,7 +158,10 @@ impl Hotkey {
                     "get" => {
                         if self.hit {
                             let prepare = memcache::set(&key, &*value, None, None).into_bytes();
-                            let _ = self.queue.push(prepare);
+                            for _ in 0..5 {
+                                let _ = self.queue.push(prepare.clone());
+                            }
+                            shuteye::sleep(shuteye::Timespec::from_nano(1_000_000 as i64).unwrap());
                         }
                         query = memcache::get(&key).into_bytes();
                     }

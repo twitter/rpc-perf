@@ -403,18 +403,25 @@ pub fn main() {
     histogram_config.precision(4).max_value(ONE_SECOND as u64);
     let mut histogram = Histogram::configured(histogram_config).unwrap();
 
+    let mut trace_config = HistogramConfig::new();
+    trace_config.precision(2).max_value(ONE_SECOND as u64);
+    let mut trace_histogram = Histogram::configured(trace_config).unwrap();
+
     let mut trace_file = File::open("/dev/null").unwrap();
     if trace.is_some() {
         trace_file = File::create(trace.clone().unwrap()).unwrap();
     }
 
     let mut printed_at = time::precise_time_ns();
+    let mut traced_at = printed_at;
     let mut ok = 0_u64;
     let mut hit = 0_u64;
     let mut miss = 0_u64;
     let mut error = 0_u64;
     let mut closed = 0_u64;
     let mut window = 0;
+    let mut trace_window = 0;
+    let mut warmup = true;
 
     loop {
         match stats_rx.try_recv() {
@@ -438,68 +445,85 @@ pub fn main() {
                     }
                 }
                 let _ = histogram.increment(result.stop - result.start);
+                let _ = trace_histogram.increment(result.stop - result.start);
             }
             Err(_) => {
                 shuteye::sleep(shuteye::Timespec::from_nano(1000).unwrap());
             }
         }
-        let now = time::precise_time_ns();
-        if now - printed_at >= (config.duration as u64 * ONE_SECOND as u64) {
-            let rate = ONE_SECOND as u64 * (ok + miss) / (now - printed_at) as u64;
-            let mut sr = 0;
-            let mut hr = 0;
-            if (histogram.entries() + error) > 0 {
-                sr = 100 * histogram.entries() / (histogram.entries() + error);
-            }
-            if (hit + miss) > 0 {
-                hr = 100 * hit / (hit + miss);
-            }
-            info!("-----");
-            info!("Window: {}", (window + 1));
-            info!("Requests: {} Ok: {} Miss: {} Error: {} Closed: {}",
-                  histogram.entries(),
-                  ok,
-                  miss,
-                  error,
-                  closed);
-            info!("Rate: {} rps Success: {} % Hitrate: {} %", rate, sr, hr);
-            info!("Latency: min: {} ns max: {} ns avg: {} ns stddev: {} ns",
-                    histogram.minimum().unwrap_or(0),
-                    histogram.maximum().unwrap_or(0),
-                    histogram.mean().unwrap_or(0),
-                    histogram.stddev().unwrap_or(0),
-                );
-            info!("Percentiles: p50: {} ns p90: {} ns p99: {} ns p999: {} ns p9999: {} ns",
-                    histogram.percentile(50.0).unwrap_or(0),
-                    histogram.percentile(90.0).unwrap_or(0),
-                    histogram.percentile(99.0).unwrap_or(0),
-                    histogram.percentile(99.9).unwrap_or(0),
-                    histogram.percentile(99.99).unwrap_or(0),
-                );
 
-            match trace {
-                Some(..) => {
-                    loop {
-                        match histogram.next() {
-                            Some(bucket) => {
-                                if bucket.count() > 0 {
-                                    let line = format!("{} {} {}\n",
-                                                       (window * config.duration),
-                                                       bucket.value(),
-                                                       bucket.count())
-                                                   .into_bytes();
-                                    let _ = trace_file.write_all(&line);
+        let now = time::precise_time_ns();
+
+        match trace {
+            Some(..) => {
+                if now - traced_at >= (ONE_SECOND as u64) {
+                    if ! warmup {
+                        loop {
+                            match trace_histogram.next() {
+                                Some(bucket) => {
+                                    if bucket.count() > 0 {
+                                        let line = format!("{} {} {}\n",
+                                                           trace_window,
+                                                           bucket.value(),
+                                                           bucket.count())
+                                                       .into_bytes();
+                                        let _ = trace_file.write_all(&line);
+                                    }
+
+                                }
+                                None => {
+                                    break;
                                 }
                             }
-                            None => {
-                                break;
-                            }
                         }
+                        trace_window += 1;
                     }
+                    let _ = trace_histogram.clear();
+                    traced_at = now;
                 }
-                None => {}
             }
+            None => {}
+        }
 
+
+        if now - printed_at >= (config.duration as u64 * ONE_SECOND as u64) {
+            if warmup {
+                info!("-----");
+                info!("Warmup complete");
+                warmup = false;
+            } else {
+                let rate = ONE_SECOND as u64 * (ok + miss) / (now - printed_at) as u64;
+                let mut success_rate = 0;
+                let mut hit_rate = 0;
+                if (histogram.entries() + error) > 0 {
+                    success_rate = 100 * histogram.entries() / (histogram.entries() + error);
+                }
+                if (hit + miss) > 0 {
+                    hit_rate = 100 * hit / (hit + miss);
+                }
+                info!("-----");
+                info!("Window: {}", window);
+                info!("Requests: {} Ok: {} Miss: {} Error: {} Closed: {}",
+                      histogram.entries(),
+                      ok,
+                      miss,
+                      error,
+                      closed);
+                info!("Rate: {} rps Success: {} % Hitrate: {} %", rate, success_rate, hit_rate);
+                info!("Latency: min: {} ns max: {} ns avg: {} ns stddev: {} ns",
+                        histogram.minimum().unwrap_or(0),
+                        histogram.maximum().unwrap_or(0),
+                        histogram.mean().unwrap_or(0),
+                        histogram.stddev().unwrap_or(0),
+                    );
+                info!("Percentiles: p50: {} ns p90: {} ns p99: {} ns p999: {} ns p9999: {} ns",
+                        histogram.percentile(50.0).unwrap_or(0),
+                        histogram.percentile(90.0).unwrap_or(0),
+                        histogram.percentile(99.0).unwrap_or(0),
+                        histogram.percentile(99.9).unwrap_or(0),
+                        histogram.percentile(99.99).unwrap_or(0),
+                    );
+            }
             let _ = histogram.clear();
             ok = 0;
             hit = 0;
@@ -508,7 +532,7 @@ pub fn main() {
             closed = 0;
             window += 1;
             printed_at = now;
-            if window >= config.windows {
+            if window > config.windows {
                 break;
             }
         }
