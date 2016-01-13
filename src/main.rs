@@ -67,7 +67,7 @@ pub fn start(address: SocketAddr,
              protocol: Protocol,
              internet_protocol: InternetProtocol,
              work_rx: BoundedQueue<Vec<u8>>,
-             nodelay: bool,
+             tcp_nodelay: bool,
              config: mio::EventLoopConfig) {
 
     let mut event_loop = mio::EventLoop::configured(config).unwrap();
@@ -84,7 +84,7 @@ pub fn start(address: SocketAddr,
                                     token,
                                     stats_tx.clone(),
                                     protocol.clone(),
-                                    nodelay.clone())
+                                    tcp_nodelay.clone())
                 }) {
                     Some(token) => {
                         event_loop.register_opt(&client.connections[token].socket,
@@ -133,7 +133,7 @@ pub fn main() {
     opts.optopt("b", "bytes", "value size in bytes", "INTEGER");
     opts.optopt("", "config", "TOML config file", "FILE");
     opts.optopt("", "trace", "write histogram data to file", "FILE");
-    opts.optflag("", "nodelay", "enable tcp nodelay");
+    opts.optflag("", "tcp-nodelay", "enable tcp nodelay");
     opts.optflag("", "hit", "prepopulate key to get");
     opts.optflag("", "flush", "flush cache prior to test");
     opts.optflag("", "ipv4", "force IPv4 only");
@@ -246,8 +246,8 @@ pub fn main() {
         }
     }
 
-    if matches.opt_present("nodelay") {
-        config.nodelay = true;
+    if matches.opt_present("tcp-nodelay") {
+        config.tcp_nodelay = true;
     }
 
     // these map to workload and conflict with config for simplicity
@@ -279,7 +279,7 @@ pub fn main() {
         }
 
         if matches.opt_present("m") {
-            workload.command = matches.opt_str("m").unwrap();
+            workload.method = matches.opt_str("m").unwrap();
         }
 
         if matches.opt_present("flush") {
@@ -331,10 +331,12 @@ pub fn main() {
     info!("rpc-perf {} initializing...", VERSION);
     info!("-----");
     info!("Config:");
-    info!("Config: Server: {} Protocol: {} IP: {:?}",
+    info!("Config: Server: {} Protocol: {}",
           server,
-          config.protocol,
-          internet_protocol);
+          config.protocol);
+    info!("Config: IP: {:?} TCP_NODELAY: {}",
+          internet_protocol,
+          config.tcp_nodelay);
     info!("Config: Threads: {} Connections: {}",
           config.threads,
           config.connections);
@@ -346,9 +348,9 @@ pub fn main() {
 
     for i in 0..config.workloads.len() {
         let w = config.workloads[i].clone();
-        info!("Workload {}: Command: {} Bytes: {} Rate: {} Hit: {} Flush: {}",
+        info!("Workload {}: Method: {} Bytes: {} Rate: {} Hit: {} Flush: {}",
               i,
-              w.command,
+              w.method,
               w.bytes,
               w.rate,
               w.hit,
@@ -356,7 +358,7 @@ pub fn main() {
 
         let mut workload = workload::Hotkey::new(i,
                                                  config.protocol.clone(),
-                                                 w.command,
+                                                 w.method,
                                                  w.bytes,
                                                  w.rate as u64,
                                                  workq.clone(),
@@ -384,7 +386,7 @@ pub fn main() {
         let server = socket_addr.clone();
         let connections = config.connections.clone();
         let work_rx = workq.clone();
-        let nodelay = config.nodelay.clone();
+        let tcp_nodelay = config.tcp_nodelay.clone();
         let internet_protocol = internet_protocol.clone();
 
         thread::spawn(move || {
@@ -394,7 +396,7 @@ pub fn main() {
                   client_protocol,
                   internet_protocol,
                   work_rx,
-                  nodelay,
+                  tcp_nodelay,
                   evconfig);
         });
     }

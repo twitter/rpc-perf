@@ -43,13 +43,13 @@ impl Connection {
                token: mio::Token,
                stats_tx: mpsc::Sender<Stat>,
                protocol: Protocol,
-               nodelay: bool)
+               tcp_nodelay: bool)
                -> Connection {
 
         let msg: Vec<u8> = Vec::new();
         let len = 0;
         let buf = Cursor::new(msg);
-        let _ = socket.set_nodelay(nodelay);
+        let _ = socket.set_nodelay(tcp_nodelay);
 
         Connection {
             socket: socket,
