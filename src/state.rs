@@ -19,7 +19,8 @@ extern crate parser;
 use bytes::{Buf, Take};
 use std::io::Cursor;
 use std::mem;
-use parser::*;
+
+use parser::{Parse, ParsedResponse, echo, memcache, ping, redis};
 use workload::Protocol;
 
 // The current state of the client connection

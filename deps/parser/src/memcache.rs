@@ -13,7 +13,7 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-pub use super::*;
+pub use super::{Parse, ParsedResponse};
 
 pub struct Response {
     pub response: String,
@@ -157,8 +157,7 @@ impl Parse for Response {
 
 #[cfg(test)]
 mod tests {
-    #[allow(unused_imports)]
-    use super::*;
+    use super::{Parse, ParsedResponse, Response};
 
     #[test]
     fn test_parse_incomplete() {

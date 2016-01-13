@@ -23,11 +23,11 @@ extern crate time;
 extern crate rand;
 extern crate shuteye;
 
+use mpmc::Queue as BoundedQueue;
 use rand::{thread_rng, Rng};
 
-use request::*;
-use ratelimit::*;
-use mpmc::Queue as BoundedQueue;
+use ratelimit::Ratelimit;
+use request::{echo, memcache, ping, redis};
 
 const ONE_SECOND: u64 = 1_000_000_000;
 const BUCKET_SIZE: usize = 10_000;

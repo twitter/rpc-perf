@@ -1,6 +1,6 @@
 [package]
 name = "workload"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Brian Martin <bmartin@twitter.com>"]
 
 license = "apache-2.0"

@@ -17,17 +17,17 @@ extern crate mio;
 extern crate time;
 extern crate parser;
 
-use client::Client;
 use bytes::Take;
-use std::io::Cursor;
 use mio::{TryRead, TryWrite};
-use mio::tcp::*;
-use state::State;
-use stats::*;
-use workload::Protocol;
+use mio::tcp::TcpStream;
+use std::io::Cursor;
 use std::sync::mpsc;
 
-use parser::*;
+use client::Client;
+use parser::ParsedResponse;
+use state::State;
+use stats::{Stat, Status};
+use workload::Protocol;
 
 pub struct Connection {
     pub socket: TcpStream,
