@@ -27,6 +27,7 @@ impl log::Log for SimpleLogger {
 
     fn log(&self, record: &LogRecord) {
         if self.enabled(record.metadata()) {
+            // filter to logs from rpc-perf itself and correct _ to -
             if record.location().module_path() == "rpc_perf" {
                 println!("{} {:<5} [{}] {}",
                          time::strftime("%Y-%m-%d %H:%M:%S", &time::now()).unwrap(),

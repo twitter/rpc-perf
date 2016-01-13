@@ -24,7 +24,7 @@ use toml::Value::Table;
 #[derive(Clone)]
 pub struct BenchmarkWorkload {
     pub rate: usize,
-    pub command: String,
+    pub method: String,
     pub bytes: usize,
     pub bucket: usize,
     pub hit: bool,
@@ -35,7 +35,7 @@ impl Default for BenchmarkWorkload {
     fn default() -> BenchmarkWorkload {
         BenchmarkWorkload {
             rate: 0,
-            command: "get".to_string(),
+            method: "get".to_string(),
             bytes: 1,
             bucket: 10000,
             hit: false,
@@ -50,7 +50,7 @@ pub struct BenchmarkConfig {
     pub duration: usize,
     pub windows: usize,
     pub protocol: String,
-    pub nodelay: bool,
+    pub tcp_nodelay: bool,
     pub workloads: Vec<BenchmarkWorkload>,
 }
 
@@ -62,7 +62,7 @@ impl Default for BenchmarkConfig {
             duration: 60,
             windows: 5,
             protocol: "memcache".to_string(),
-            nodelay: false,
+            tcp_nodelay: false,
             workloads: Vec::new(),
         }
     }
@@ -115,9 +115,9 @@ pub fn load_config(path: String) -> Result<BenchmarkConfig, &'static str> {
                         }
                         None => {}
                     }
-                    match general.lookup("nodelay").and_then(|k| k.as_bool()) {
-                        Some(nodelay) => {
-                            config.nodelay = nodelay;
+                    match general.lookup("tcp-nodelay").and_then(|k| k.as_bool()) {
+                        Some(tcp_nodelay) => {
+                            config.tcp_nodelay = tcp_nodelay;
                         }
                         None => {}
                     }
@@ -134,9 +134,9 @@ pub fn load_config(path: String) -> Result<BenchmarkConfig, &'static str> {
                     Some(workload) => {
                         debug!("workload: {} defined", i);
                         let mut w: BenchmarkWorkload = Default::default();
-                        match workload.lookup("command").and_then(|k| k.as_str()) {
-                            Some(command) => {
-                                w.command = command.to_string();
+                        match workload.lookup("method").and_then(|k| k.as_str()) {
+                            Some(method) => {
+                                w.method = method.to_string();
                             }
                             None => {}
                         }
