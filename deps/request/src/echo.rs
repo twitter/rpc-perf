@@ -15,8 +15,6 @@
 
 extern crate crc;
 
-pub use super::*;
-
 use crc::crc32;
 use std::mem::transmute;
 

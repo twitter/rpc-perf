@@ -15,11 +15,10 @@
 
 extern crate crc;
 
-pub use super::*;
+pub use super::{Parse, ParsedResponse};
 
 pub use crc::crc32;
 
-//use std::mem;
 use std::mem::transmute;
 
 pub struct Response {
@@ -55,8 +54,7 @@ impl Parse for Response {
 
 #[cfg(test)]
 mod tests {
-    #[allow(unused_imports)]
-    use super::*;
+    use super::{Parse, ParsedResponse, Response};
 
     #[test]
     fn test_parse_incomplete() {

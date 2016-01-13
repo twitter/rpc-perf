@@ -53,8 +53,7 @@ use config::{BenchmarkConfig, BenchmarkWorkload};
 use connection::Connection;
 use logger::SimpleLogger;
 use net::InternetProtocol;
-use parser::*;
-use stats::*;
+use stats::{Stat, Status};
 use workload::Protocol;
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");

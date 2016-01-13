@@ -12,4 +12,5 @@ rate = 10000
 [[workload]]
 name = "get"
 method = "get"
+hit = true
 rate = 50000
