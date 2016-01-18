@@ -11,7 +11,7 @@ pub fn socket(family: nix::AddressFamily, ty: nix::SockType, nonblock: bool) -> 
         nix::SOCK_CLOEXEC
     };
 
-    nix::socket(family, ty, opts).map_err(super::from_nix_error)
+    nix::socket(family, ty, opts, 0).map_err(super::from_nix_error)
 }
 
 pub fn connect(io: &Io, addr: &nix::SockAddr) -> io::Result<bool> {
@@ -123,8 +123,6 @@ pub fn dup(io: &Io) -> io::Result<Io> {
         .map(|fd| Io::from_raw_fd(fd))
 }
 
-//
-//
 // ===== Helpers =====
 //
 //

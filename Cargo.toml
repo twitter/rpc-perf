@@ -1,6 +1,6 @@
 [package]
 name = "rpc-perf"
-version = "0.1.5"
+version = "0.2.0"
 authors = ["Brian Martin <bmartin@twitter.com>"]
 
 license = "apache-2.0"
@@ -30,11 +30,11 @@ codegen-units = 1
 
 [dependencies]
 getopts = "0.2.14"
-histogram = "0.3.3"
-log = "0.3.3"
+histogram = "0.3.5"
+log = "0.3.5"
 time = "0.1.34"
 regex = "0.1.41"
-shuteye = "0.0.5"
+shuteye = "0.1.0"
 simple_logger = "0.4.0"
 toml = "0.1.23"
 
