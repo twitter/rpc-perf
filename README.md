@@ -66,7 +66,7 @@ Sample configurations can be found in the `configs` directory of this project. T
 
 ```
 $ ./target/release/rpc-perf --config configs/basic.toml -s 10.0.0.11:11211 -d 60 -w 1
-2016-01-17 20:32:21 INFO  [rpc-perf] rpc-perf 0.1.5 initializing...
+2016-01-17 20:32:21 INFO  [rpc-perf] rpc-perf 0.2.1 initializing...
 2016-01-17 20:32:21 INFO  [rpc-perf] -----
 2016-01-17 20:32:21 INFO  [rpc-perf] Config:
 2016-01-17 20:32:21 INFO  [rpc-perf] Config: Server: 10.0.0.11:11211 Protocol: memcache

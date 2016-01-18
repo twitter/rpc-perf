@@ -51,6 +51,8 @@ pub struct BenchmarkConfig {
     pub windows: usize,
     pub protocol: String,
     pub tcp_nodelay: bool,
+    pub ipv4: bool,
+    pub ipv6: bool,
     pub workloads: Vec<BenchmarkWorkload>,
 }
 
@@ -63,6 +65,8 @@ impl Default for BenchmarkConfig {
             windows: 5,
             protocol: "memcache".to_string(),
             tcp_nodelay: false,
+            ipv4: true,
+            ipv6: true,
             workloads: Vec::new(),
         }
     }
@@ -118,6 +122,18 @@ pub fn load_config(path: String) -> Result<BenchmarkConfig, &'static str> {
                     match general.lookup("tcp-nodelay").and_then(|k| k.as_bool()) {
                         Some(tcp_nodelay) => {
                             config.tcp_nodelay = tcp_nodelay;
+                        }
+                        None => {}
+                    }
+                    match general.lookup("ipv4").and_then(|k| k.as_bool()) {
+                        Some(ipv4) => {
+                            config.ipv4 = ipv4;
+                        }
+                        None => {}
+                    }
+                    match general.lookup("ipv6").and_then(|k| k.as_bool()) {
+                        Some(ipv6) => {
+                            config.ipv6 = ipv6;
                         }
                         None => {}
                     }

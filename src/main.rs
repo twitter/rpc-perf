@@ -311,19 +311,33 @@ pub fn main() {
         }
     }
 
-    let mut internet_protocol = InternetProtocol::Any;
+    let mut internet_protocol = InternetProtocol::None;
 
     if matches.opt_present("ipv4") && matches.opt_present("ipv6") {
-        error!("Use only --ipv4 or --ipv6");
-        print_usage(&program, opts);
-        return;
+         error!("Use only --ipv4 or --ipv6");
+         print_usage(&program, opts);
+         return;
     }
     if matches.opt_present("ipv4") {
-        internet_protocol = InternetProtocol::IpV4;
+        config.ipv4 = true;
+        config.ipv6 = false;
     }
     if matches.opt_present("ipv6") {
+        config.ipv4 = false;
+        config.ipv6 = true;
+    }
+    if config.ipv4 && config.ipv6 {
+        internet_protocol = InternetProtocol::Any;
+    } else if config.ipv4 {
+        internet_protocol = InternetProtocol::IpV4;
+    } else if config.ipv6 {
         internet_protocol = InternetProtocol::IpV6;
     }
+    if internet_protocol == InternetProtocol::None {
+        error!("No InternetProtocols remaining! Bad config/options");
+        return;
+    }
+
 
     let evconfig = mio::EventLoopConfig::default();
 
