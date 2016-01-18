@@ -1,0 +1,17 @@
+[general]
+threads = 1
+connections = 1
+duration = 60
+windows = 0
+protocol = "memcache"
+tcp-nodelay = false
+ipv4 = true
+ipv6 = true
+
+[[workload]]
+name = "get"
+method = "get"
+rate = 0
+bytes = 1
+hit = false
+flush = false
