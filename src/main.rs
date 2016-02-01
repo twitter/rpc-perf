@@ -415,7 +415,7 @@ pub fn main() {
     }
 
     let mut histogram_config = HistogramConfig::new();
-    histogram_config.precision(4).max_value(ONE_SECOND as u64);
+    histogram_config.precision(4).max_value(60 * ONE_SECOND as u64);
     let mut histogram = Histogram::configured(histogram_config).unwrap();
 
     let mut trace_config = HistogramConfig::new();
