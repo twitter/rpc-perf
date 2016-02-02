@@ -58,14 +58,14 @@ Sample configurations can be found in the `configs` directory of this project. T
 ./target/release/rpc-perf --server 127.0.0.1:6379 --protocol redis --method get --hit --rate 50000
 
 # run the same test against memcache and redis
-./target/release/rpc-perf --config configs/basic.toml --server 127.0.0.1:11211 --protocol memcache
-./target/release/rpc-perf --config configs/basic.toml --server 127.0.0.1:6379 --protocol redis
+./target/release/rpc-perf --config configs/default.toml --server 127.0.0.1:11211 --protocol memcache
+./target/release/rpc-perf --config configs/default.toml --server 127.0.0.1:6379 --protocol redis
 ```
 
 ## Sample Output
 
 ```
-$ ./target/release/rpc-perf --config configs/basic.toml -s 10.0.0.11:11211 -d 60 -w 1
+$ ./target/release/rpc-perf --config configs/default.toml -s 10.0.0.11:11211 -d 60 -w 1
 2016-01-17 20:32:21 INFO  [rpc-perf] rpc-perf 0.2.1 initializing...
 2016-01-17 20:32:21 INFO  [rpc-perf] -----
 2016-01-17 20:32:21 INFO  [rpc-perf] Config:
@@ -97,7 +97,7 @@ $ ./target/release/rpc-perf --config configs/basic.toml -s 10.0.0.11:11211 -d 60
 
 * Start with a short test before moving on to tests spanning larger periods of time `--duration 1 --windows 1` makes for a quick smoke test
 * When benchmarking for peak throughput, be sure to run enough workers with enough connections to keep them busy sending requests and reading responses. With too few threads, latency will impact throughput. With too many threads, the clients might starve for CPU
-* When benchmarking for latency, be sure to ratelimit and compare across a variety of rates. Use `--duration 60` to latch the histogram at one minute intervals to match up with clients which report percentiles
+* When benchmarking for latency, be sure to ratelimit and compare across a variety of rates. Use `--duration 60` (the default) to latch the histogram at one minute intervals to match up with clients which report percentiles
 * Log your configuration and results, this will help you repeat the experiment and compare results reliably
 
 ## Features
