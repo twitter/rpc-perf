@@ -184,23 +184,28 @@ pub fn main() {
     let trace = matches.opt_str("trace");
 
     // load config from file if specified
-    if matches.opt_present("config") {
-        let toml = matches.opt_str("config").unwrap();
-
+    if let Some(toml) = matches.opt_str("config") {
         config = config::load_config(toml).unwrap();
     }
 
     // override config with commandline options
 
     // these map to general section, and can override config
-    if matches.opt_present("protocol") {
-        config.protocol = matches.opt_str("protocol").unwrap();
+    if let Some(protocol) = matches.opt_str("protocol") {
+        config.protocol = protocol;
     }
 
-    if matches.opt_present("threads") {
-        match matches.opt_str("threads").unwrap().parse() {
+    if let Some(t) = matches.opt_str("threads") {
+        match t.parse() {
             Ok(threads) => {
-                config.threads = threads;
+                if threads > 0 {
+                    config.threads = threads;
+                } else {
+                    error!("Bad parameter: {} Cause: {}",
+                           "threads",
+                           "not greater than zero");
+                    return;
+                }
             }
             Err(e) => {
                 error!("Bad parameter: {} Cause: {}", "threads", e);
@@ -209,10 +214,17 @@ pub fn main() {
         }
     }
 
-    if matches.opt_present("connections") {
-        match matches.opt_str("connections").unwrap().parse() {
+    if let Some(c) = matches.opt_str("connections") {
+        match c.parse() {
             Ok(connections) => {
-                config.connections = connections;
+                if connections > 0 {
+                    config.connections = connections;
+                } else {
+                    error!("Bad parameter: {} Cause: {}",
+                           "connections",
+                           "not greater than zero");
+                    return;
+                }
             }
             Err(e) => {
                 error!("Bad parameter: {} Cause: {}", "connections", e);
@@ -221,10 +233,17 @@ pub fn main() {
         }
     }
 
-    if matches.opt_present("windows") {
-        match matches.opt_str("windows").unwrap().parse() {
+    if let Some(w) = matches.opt_str("windows") {
+        match w.parse() {
             Ok(windows) => {
-                config.windows = windows;
+                if windows > 0 {
+                    config.windows = windows;
+                } else {
+                    error!("Bad parameter: {} Cause: {}",
+                           "windows",
+                           "not greater than zero");
+                    return;
+                }
             }
             Err(e) => {
                 error!("Bad parameter: {} Cause: {}", "windows", e);
@@ -233,10 +252,17 @@ pub fn main() {
         }
     }
 
-    if matches.opt_present("duration") {
-        match matches.opt_str("duration").unwrap().parse() {
+    if let Some(d) = matches.opt_str("duration") {
+        match d.parse() {
             Ok(duration) => {
-                config.duration = duration;
+                if duration > 0 {
+                    config.duration = duration;
+                } else {
+                    error!("Bad parameter: {} Cause: {}",
+                           "duration",
+                           "not greater than zero");
+                    return;
+                }
             }
             Err(e) => {
                 error!("Bad parameter: {} Cause: {}", "duration", e);
@@ -253,8 +279,8 @@ pub fn main() {
     if config.workloads.len() == 0 {
         let mut workload: BenchmarkWorkload = Default::default();
 
-        if matches.opt_present("rate") {
-            match matches.opt_str("rate").unwrap().parse() {
+        if let Some(r) = matches.opt_str("rate") {
+            match r.parse() {
                 Ok(rate) => {
                     workload.rate = rate;
                 }
@@ -265,8 +291,8 @@ pub fn main() {
             }
         }
 
-        if matches.opt_present("b") {
-            match matches.opt_str("b").unwrap().parse() {
+        if let Some(b) = matches.opt_str("bytes") {
+            match b.parse() {
                 Ok(bytes) => {
                     workload.bytes = bytes;
                 }
@@ -277,8 +303,8 @@ pub fn main() {
             }
         }
 
-        if let Some(v) = matches.opt_str("m") {
-            workload.method = v;
+        if let Some(method) = matches.opt_str("method") {
+            workload.method = method;
         }
 
         if matches.opt_present("flush") {
@@ -300,8 +326,6 @@ pub fn main() {
 
     let workq = BoundedQueue::<Vec<u8>>::with_capacity(BUCKET_SIZE);
 
-
-
     match Protocol::new(&*config.protocol) {
         Ok(p) => {
             client_protocol = p;
@@ -314,9 +338,9 @@ pub fn main() {
     let mut internet_protocol = InternetProtocol::None;
 
     if matches.opt_present("ipv4") && matches.opt_present("ipv6") {
-         error!("Use only --ipv4 or --ipv6");
-         print_usage(&program, opts);
-         return;
+        error!("Use only --ipv4 or --ipv6");
+        print_usage(&program, opts);
+        return;
     }
 
     if matches.opt_present("ipv4") {
@@ -339,15 +363,12 @@ pub fn main() {
         return;
     }
 
-
     let evconfig = mio::EventLoopConfig::default();
 
     info!("rpc-perf {} initializing...", VERSION);
     info!("-----");
     info!("Config:");
-    info!("Config: Server: {} Protocol: {}",
-          server,
-          config.protocol);
+    info!("Config: Server: {} Protocol: {}", server, config.protocol);
     info!("Config: IP: {:?} TCP_NODELAY: {}",
           internet_protocol,
           config.tcp_nodelay);
@@ -473,7 +494,7 @@ pub fn main() {
         match trace {
             Some(..) => {
                 if now - traced_at >= (ONE_SECOND as u64) {
-                    if ! warmup {
+                    if !warmup {
                         loop {
                             match trace_histogram.next() {
                                 Some(bucket) => {
@@ -525,7 +546,10 @@ pub fn main() {
                       miss,
                       error,
                       closed);
-                info!("Rate: {} rps Success: {} % Hitrate: {} %", rate, success_rate, hit_rate);
+                info!("Rate: {} rps Success: {} % Hitrate: {} %",
+                      rate,
+                      success_rate,
+                      hit_rate);
                 info!("Latency: min: {} ns max: {} ns avg: {} ns stddev: {} ns",
                         histogram.minimum().unwrap_or(0),
                         histogram.maximum().unwrap_or(0),
