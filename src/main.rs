@@ -172,14 +172,14 @@ pub fn main() {
         return Box::new(SimpleLogger);
     });
 
-    // done manually to prevent getopts panic!()
-    if !matches.opt_present("server") {
-        error!("require server parameter");
-        print_usage(&program, opts);
-        return;
-    }
-
-    let server = matches.opt_str("server").unwrap();
+    let server = match matches.opt_str("server") {
+        Some(s) => s,
+        None => {
+            error!("require server parameter");
+            print_usage(&program, opts);
+            return;
+        }
+    };
 
     let trace = matches.opt_str("trace");
 
@@ -277,8 +277,8 @@ pub fn main() {
             }
         }
 
-        if matches.opt_present("m") {
-            workload.method = matches.opt_str("m").unwrap();
+        if let Some(v) = matches.opt_str("m") {
+            workload.method = v;
         }
 
         if matches.opt_present("flush") {
@@ -318,6 +318,7 @@ pub fn main() {
          print_usage(&program, opts);
          return;
     }
+
     if matches.opt_present("ipv4") {
         config.ipv4 = true;
         config.ipv6 = false;
