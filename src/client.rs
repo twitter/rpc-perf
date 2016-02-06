@@ -54,11 +54,11 @@ impl mio::Handler for Client {
             State::Closed => {
                 let _ = self.connections.remove(token);
             }
-            State::Reading(..) => {
+            State::Reading => {
                 self.connections[token].ready(event_loop, events, None);
                 self.connections[token].reregister(event_loop);
             }
-            State::Writing(..) => {
+            State::Writing => {
                 match self.work_rx.pop() {
                     Some(work) => {
                         self.connections[token].ready(event_loop, events, Some(work));

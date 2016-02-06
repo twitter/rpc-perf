@@ -104,7 +104,7 @@ $ ./target/release/rpc-perf --config configs/default.toml -s 10.0.0.11:11211 -d 
 
 * high-resolution latency metrics
 * supports memcache and redis protocols
-* mio for async networking
+* [mio][3] for async networking
 * optional trace file for generating heatmaps
 * ratelimited workload
 * mixed-workload (get/set)
@@ -118,3 +118,4 @@ $ ./target/release/rpc-perf --config configs/default.toml -s 10.0.0.11:11211 -d 
 
 [1]: https://github.com/brson/multirust
 [2]: https://rust-lang.org/
+[3]: https://github.com/carllerche/mio

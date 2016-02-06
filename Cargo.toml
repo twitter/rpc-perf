@@ -1,6 +1,6 @@
 [package]
 name = "rpc-perf"
-version = "0.2.2"
+version = "1.0.0-nightly"
 authors = ["Brian Martin <bmartin@twitter.com>"]
 
 license = "apache-2.0"
@@ -37,16 +37,11 @@ regex = "0.1.41"
 shuteye = "0.1.0"
 simple_logger = "0.4.0"
 toml = "0.1.23"
-
-[dependencies.bytes]
-git = "https://github.com/carllerche/bytes"
-branch = "v0.2.x"
+mio = "0.5.0"
+bytes = "0.3.0"
 
 [dependencies.mpmc]
 git = "https://github.com/brayniac/mpmc"
-
-[dependencies.mio]
-path = "./deps/mio/"
 
 [dependencies.parser]
 path = "./deps/parser/"
