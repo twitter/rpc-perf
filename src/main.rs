@@ -86,7 +86,7 @@ pub fn start(address: SocketAddr,
                                     tcp_nodelay.clone())
                 }) {
                     Some(token) => {
-                        event_loop.register_opt(&client.connections[token].socket,
+                        event_loop.register(&client.connections[token].socket,
                                                 token,
                                                 mio::EventSet::writable(),
                                                 mio::PollOpt::edge() | mio::PollOpt::oneshot())
@@ -423,6 +423,7 @@ pub fn main() {
         let work_rx = workq.clone();
         let tcp_nodelay = config.tcp_nodelay.clone();
         let internet_protocol = internet_protocol.clone();
+        let evconfig = evconfig.clone();
 
         thread::spawn(move || {
             start(server,

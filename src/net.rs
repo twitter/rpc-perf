@@ -15,9 +15,8 @@
 
 extern crate mio;
 
-use mio::tcp::{TcpSocket, TcpStream};
-use std::net::ToSocketAddrs;
-
+use mio::tcp::TcpStream;
+use std::net::{SocketAddr, ToSocketAddrs};
 use std::fmt;
 
 #[derive(PartialEq, Clone, Copy)]
@@ -46,30 +45,30 @@ pub fn to_mio_tcp_stream<T: ToSocketAddrs>(addr: T,
     match addr.to_socket_addrs() {
         Ok(r) => {
             for a in r {
-                if proto == InternetProtocol::Any || proto == InternetProtocol::IpV4 {
-                    match TcpSocket::v4().unwrap().connect(&a) {
-                        Ok((socket, _)) => {
-                            match socket.take_socket_error() {
-                                Ok(_) => {
-                                    return Ok(socket);
+                match a {
+                    SocketAddr::V4(_) => {
+                        if proto == InternetProtocol::Any || proto == InternetProtocol::IpV4 {
+                            match TcpStream::connect(&a) {
+                                Ok(s) => {
+                                    return Ok(s);
                                 }
-                                Err(_) => {}
+                                Err(e) => {
+                                    println!("some error: {}", e);
+                                }
                             }
                         }
-                        Err(_) => {}
                     }
-                }
-                if proto == InternetProtocol::Any || proto == InternetProtocol::IpV6 {
-                    match TcpSocket::v6().unwrap().connect(&a) {
-                        Ok((socket, _)) => {
-                            match socket.take_socket_error() {
-                                Ok(_) => {
-                                    return Ok(socket);
+                    SocketAddr::V6(_) => {
+                        if proto == InternetProtocol::Any || proto == InternetProtocol::IpV6 {
+                            match TcpStream::connect(&a) {
+                                Ok(s) => {
+                                    return Ok(s);
                                 }
-                                Err(_) => {}
+                                Err(e) => {
+                                    println!("some error: {}", e);
+                                }
                             }
                         }
-                        Err(_) => {}
                     }
                 }
             }

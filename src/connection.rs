@@ -17,22 +17,25 @@ extern crate mio;
 extern crate time;
 extern crate parser;
 
-use bytes::Take;
+use bytes::{Buf, ByteBuf, MutByteBuf};
 use mio::{TryRead, TryWrite};
 use mio::tcp::TcpStream;
-use std::io::Cursor;
 use std::sync::mpsc;
 
 use client::Client;
-use parser::ParsedResponse;
+use parser::{Parse, ParsedResponse, echo, memcache, ping, redis};
 use state::State;
 use stats::{Stat, Status};
 use workload::Protocol;
+
+const MEGABYTE: usize = 1024 * 1024;
 
 pub struct Connection {
     pub socket: TcpStream,
     pub token: mio::Token,
     pub state: State,
+    buf: Option<ByteBuf>,
+    mut_buf: Option<MutByteBuf>,
     last_write: u64,
     stats_tx: mpsc::Sender<Stat>,
     protocol: Protocol,
@@ -46,15 +49,14 @@ impl Connection {
                tcp_nodelay: bool)
                -> Connection {
 
-        let msg: Vec<u8> = Vec::new();
-        let len = 0;
-        let buf = Cursor::new(msg);
         let _ = socket.set_nodelay(tcp_nodelay);
 
         Connection {
             socket: socket,
             token: token,
-            state: State::Writing(Take::new(buf, len)),
+            state: State::Writing,
+            buf: Some(ByteBuf::none()),
+            mut_buf: Some(ByteBuf::mut_with_capacity(4 * MEGABYTE)),
             last_write: time::precise_time_ns(),
             stats_tx: stats_tx,
             protocol: protocol,
@@ -69,7 +71,7 @@ impl Connection {
         trace!("    connection-state={:?}", self.state);
 
         match self.state {
-            State::Reading(..) => {
+            State::Reading => {
                 assert!(events.is_readable(),
                         "unexpected events; events={:?}",
                         events);
@@ -115,12 +117,24 @@ impl Connection {
                     }
                 }
             }
-            State::Writing(..) => {
+            State::Writing => {
                 assert!(events.is_writable(),
                         "unexpected events; events={:?}",
                         events);
-                assert!(work.is_some());
-                self.write(event_loop, work.unwrap())
+                if let Some(w) = work {
+                    let mut buf = match self.mut_buf.take() {
+                        Some(b) => b,
+                        None => {
+                            panic!("no mut_buf to take");
+                        }
+                    };
+                    buf.clear();
+                    buf.write_slice(&*w);
+                    self.buf = Some(buf.flip());
+                    self.write(event_loop)
+                } else {
+                    panic!("no work");
+                }
             }
             _ => unimplemented!(),
         }
@@ -128,37 +142,92 @@ impl Connection {
 
     pub fn read(&mut self, event_loop: &mut mio::EventLoop<Client>) -> ParsedResponse {
 
+        trace!("read()");
+
         // response unknown until parsed
         let mut resp = ParsedResponse::Unknown;
 
-        match self.socket.try_read_buf(self.state.mut_read_buf()) {
+        let mut buf = match self.mut_buf.take() {
+            Some(b) => b,
+            None => {
+                panic!("read() no mut_buf");
+            }
+        };
+
+        match self.socket.try_read_buf(&mut buf) {
             Ok(Some(0)) => {
-                // read 0 bytes
-                // socket is either closed or half shutdown
-                // attempt to write any buffered data
-                trace!("    read 0 bytes from server; buffered={}",
-                       self.state.read_buf().len());
-
-                match self.state.read_buf().len() {
-                    n if n > 0 => {
-                        // if any data in buffer, switch to write
-                        let _ = self.state.transition_to_writing();
-
-                        self.reregister(event_loop);
-                    }
-                    _ => self.state = State::Closed,
-                }
+                trace!("read() closed");
+                self.state = State::Closed;
             }
             Ok(Some(n)) => {
-                // read some bytes
-                trace!("read {} bytes", n);
+                // read bytes from connection
+                trace!("read() bytes {}", n);
 
-                // parse the response
-                resp = self.state.try_transition_to_writing(self.protocol);
+                let mut buf = buf.flip();
+
+                let mut raw = Vec::<u8>::new();
+                while buf.has_remaining() {
+                    raw.push(buf.read_byte().unwrap());
+                }
+
+                // protocol dependant parsing
+                match self.protocol {
+                    Protocol::Echo => {
+                        resp = echo::Response { response: raw.clone() }.parse();
+                    }
+                    Protocol::Memcache => {
+                        match String::from_utf8(raw.clone()) {
+                            Ok(msg) => {
+                                resp = memcache::Response { response: msg.clone() }.parse();
+                            }
+                            Err(_) => {
+                                resp = ParsedResponse::Invalid;
+                            }
+                        }
+                    }
+                    Protocol::Redis => {
+                        match String::from_utf8(raw.clone()) {
+                            Ok(msg) => {
+                                resp = redis::Response { response: msg.clone() }.parse();
+                            }
+                            Err(_) => {
+                                resp = ParsedResponse::Invalid;
+                            }
+                        }
+                    }
+                    Protocol::Ping => {
+                        match String::from_utf8(raw.clone()) {
+                            Ok(msg) => {
+                                resp = ping::Response { response: msg.clone() }.parse();
+                            }
+                            Err(_) => {
+                                resp = ParsedResponse::Invalid;
+                            }
+                        }
+                    }
+                    Protocol::Unknown => {
+                        panic!("unhandled protocol!");
+                    }
+                }
+
+                // if incomplete replace the buffer contents, otherwise transition
+                match resp {
+                    ParsedResponse::Incomplete => {
+                        trace!("read() Incomplete");
+                        self.mut_buf = Some(buf.flip());
+                    }
+                    _ => {
+                        trace!("read() Complete");
+                        self.state = State::Writing;
+                        self.mut_buf = Some(buf.flip());
+                    }
+                }
 
                 self.reregister(event_loop);
             }
             Ok(None) => {
+                trace!("read() spurious wake-up");
+                self.mut_buf = Some(buf);
                 self.reregister(event_loop);
             }
             Err(e) => {
@@ -169,15 +238,18 @@ impl Connection {
         resp
     }
 
-    pub fn write(&mut self, event_loop: &mut mio::EventLoop<Client>, msg: Vec<u8>) {
-        let len = msg.len();
-        let buf = Cursor::new(msg);
-        self.state = State::Writing(Take::new(buf, len));
+    pub fn write(&mut self, event_loop: &mut mio::EventLoop<Client>) {
+        trace!("write()");
+        self.state = State::Writing;
         self.last_write = time::precise_time_ns(); // mark time of write
-        match self.socket.try_write_buf(self.state.mut_write_buf()) {
+        let mut buf = self.buf.take().unwrap();
+        match self.socket.try_write_buf(&mut buf) {
             Ok(Some(_)) => {
                 // successful write
-                self.state.try_transition_to_reading(self.protocol);
+                if !buf.has_remaining() {
+                    self.state = State::Reading;
+                    trace!("switch to read()");
+                }
                 self.reregister(event_loop);
             }
             Ok(None) => {
@@ -190,13 +262,23 @@ impl Connection {
                 self.state = State::Closed
             }
         }
+        self.mut_buf = Some(buf.flip());
     }
 
     pub fn reregister(&self, event_loop: &mut mio::EventLoop<Client>) {
         event_loop.reregister(&self.socket,
                               self.token,
-                              self.state.event_set(),
+                              event_set(self.state.clone()),
                               mio::PollOpt::edge())
                   .unwrap();
+    }
+}
+
+// State to mio EventSet mapping
+fn event_set(state: State) -> mio::EventSet {
+    match state {
+        State::Reading => mio::EventSet::readable(),
+        State::Writing => mio::EventSet::writable(),
+        _ => mio::EventSet::none(),
     }
 }
