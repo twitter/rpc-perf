@@ -31,73 +31,52 @@ impl Parse for Response {
             return ParsedResponse::Incomplete;
         }
 
-        let mut bytes: Vec<u8> = lines[0].bytes().collect();
+        let (first_char, msg) = lines[0].split_at(1);
 
-        let first_byte = bytes.remove(0);
-
-        let msg = String::from_utf8(bytes).unwrap();
-
-        match first_byte {
-            43 => {
+        match first_char {
+            "+" => {
+                // simple string
                 // + simple string
-                match &*msg {
-                    "OK" => {
-                        return ParsedResponse::Ok;
-                    }
-                    "PONG" => {
-                        return ParsedResponse::Ok;
-                    }
-                    _ => {}
+                match msg {
+                    "OK" => ParsedResponse::Ok,
+                    "PONG" => ParsedResponse::Ok,
+                    _ => ParsedResponse::Invalid, 
                 }
             }
-            45 => {
-                // - errors
-                return ParsedResponse::Error(msg);
+            "-" => {
+                // errors
+                ParsedResponse::Error(msg.to_string())
             }
-            58 => {
-                // : integers
+            ":" => {
+                // integers
                 match msg.parse::<i64>() {
-                    Ok(_) => {
-                        return ParsedResponse::Ok;
-                    }
-                    Err(_) => {
-                        return ParsedResponse::Invalid;
-                    }
+                    Ok(_) => ParsedResponse::Ok,
+                    Err(_) => ParsedResponse::Invalid,
                 }
             }
-            36 => {
-                // $ bulk strings
-                if &msg == "-1" {
-                    return ParsedResponse::Miss;
-                }
+            "$" if msg == "-1" => ParsedResponse::Miss,
+            "$" => {
                 match msg.parse() {
                     Ok(bytes) => {
                         let data = lines[1..lines.len()].join("\r\n");
                         if data.len() == bytes {
-                            return ParsedResponse::Hit;
+                            ParsedResponse::Hit
+                        } else if data.len() < bytes {
+                            ParsedResponse::Incomplete
+                        } else {
+                            ParsedResponse::Invalid
                         }
-                        if data.len() < bytes {
-                            return ParsedResponse::Incomplete;
-                        }
-                        return ParsedResponse::Invalid;
                     }
-                    Err(_) => {
-                        return ParsedResponse::Invalid;
-                    }
+                    Err(_) => ParsedResponse::Invalid,
                 }
             }
-            42 => {
-                // * arrays
-                if &msg == "*-1\r\n" {
-                    return ParsedResponse::Miss;
-                }
-                return ParsedResponse::Unknown;
-            }
-            _ => {
-                return ParsedResponse::Invalid;
-            }
+            // arrays
+            "*" if msg == "-1" => ParsedResponse::Miss,
+            "*" => ParsedResponse::Unknown,
+
+            // Unknown type
+            _ => ParsedResponse::Invalid,
         }
-        ParsedResponse::Invalid
     }
 }
 
@@ -154,6 +133,9 @@ mod tests {
     #[test]
     fn test_parse_miss() {
         let r = Response { response: "$-1\r\n".to_string() };
+        assert_eq!(r.parse(), ParsedResponse::Miss);
+
+        let r = Response { response: "*-1\r\n".to_string() };
         assert_eq!(r.parse(), ParsedResponse::Miss);
     }
 }
