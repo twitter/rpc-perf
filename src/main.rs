@@ -15,20 +15,21 @@
 
 #[macro_use]
 extern crate log;
-extern crate time;
-extern crate mio;
+
 extern crate bytes;
+extern crate getopts;
 extern crate heatmap;
 extern crate histogram;
-extern crate waterfall;
-extern crate getopts;
-extern crate regex;
-extern crate parser;
-extern crate shuteye;
-extern crate request;
+extern crate time;
+extern crate mio;
 extern crate mpmc;
-extern crate workload;
+extern crate parser;
+extern crate regex;
+extern crate request;
+extern crate shuteye;
 extern crate toml;
+extern crate waterfall;
+extern crate workload;
 
 pub mod client;
 pub mod config;
@@ -39,9 +40,8 @@ pub mod state;
 pub mod stats;
 
 use getopts::Options;
-use histogram::{Histogram, HistogramConfig};
 use heatmap::{Heatmap, HeatmapConfig};
-use waterfall::Waterfall;
+use histogram::{Histogram, HistogramConfig};
 use log::LogLevelFilter;
 use mpmc::Queue as BoundedQueue;
 use std::env;
@@ -50,6 +50,7 @@ use std::net::{SocketAddr, ToSocketAddrs};
 use std::thread;
 use std::sync::mpsc;
 use std::process;
+use waterfall::Waterfall;
 
 use client::Client;
 use config::{BenchmarkConfig, BenchmarkWorkload};
