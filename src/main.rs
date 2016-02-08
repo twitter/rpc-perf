@@ -18,7 +18,9 @@ extern crate log;
 extern crate time;
 extern crate mio;
 extern crate bytes;
+extern crate heatmap;
 extern crate histogram;
+extern crate waterfall;
 extern crate getopts;
 extern crate regex;
 extern crate parser;
@@ -38,10 +40,11 @@ pub mod stats;
 
 use getopts::Options;
 use histogram::{Histogram, HistogramConfig};
+use heatmap::{Heatmap, HeatmapConfig};
+use waterfall::Waterfall;
 use log::LogLevelFilter;
 use mpmc::Queue as BoundedQueue;
 use std::env;
-use std::fs::File;
 use std::io::prelude::{Read, Write};
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::thread;
@@ -132,6 +135,7 @@ pub fn main() {
     opts.optopt("b", "bytes", "value size in bytes", "INTEGER");
     opts.optopt("", "config", "TOML config file", "FILE");
     opts.optopt("", "trace", "write histogram data to file", "FILE");
+    opts.optopt("", "waterfall", "output waterfall PNG", "FILE");
     opts.optflag("", "tcp-nodelay", "enable tcp nodelay");
     opts.optflag("", "hit", "prepopulate key to get");
     opts.optflag("", "flush", "flush cache prior to test");
@@ -441,24 +445,18 @@ pub fn main() {
     histogram_config.precision(4).max_value(60 * ONE_SECOND as u64);
     let mut histogram = Histogram::configured(histogram_config).unwrap();
 
-    let mut trace_config = HistogramConfig::new();
-    trace_config.precision(2).max_value(ONE_SECOND as u64);
-    let mut trace_histogram = Histogram::configured(trace_config).unwrap();
-
-    let mut trace_file = File::open("/dev/null").unwrap();
-    if trace.is_some() {
-        trace_file = File::create(trace.clone().unwrap()).unwrap();
-    }
+    let mut heatmap_config = HeatmapConfig::new();
+    heatmap_config.precision(2).max_value(ONE_SECOND as u64);
+    heatmap_config.slice_duration(ONE_SECOND as u64).num_slices((config.duration * config.windows));
+    let mut heatmap = Heatmap::configured(heatmap_config).unwrap();
 
     let mut printed_at = time::precise_time_ns();
-    let mut traced_at = printed_at;
     let mut ok = 0_u64;
     let mut hit = 0_u64;
     let mut miss = 0_u64;
     let mut error = 0_u64;
     let mut closed = 0_u64;
     let mut window = 0;
-    let mut trace_window = 0;
     let mut warmup = true;
 
     loop {
@@ -483,7 +481,7 @@ pub fn main() {
                     }
                 }
                 let _ = histogram.increment(result.stop - result.start);
-                let _ = trace_histogram.increment(result.stop - result.start);
+                let _ = heatmap.increment(result.start, result.stop - result.start);
             }
             Err(_) => {
                 shuteye::sleep(shuteye::Timespec::from_nano(1000).unwrap());
@@ -492,43 +490,12 @@ pub fn main() {
 
         let now = time::precise_time_ns();
 
-        match trace {
-            Some(..) => {
-                if now - traced_at >= (ONE_SECOND as u64) {
-                    if !warmup {
-                        loop {
-                            match trace_histogram.next() {
-                                Some(bucket) => {
-                                    if bucket.count() > 0 {
-                                        let line = format!("{} {} {}\n",
-                                                           trace_window,
-                                                           bucket.value(),
-                                                           bucket.count())
-                                                       .into_bytes();
-                                        let _ = trace_file.write_all(&line);
-                                    }
-
-                                }
-                                None => {
-                                    break;
-                                }
-                            }
-                        }
-                        trace_window += 1;
-                    }
-                    let _ = trace_histogram.clear();
-                    traced_at = now;
-                }
-            }
-            None => {}
-        }
-
-
         if now - printed_at >= (config.duration as u64 * ONE_SECOND as u64) {
             if warmup {
                 info!("-----");
                 info!("Warmup complete");
                 warmup = false;
+                let _ = heatmap.clear();
             } else {
                 let rate = ONE_SECOND as u64 * (ok + miss) / (now - printed_at) as u64;
                 let mut success_rate = 0;
@@ -574,6 +541,13 @@ pub fn main() {
             window += 1;
             printed_at = now;
             if window > config.windows {
+                if let Some(file) = trace {
+                    heatmap.save(file);
+                }
+                if let Some(file) = matches.opt_str("waterfall") {
+                    let mut waterfall = Waterfall{ heatmap: heatmap };
+                    waterfall.render_png(file);
+                }
                 break;
             }
         }
