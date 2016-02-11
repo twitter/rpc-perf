@@ -46,10 +46,10 @@ waterfall = "0.1.2"
 git = "https://github.com/brayniac/mpmc"
 
 [dependencies.parser]
-path = "./deps/parser/"
+path = "./lib/parser/"
 
 [dependencies.request]
-path = "./deps/request/"
+path = "./lib/request/"
 
 [dependencies.workload]
-path = "./deps/workload/"
+path = "./lib/workload/"
