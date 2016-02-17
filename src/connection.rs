@@ -23,7 +23,7 @@ use mio::tcp::TcpStream;
 use std::sync::mpsc;
 
 use client::Client;
-use parser::{Parse, ParsedResponse, echo, memcache, ping, redis};
+use parser::{Parse, ParsedResponse, echo, memcache, ping, redis, thrift};
 use state::State;
 use stats::{Stat, Status};
 use workload::Protocol;
@@ -175,6 +175,9 @@ impl Connection {
                     Protocol::Echo => {
                         resp = echo::Response { response: raw.clone() }.parse();
                     }
+                    Protocol::Thrift => {
+                        resp = thrift::Response { response: raw.clone() }.parse();
+                    }
                     Protocol::Memcache => {
                         match String::from_utf8(raw.clone()) {
                             Ok(msg) => {
@@ -214,7 +217,9 @@ impl Connection {
                 match resp {
                     ParsedResponse::Incomplete => {
                         trace!("read() Incomplete");
-                        self.mut_buf = Some(buf.flip());
+                        let mut buf = buf.flip();
+                        buf.write_slice(&raw);
+                        self.mut_buf = Some(buf);
                     }
                     _ => {
                         trace!("read() Complete");

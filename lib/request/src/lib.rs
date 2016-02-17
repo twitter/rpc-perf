@@ -16,9 +16,11 @@
 #![crate_type = "lib"]
 #![crate_name = "request"]
 
+extern crate byteorder;
 extern crate crc;
 
 pub mod echo;
 pub mod memcache;
 pub mod ping;
 pub mod redis;
+pub mod thrift;
