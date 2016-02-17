@@ -27,7 +27,7 @@ use mpmc::Queue as BoundedQueue;
 use rand::{thread_rng, Rng};
 
 use ratelimit::Ratelimit;
-use request::{echo, memcache, ping, redis};
+use request::{echo, memcache, ping, redis, thrift};
 
 const ONE_SECOND: u64 = 1_000_000_000;
 const BUCKET_SIZE: usize = 10_000;
@@ -38,6 +38,7 @@ pub enum Protocol {
     Memcache,
     Ping,
     Redis,
+    Thrift,
     Unknown,
 }
 
@@ -55,6 +56,9 @@ impl Protocol {
             }
             "redis" => {
                 return Ok(Protocol::Redis);
+            }
+            "thrift" => {
+                return Ok(Protocol::Thrift);
             }
             _ => {
                 return Err(());
@@ -221,6 +225,18 @@ impl Hotkey {
                 match &*self.command {
                     "echo" => {
                         query = echo::echo(&*value);
+                    }
+                    _ => {
+                        panic!("unknown command: {} for protocol: {:?}",
+                               self.command,
+                               self.protocol);
+                    }
+                }
+            }
+            Protocol::Thrift => {
+                match &*self.command {
+                    "ping" => {
+                        query = thrift::ping();
                     }
                     _ => {
                         panic!("unknown command: {} for protocol: {:?}",

@@ -8,4 +8,5 @@ license = "apache-2.0"
 description = "rpc-perf request builder"
 
 [dependencies]
+byteorder = "0.4.2"
 crc = "1.2.0"

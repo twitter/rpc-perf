@@ -498,14 +498,14 @@ pub fn main() {
                 warmup = false;
                 let _ = heatmap.clear();
             } else {
-                let rate = ONE_SECOND as u64 * (ok + miss) / (now - printed_at) as u64;
-                let mut success_rate = 0;
-                let mut hit_rate = 0;
+                let rate = (ONE_SECOND as u64 * (ok + miss)) as f64 / (now - printed_at) as f64;
+                let mut success_rate = 0_f64;
+                let mut hit_rate = 0_f64;
                 if (histogram.entries() + error) > 0 {
-                    success_rate = 100 * histogram.entries() / (histogram.entries() + error);
+                    success_rate = (100 * histogram.entries()) as f64 / (histogram.entries() + error) as f64;
                 }
                 if (hit + miss) > 0 {
-                    hit_rate = 100 * hit / (hit + miss);
+                    hit_rate = (100 * hit) as f64 / (hit + miss) as f64;
                 }
                 info!("-----");
                 info!("Window: {}", window);
@@ -515,9 +515,12 @@ pub fn main() {
                       miss,
                       error,
                       closed);
-                info!("Rate: {} rps Success: {} % Hitrate: {} %",
+                info!("Rate: {:.*} rps Success: {:.*} % Hitrate: {:.*} %",
+                      2,
                       rate,
+                      2,
                       success_rate,
+                      2,
                       hit_rate);
                 info!("Latency: min: {} ns max: {} ns avg: {} ns stddev: {} ns",
                         histogram.minimum().unwrap_or(0),

@@ -19,6 +19,7 @@
 #[macro_use]
 extern crate log;
 extern crate crc;
+extern crate byteorder;
 
 #[derive(PartialEq, Debug)]
 pub enum ParsedResponse {
@@ -40,3 +41,4 @@ pub mod echo;
 pub mod memcache;
 pub mod ping;
 pub mod redis;
+pub mod thrift;

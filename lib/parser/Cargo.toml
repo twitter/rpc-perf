@@ -10,3 +10,4 @@ description = "rpc-perf response parsers"
 [dependencies]
 log = "0.3.5"
 crc = "1.2.0"
+byteorder = "0.4.2"
