@@ -25,12 +25,7 @@ impl Parse for Response {
     fn parse(&self) -> ParsedResponse {
         let bytes = self.response.len();
         if bytes > 4 {
-            let mut b = [0; 4];
-            for i in 0..4 {
-                b[i] = self.response[i].clone();
-            }
-
-            let length = BigEndian::read_u32(&b);
+            let length = BigEndian::read_u32(&self.response[0..4]);
 
             if bytes as u32 == (length + 4_u32) {
                 return ParsedResponse::Ok;

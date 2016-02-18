@@ -29,28 +29,20 @@ use byteorder::{ByteOrder, BigEndian};
 /// frame(&mut msg);
 /// let expected = vec![0, 0, 0, 4, 1, 3, 3, 7];
 /// assert_eq!(msg, expected);
-pub fn frame(msg: &mut Vec<u8>) -> &mut Vec<u8> {
-	// get length of msg
-	let bytes = msg.len();
+pub fn frame(msg: &mut Vec<u8>) {
+    // get length of msg
+    let bytes = msg.len();
 
-	// extend the msg to store the i32 size
-	for _ in 0..4 {
-		msg.push(0);
-	}
+    // extend the msg to store the i32 size
+    msg.resize(bytes + 4, 0);
 
-	// shift the message to the right by 4
-	for i in (0..bytes).rev() {
-		msg[(i + 4)] = msg[i];
-	}
+    // shift the message to the right by 4
+    for i in (0..bytes).rev() {
+        msg[(i + 4)] = msg[i];
+    }
 
-	// write size into frame
-	let mut b = [0; 4];
-	BigEndian::write_i32(&mut b, bytes as i32);
-	for i in 0..4 {
-		msg[i] = b[i];
-	}
-
-	msg
+    // write size into frame
+    BigEndian::write_i32(&mut msg[..4], bytes as i32);
 }
 
 /// add Binary Protocol version to buffer
@@ -63,11 +55,9 @@ pub fn frame(msg: &mut Vec<u8>) -> &mut Vec<u8> {
 /// protocol_header(&mut buffer);
 /// let expected = vec![128, 1, 0, 1];
 /// assert_eq!(buffer, expected);
-pub fn protocol_header(buffer: &mut Vec<u8>) -> &mut Vec<u8> {
-	// get length of msg
-	let mut version = vec![128, 1, 0, 1];
-	buffer.append(&mut version);
-	buffer
+pub fn protocol_header(buffer: &mut Vec<u8>) {
+    // get length of msg
+    buffer.extend_from_slice(&[128, 1, 0, 1]);
 }
 
 /// add method name to buffer
@@ -81,13 +71,11 @@ pub fn protocol_header(buffer: &mut Vec<u8>) -> &mut Vec<u8> {
 /// method_name(&mut buffer, method.clone());
 /// let expected = vec![0, 0, 0, 4, 112, 105, 110, 103];
 /// assert_eq!(buffer, expected);
-pub fn method_name(buffer: &mut Vec<u8>, method: String) -> &mut Vec<u8> {
-	let mut method = method.into_bytes();
-	frame(&mut method);
-	buffer.append(&mut method);
-	buffer
+pub fn method_name(buffer: &mut Vec<u8>, method: String) {
+    let mut method = method.into_bytes();
+    frame(&mut method);
+    buffer.append(&mut method);
 }
-
 
 /// add sequence id to buffer
 ///
@@ -99,13 +87,10 @@ pub fn method_name(buffer: &mut Vec<u8>, method: String) -> &mut Vec<u8> {
 /// sequence_id(&mut buffer, 0_i32);
 /// let expected = vec![0, 0, 0, 0];
 /// assert_eq!(buffer, expected);
-pub fn sequence_id(buffer: &mut Vec<u8>, id: i32) -> &mut Vec<u8> {
-	let mut b = [0; 4];
-	BigEndian::write_i32(&mut b, id);
-	for i in 0..4 {
-		buffer.push(b[i]);
-	}
-	buffer
+pub fn sequence_id(buffer: &mut Vec<u8>, id: i32) {
+    let bytes = buffer.len();
+    buffer.resize(bytes + 4, 0);
+    BigEndian::write_i32(&mut buffer[bytes..], id);
 }
 
 /// add stop mark to buffer
@@ -118,9 +103,8 @@ pub fn sequence_id(buffer: &mut Vec<u8>, id: i32) -> &mut Vec<u8> {
 /// stop(&mut buffer);
 /// let expected = vec![0];
 /// assert_eq!(buffer, expected);
-pub fn stop(buffer: &mut Vec<u8>) -> &mut Vec<u8> {
-	buffer.push(0);
-	buffer
+pub fn stop(buffer: &mut Vec<u8>) {
+    buffer.push(0);
 }
 
 /// create a ping request
