@@ -25,24 +25,30 @@ use byteorder::{ByteOrder, BigEndian};
 /// ```
 /// # use request::thrift::*;
 ///
-/// let mut msg = vec![1, 3, 3, 7];
-/// frame(&mut msg);
+/// let mut msg = Vec::new();
+/// frame(&mut msg, |mut msg| {
+///     msg.extend_from_slice(&[1, 3, 3, 7]);
+/// });
 /// let expected = vec![0, 0, 0, 4, 1, 3, 3, 7];
 /// assert_eq!(msg, expected);
-pub fn frame(msg: &mut Vec<u8>) {
-    // get length of msg
-    let bytes = msg.len();
+pub fn frame<F,R>(buffer: &mut Vec<u8>, f: F) -> R
+    where F: Fn(&mut Vec<u8>) -> R {
+    
+    let orig_size = buffer.len();
+    let frame_start = orig_size + 4;
 
-    // extend the msg to store the i32 size
-    msg.resize(bytes + 4, 0);
+    buffer.resize(frame_start, 0);
+    let result = f(buffer);
 
-    // shift the message to the right by 4
-    for i in (0..bytes).rev() {
-        msg[(i + 4)] = msg[i];
-    }
+    let new_size = buffer.len();
 
-    // write size into frame
-    BigEndian::write_i32(&mut msg[..4], bytes as i32);
+    // the closure shouldn't shrink the buffer
+    assert!(new_size >= frame_start);
+
+    let len = new_size - frame_start;
+    BigEndian::write_i32(&mut buffer[orig_size..frame_start], len as i32);
+
+    result
 }
 
 /// add Binary Protocol version to buffer
@@ -67,14 +73,13 @@ pub fn protocol_header(buffer: &mut Vec<u8>) {
 /// # use request::thrift::*;
 ///
 /// let mut buffer = Vec::<u8>::new();
-/// let method = "ping".to_string();
-/// method_name(&mut buffer, method.clone());
+/// method_name(&mut buffer, "ping");
 /// let expected = vec![0, 0, 0, 4, 112, 105, 110, 103];
 /// assert_eq!(buffer, expected);
-pub fn method_name(buffer: &mut Vec<u8>, method: String) {
-    let mut method = method.into_bytes();
-    frame(&mut method);
-    buffer.append(&mut method);
+pub fn method_name(buffer: &mut Vec<u8>, method: &str) {
+    frame(buffer, |mut buff| {
+        buff.extend_from_slice(method.as_bytes());
+    });
 }
 
 /// add sequence id to buffer
@@ -116,10 +121,13 @@ pub fn stop(buffer: &mut Vec<u8>) {
 /// assert_eq!(ping(), [0, 0, 0, 17, 128, 1, 0, 1, 0, 0, 0, 4, 112, 105, 110, 103, 0, 0, 0, 0, 0]);
 pub fn ping() -> Vec<u8> {
     let mut buffer = Vec::<u8>::new();
-    protocol_header(&mut buffer);
-    method_name(&mut buffer, "ping".to_string());
-    sequence_id(&mut buffer, 0);
-    stop(&mut buffer);
-    frame(&mut buffer);
+
+    frame(&mut buffer, |mut buffer| {
+        protocol_header(&mut buffer);
+        method_name(&mut buffer, "ping");
+        sequence_id(&mut buffer, 0);
+        stop(&mut buffer);
+    });
+
     buffer
 }
