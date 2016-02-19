@@ -21,11 +21,11 @@ pub use crc::crc32;
 
 use std::mem::transmute;
 
-pub struct Response {
-    pub response: Vec<u8>,
+pub struct Response<'a> {
+    pub response: &'a [u8],
 }
 
-impl Parse for Response {
+impl<'a> Parse for Response<'a> {
     fn parse(&self) -> ParsedResponse {
 
         if self.response.len() <= 6 {
@@ -58,25 +58,25 @@ mod tests {
 
     #[test]
     fn test_parse_incomplete() {
-        let r = Response { response: vec![0] };
+        let r = Response { response: &[0] };
         assert_eq!(r.parse(), ParsedResponse::Incomplete);
 
-        let r = Response { response: vec![0, 1, 2, 3, 4, 5, 6] };
+        let r = Response { response: &[0, 1, 2, 3, 4, 5, 6] };
         assert_eq!(r.parse(), ParsedResponse::Incomplete);
 
-        let r = Response { response: vec![0, 1, 2, 3, 4, 5, 6, 13] };
+        let r = Response { response: &[0, 1, 2, 3, 4, 5, 6, 13] };
         assert_eq!(r.parse(), ParsedResponse::Incomplete);
     }
 
     #[test]
     fn test_parse_ok() {
-        let r = Response { response: vec![0, 1, 2, 8, 84, 137, 127, 13, 10] };
+        let r = Response { response: &[0, 1, 2, 8, 84, 137, 127, 13, 10] };
         assert_eq!(r.parse(), ParsedResponse::Ok);
     }
 
     #[test]
     fn test_parse_error() {
-        let r = Response { response: "3421780262\r\n".to_string().into_bytes() };
+        let r = Response { response: "3421780262\r\n".as_bytes() };
         assert_eq!(r.parse(), ParsedResponse::Error("bad crc".to_string()));
     }
 }

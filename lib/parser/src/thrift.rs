@@ -17,11 +17,11 @@ pub use super::{Parse, ParsedResponse};
 
 use byteorder::{ByteOrder, BigEndian};
 
-pub struct Response {
-    pub response: Vec<u8>,
+pub struct Response<'a> {
+    pub response: &'a [u8],
 }
 
-impl Parse for Response {
+impl<'a> Parse for Response<'a> {
     fn parse(&self) -> ParsedResponse {
         let bytes = self.response.len();
         if bytes > 4 {
@@ -41,7 +41,7 @@ mod tests {
 
     #[test]
     fn test_parse_ok() {
-        assert_eq!(Response { response: vec![0, 0, 0, 1, 0] }.parse(), ParsedResponse::Ok);
-        assert_eq!(Response { response: vec![0, 0, 0, 2, 0, 1] }.parse(), ParsedResponse::Ok);
+        assert_eq!(Response { response: &[0, 0, 0, 1, 0] }.parse(), ParsedResponse::Ok);
+        assert_eq!(Response { response: &[0, 0, 0, 2, 0, 1] }.parse(), ParsedResponse::Ok);
     }
 }
