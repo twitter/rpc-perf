@@ -21,6 +21,7 @@ use bytes::{Buf, ByteBuf, MutByteBuf};
 use mio::{TryRead, TryWrite};
 use mio::tcp::TcpStream;
 use std::sync::mpsc;
+use std::str;
 
 use client::Client;
 use parser::{Parse, ParsedResponse, echo, memcache, ping, redis, thrift};
@@ -163,25 +164,20 @@ impl Connection {
                 // read bytes from connection
                 trace!("read() bytes {}", n);
 
-                let mut buf = buf.flip();
-
-                let mut raw = Vec::<u8>::new();
-                while buf.has_remaining() {
-                    raw.push(buf.read_byte().unwrap());
-                }
+                let buf = buf.flip();
 
                 // protocol dependant parsing
                 match self.protocol {
                     Protocol::Echo => {
-                        resp = echo::Response { response: raw.clone() }.parse();
+                        resp = echo::Response { response: buf.bytes() }.parse();
                     }
                     Protocol::Thrift => {
-                        resp = thrift::Response { response: raw.clone() }.parse();
+                        resp = thrift::Response { response: buf.bytes() }.parse();
                     }
                     Protocol::Memcache => {
-                        match String::from_utf8(raw.clone()) {
+                        match str::from_utf8(buf.bytes()) {
                             Ok(msg) => {
-                                resp = memcache::Response { response: msg.clone() }.parse();
+                                resp = memcache::Response { response: msg }.parse();
                             }
                             Err(_) => {
                                 resp = ParsedResponse::Invalid;
@@ -189,9 +185,9 @@ impl Connection {
                         }
                     }
                     Protocol::Redis => {
-                        match String::from_utf8(raw.clone()) {
+                        match str::from_utf8(buf.bytes()) {
                             Ok(msg) => {
-                                resp = redis::Response { response: msg.clone() }.parse();
+                                resp = redis::Response { response: msg }.parse();
                             }
                             Err(_) => {
                                 resp = ParsedResponse::Invalid;
@@ -199,9 +195,9 @@ impl Connection {
                         }
                     }
                     Protocol::Ping => {
-                        match String::from_utf8(raw.clone()) {
+                        match str::from_utf8(buf.bytes()) {
                             Ok(msg) => {
-                                resp = ping::Response { response: msg.clone() }.parse();
+                                resp = ping::Response { response: msg }.parse();
                             }
                             Err(_) => {
                                 resp = ParsedResponse::Invalid;
@@ -211,15 +207,13 @@ impl Connection {
                     Protocol::Unknown => {
                         panic!("unhandled protocol!");
                     }
-                }
+                };
 
                 // if incomplete replace the buffer contents, otherwise transition
                 match resp {
                     ParsedResponse::Incomplete => {
                         trace!("read() Incomplete");
-                        let mut buf = buf.flip();
-                        buf.write_slice(&raw);
-                        self.mut_buf = Some(buf);
+                        self.mut_buf = Some(buf.resume());
                     }
                     _ => {
                         trace!("read() Complete");

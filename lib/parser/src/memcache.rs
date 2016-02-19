@@ -15,11 +15,11 @@
 
 pub use super::{Parse, ParsedResponse};
 
-pub struct Response {
-    pub response: String,
+pub struct Response<'a> {
+    pub response: &'a str,
 }
 
-impl Parse for Response {
+impl<'a> Parse for Response<'a> {
     fn parse(&self) -> ParsedResponse {
 
         let mut lines: Vec<&str> = self.response.split("\r\n").collect();
@@ -161,108 +161,108 @@ mod tests {
 
     #[test]
     fn test_parse_incomplete() {
-        let r = Response { response: "0".to_string() };
+        let r = Response { response: "0" };
         assert_eq!(r.parse(), ParsedResponse::Incomplete);
 
-        let r = Response { response: "STOR".to_string() };
+        let r = Response { response: "STOR" };
         assert_eq!(r.parse(), ParsedResponse::Incomplete);
 
-        let r = Response { response: "STORED".to_string() };
+        let r = Response { response: "STORED" };
         assert_eq!(r.parse(), ParsedResponse::Incomplete);
 
-        let r = Response { response: "STORED\r".to_string() };
+        let r = Response { response: "STORED\r" };
         assert_eq!(r.parse(), ParsedResponse::Incomplete);
 
-        let r = Response { response: "VERSION ".to_string() };
+        let r = Response { response: "VERSION " };
         assert_eq!(r.parse(), ParsedResponse::Incomplete);
 
-        let r = Response { response: "VERSION 1.2.3".to_string() };
+        let r = Response { response: "VERSION 1.2.3" };
         assert_eq!(r.parse(), ParsedResponse::Incomplete);
 
-        let r = Response { response: "VERSION 1.2.3\r".to_string() };
+        let r = Response { response: "VERSION 1.2.3\r" };
         assert_eq!(r.parse(), ParsedResponse::Incomplete);
 
-        let r = Response { response: "CLIENT_ERROR".to_string() };
+        let r = Response { response: "CLIENT_ERROR" };
         assert_eq!(r.parse(), ParsedResponse::Incomplete);
 
-        let r = Response { response: "SERVER_ERROR error msg".to_string() };
+        let r = Response { response: "SERVER_ERROR error msg" };
         assert_eq!(r.parse(), ParsedResponse::Incomplete);
 
-        let r = Response { response: "VALUE key 0 1 0\r\n".to_string() };
+        let r = Response { response: "VALUE key 0 1 0\r\n" };
         assert_eq!(r.parse(), ParsedResponse::Incomplete);
 
-        let r = Response { response: "VALUE key 0 10\r\n0123456789\r\n".to_string() };
+        let r = Response { response: "VALUE key 0 10\r\n0123456789\r\n" };
         assert_eq!(r.parse(), ParsedResponse::Incomplete);
 
-        let r = Response { response: "VALUE key 0 10\r\n0123456789\r\nEND\r".to_string() };
+        let r = Response { response: "VALUE key 0 10\r\n0123456789\r\nEND\r" };
         assert_eq!(r.parse(), ParsedResponse::Incomplete);
 
-        let r = Response { response: "VALUE key 0 10\r\nEND\r\nEND\r\n\r\nEND".to_string() };
+        let r = Response { response: "VALUE key 0 10\r\nEND\r\nEND\r\n\r\nEND" };
         assert_eq!(r.parse(), ParsedResponse::Incomplete);
     }
 
     #[test]
     fn test_parse_invalid() {
-        let r = Response { response: "VALUE key 0 10\r\n0123456789ABCDEF\r\nEND\r\n".to_string() };
+        let r = Response { response: "VALUE key 0 10\r\n0123456789ABCDEF\r\nEND\r\n" };
         assert_eq!(r.parse(), ParsedResponse::Invalid);
 
-        let r = Response { response: "VALUE key 0 NaN\r\n0123456789ABCDEF\r\nEND\r\n".to_string() };
+        let r = Response { response: "VALUE key 0 NaN\r\n0123456789ABCDEF\r\nEND\r\n" };
         assert_eq!(r.parse(), ParsedResponse::Invalid);
 
-        let r = Response { response: "VALUE key NaN 10\r\n0123456789\r\nEND\r\n".to_string() };
+        let r = Response { response: "VALUE key NaN 10\r\n0123456789\r\nEND\r\n" };
         assert_eq!(r.parse(), ParsedResponse::Invalid);
     }
 
     #[test]
     fn test_parse_ok() {
-        let r = Response { response: "OK\r\n".to_string() };
+        let r = Response { response: "OK\r\n" };
         assert_eq!(r.parse(), ParsedResponse::Ok);
 
-        let r = Response { response: "STORED\r\n".to_string() };
+        let r = Response { response: "STORED\r\n" };
         assert_eq!(r.parse(), ParsedResponse::Ok);
 
-        let r = Response { response: "DELETED\r\n".to_string() };
+        let r = Response { response: "DELETED\r\n" };
         assert_eq!(r.parse(), ParsedResponse::Ok);
 
-        let r = Response { response: "VALUE key 0 10\r\n0123456789\r\nEND\r\n".to_string() };
+        let r = Response { response: "VALUE key 0 10\r\n0123456789\r\nEND\r\n" };
         assert_eq!(r.parse(), ParsedResponse::Hit);
 
-        let r = Response { response: "VALUE key 0 10\r\n0123456789\r\nEND\r\n".to_string() };
+        let r = Response { response: "VALUE key 0 10\r\n0123456789\r\nEND\r\n" };
         assert_eq!(r.parse(), ParsedResponse::Hit);
 
-        let r = Response { response: "12345\r\n".to_string() };
+        let r = Response { response: "12345\r\n" };
         assert_eq!(r.parse(), ParsedResponse::Ok);
     }
 
     #[test]
     fn test_parse_error() {
-        let r = Response { response: "ERROR\r\n".to_string() };
+        let r = Response { response: "ERROR\r\n" };
         assert_eq!(r.parse(), ParsedResponse::Error("ERROR\r\n".to_string()));
 
-        let r = Response { response: "CLIENT_ERROR some message\r\n".to_string() };
+        let r = Response { response: "CLIENT_ERROR some message\r\n" };
         assert_eq!(r.parse(),
                    ParsedResponse::Error("CLIENT_ERROR some message\r\n".to_string()));
 
-        let r = Response { response: "SERVER_ERROR some message\r\n".to_string() };
+        let r = Response { response: "SERVER_ERROR some message\r\n" };
         assert_eq!(r.parse(),
                    ParsedResponse::Error("SERVER_ERROR some message\r\n".to_string()));
     }
 
     #[test]
     fn test_parse_miss() {
-        let r = Response { response: "EXISTS\r\n".to_string() };
+        let r = Response { response: "EXISTS\r\n" };
         assert_eq!(r.parse(), ParsedResponse::Miss);
 
-        let r = Response { response: "NOT_FOUND\r\n".to_string() };
+        let r = Response { response: "NOT_FOUND\r\n" };
         assert_eq!(r.parse(), ParsedResponse::Miss);
 
-        let r = Response { response: "NOT_STORED\r\n".to_string() };
+        let r = Response { response: "NOT_STORED\r\n" };
         assert_eq!(r.parse(), ParsedResponse::Miss);
     }
 
     #[test]
     fn test_parse_version() {
-        let r = Response { response: "VERSION 1.2.3\r\n".to_string() };
+        let r = Response { response: "VERSION 1.2.3\r\n" };
         assert_eq!(r.parse(), ParsedResponse::Version("1.2.3".to_string()));
     }
 }

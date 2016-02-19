@@ -15,11 +15,11 @@
 
 pub use super::{Parse, ParsedResponse};
 
-pub struct Response {
-    pub response: String,
+pub struct Response<'a> {
+    pub response: &'a str,
 }
 
-impl Parse for Response {
+impl<'a> Parse for Response<'a> {
     fn parse(&self) -> ParsedResponse {
 
         let mut lines: Vec<&str> = self.response.split("\r\n").collect();
@@ -63,13 +63,13 @@ mod tests {
 
     #[test]
     fn test_parse_pong() {
-        let r = Response { response: "PONG".to_string() };
+        let r = Response { response: "PONG" };
         assert_eq!(r.parse(), ParsedResponse::Incomplete);
 
-        let r = Response { response: "PONG\r\n".to_string() };
+        let r = Response { response: "PONG\r\n" };
         assert_eq!(r.parse(), ParsedResponse::Ok);
 
-        let r = Response { response: "ERROR\r\n".to_string() };
+        let r = Response { response: "ERROR\r\n" };
         assert_eq!(r.parse(), ParsedResponse::Unknown);
     }
 }
