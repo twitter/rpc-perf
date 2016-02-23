@@ -19,92 +19,115 @@ use byteorder::{ByteOrder, BigEndian};
 
 /// this is work in progress to speak framed binary thrift
 
-/// takes a message and frames it
-///
-/// # Example
-/// ```
-/// # use request::thrift::*;
-///
-/// let mut msg = vec![1, 3, 3, 7];
-/// frame(&mut msg);
-/// let expected = vec![0, 0, 0, 4, 1, 3, 3, 7];
-/// assert_eq!(msg, expected);
-pub fn frame(msg: &mut Vec<u8>) {
-    // get length of msg
-    let bytes = msg.len();
+pub struct Buffer {
+    buffer: Vec<u8>,
+}
 
-    // extend the msg to store the i32 size
-    msg.resize(bytes + 4, 0);
+impl Buffer {
+    pub fn new() -> Buffer {
+        let mut buffer = Vec::<u8>::new();
+        buffer.resize(4, 0);
 
-    // shift the message to the right by 4
-    for i in (0..bytes).rev() {
-        msg[(i + 4)] = msg[i];
+        Buffer { buffer: buffer }
     }
 
-    // write size into frame
-    BigEndian::write_i32(&mut msg[..4], bytes as i32);
-}
+    pub fn buffer(&mut self) -> Vec<u8> {
+        self.buffer.clone()
+    }
 
-/// add Binary Protocol version to buffer
-///
-/// # Example
-/// ```
-/// # use request::thrift::*;
-///
-/// let mut buffer = Vec::<u8>::new();
-/// protocol_header(&mut buffer);
-/// let expected = vec![128, 1, 0, 1];
-/// assert_eq!(buffer, expected);
-pub fn protocol_header(buffer: &mut Vec<u8>) {
-    // get length of msg
-    buffer.extend_from_slice(&[128, 1, 0, 1]);
-}
+    /// add protocol version to buffer
+    ///
+    /// # Example
+    /// ```
+    /// # use request::thrift::*;
+    ///
+    // let mut buffer = Vec::<u8>::new();
+    // protocol_header(&mut buffer);
+    // let expected = vec![128, 1, 0, 1];
+    // assert_eq!(buffer, expected);
+    pub fn protocol_header(&mut self) -> &Self {
+        self.buffer.extend_from_slice(&[128, 1, 0, 1]);
+        self
+    }
 
-/// add method name to buffer
-///
-/// # Example
-/// ```
-/// # use request::thrift::*;
-///
-/// let mut buffer = Vec::<u8>::new();
-/// let method = "ping".to_string();
-/// method_name(&mut buffer, method.clone());
-/// let expected = vec![0, 0, 0, 4, 112, 105, 110, 103];
-/// assert_eq!(buffer, expected);
-pub fn method_name(buffer: &mut Vec<u8>, method: String) {
-    let mut method = method.into_bytes();
-    frame(&mut method);
-    buffer.append(&mut method);
-}
+    /// write the framed length to the buffer
+    ///
+    /// # Example
+    /// ```
+    /// # use request::thrift::*;
+    ///
+    /// let mut b = Buffer::new();
+    /// b.sequence_id(0_i32);
+    /// b.frame();
+    /// let expected = vec![0, 0, 0, 4, 0, 0, 0, 0];
+    /// assert_eq!(b.buffer(), expected);
+    pub fn frame(&mut self) -> &Self {
+        let bytes = self.buffer.len() - 4;
+        BigEndian::write_i32(&mut self.buffer[..4], bytes as i32);
+        self
+    }
 
-/// add sequence id to buffer
-///
-/// # Example
-/// ```
-/// # use request::thrift::*;
-///
-/// let mut buffer = Vec::<u8>::new();
-/// sequence_id(&mut buffer, 0_i32);
-/// let expected = vec![0, 0, 0, 0];
-/// assert_eq!(buffer, expected);
-pub fn sequence_id(buffer: &mut Vec<u8>, id: i32) {
-    let bytes = buffer.len();
-    buffer.resize(bytes + 4, 0);
-    BigEndian::write_i32(&mut buffer[bytes..], id);
-}
+    /// add method name to buffer
+    ///
+    /// # Example
+    /// ```
+    /// # use request::thrift::Buffer;
+    ///
+    /// let mut b = Buffer::new();
+    /// b.method_name("ping".to_string());
+    /// let expected = vec![0, 0, 0, 0, 0, 0, 0, 4, 112, 105, 110, 103];
+    /// assert_eq!(b.buffer(), expected);
+    pub fn method_name(&mut self, method: String) -> &Self {
+        self.write_string(method)
+    }
 
-/// add stop mark to buffer
-///
-/// # Example
-/// ```
-/// # use request::thrift::*;
-///
-/// let mut buffer = Vec::<u8>::new();
-/// stop(&mut buffer);
-/// let expected = vec![0];
-/// assert_eq!(buffer, expected);
-pub fn stop(buffer: &mut Vec<u8>) {
-    buffer.push(0);
+    /// add sequence id to buffer
+    ///
+    /// # Example
+    /// ```
+    /// # use request::thrift::Buffer;
+    ///
+    /// let mut b = Buffer::new();
+    /// b.sequence_id(0_i32);
+    /// let expected = vec![0, 0, 0, 0, 0, 0, 0, 0];
+    /// assert_eq!(b.buffer(), expected);
+    pub fn sequence_id(&mut self, id: i32) -> &Self {
+        self.write_i32(id as i32)
+    }
+
+    /// add stop sequence to buffer
+    ///
+    /// # Example
+    /// ```
+    /// # use request::thrift::Buffer;
+    ///
+    /// let mut b = Buffer::new();
+    /// b.stop();
+    /// let expected = vec![0, 0, 0, 0, 0];
+    /// assert_eq!(b.buffer(), expected);
+    pub fn stop(&mut self) -> &Self {
+        self.write_bytes(&[0])
+    }
+
+
+    fn write_i32(&mut self, value: i32) -> &Self {
+        let bytes = self.buffer.len();
+        self.buffer.resize(bytes + 4, 0);
+        BigEndian::write_i32(&mut self.buffer[bytes..], value);
+        self
+    }
+
+    fn write_bytes(&mut self, bytes: &[u8]) -> &Self {
+        self.buffer.extend_from_slice(bytes);
+        self
+    }
+
+    fn write_string(&mut self, string: String) -> &Self {
+        let mut string = string.into_bytes();
+        self.write_i32(string.len() as i32);
+        self.buffer.append(&mut string);
+        self
+    }
 }
 
 /// create a ping request
@@ -115,11 +138,11 @@ pub fn stop(buffer: &mut Vec<u8>) {
 ///
 /// assert_eq!(ping(), [0, 0, 0, 17, 128, 1, 0, 1, 0, 0, 0, 4, 112, 105, 110, 103, 0, 0, 0, 0, 0]);
 pub fn ping() -> Vec<u8> {
-    let mut buffer = Vec::<u8>::new();
-    protocol_header(&mut buffer);
-    method_name(&mut buffer, "ping".to_string());
-    sequence_id(&mut buffer, 0);
-    stop(&mut buffer);
-    frame(&mut buffer);
-    buffer
+    let mut buffer = Buffer::new();
+    buffer.protocol_header();
+    buffer.method_name("ping".to_string());
+    buffer.sequence_id(0);
+    buffer.stop();
+    buffer.frame();
+    buffer.buffer()
 }
