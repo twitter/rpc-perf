@@ -41,14 +41,19 @@ mod tests {
 
     #[test]
     fn test_parse_ok() {
-        assert_eq!(Response { response: &[0, 0, 0, 1, 0] }.parse(), ParsedResponse::Ok);
-        assert_eq!(Response { response: &[0, 0, 0, 2, 0, 1] }.parse(), ParsedResponse::Ok);
+        assert_eq!(Response { response: &[0, 0, 0, 1, 0] }.parse(),
+                   ParsedResponse::Ok);
+        assert_eq!(Response { response: &[0, 0, 0, 2, 0, 1] }.parse(),
+                   ParsedResponse::Ok);
     }
 
     #[test]
     fn test_parse_incomplete() {
-        assert_eq!(Response { response: &[0, 0] }.parse(), ParsedResponse::Incomplete);
-        assert_eq!(Response { response: &[0, 0, 0, 1] }.parse(), ParsedResponse::Incomplete);
-        assert_eq!(Response { response: &[0, 0, 0, 2, 0] }.parse(), ParsedResponse::Incomplete);
+        assert_eq!(Response { response: &[0, 0] }.parse(),
+                   ParsedResponse::Incomplete);
+        assert_eq!(Response { response: &[0, 0, 0, 1] }.parse(),
+                   ParsedResponse::Incomplete);
+        assert_eq!(Response { response: &[0, 0, 0, 2, 0] }.parse(),
+                   ParsedResponse::Incomplete);
     }
 }

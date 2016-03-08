@@ -245,9 +245,7 @@ impl Hotkey {
                     }
                 }
             }
-            Protocol::Unknown => {
-                panic!("unknown protocol")
-            }
+            Protocol::Unknown => panic!("unknown protocol"),
         }
 
         // critical sections
