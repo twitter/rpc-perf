@@ -44,8 +44,7 @@ impl<'a> Parse for Response<'a> {
         let crc_bytes: [u8; 4] = unsafe { transmute(crc_calc.to_be()) };
         if crc == crc_bytes {
             return ParsedResponse::Ok;
-        }
-        else {
+        } else {
             debug!("CRC RECV: {:?} CRC CALC: {:?}", crc, crc_bytes);
         }
         ParsedResponse::Error("bad crc".to_string())

@@ -167,41 +167,25 @@ impl Connection {
                 let buf = buf.flip();
 
                 // protocol dependant parsing
-                match self.protocol {
-                    Protocol::Echo => {
-                        resp = echo::Response { response: buf.bytes() }.parse();
-                    }
-                    Protocol::Thrift => {
-                        resp = thrift::Response { response: buf.bytes() }.parse();
-                    }
+                resp = match self.protocol {
+                    Protocol::Echo => echo::Response { response: buf.bytes() }.parse(),
+                    Protocol::Thrift => thrift::Response { response: buf.bytes() }.parse(),
                     Protocol::Memcache => {
                         match str::from_utf8(buf.bytes()) {
-                            Ok(msg) => {
-                                resp = memcache::Response { response: msg }.parse();
-                            }
-                            Err(_) => {
-                                resp = ParsedResponse::Invalid;
-                            }
+                            Ok(msg) => memcache::Response { response: msg }.parse(),
+                            Err(_) => ParsedResponse::Invalid,
                         }
                     }
                     Protocol::Redis => {
                         match str::from_utf8(buf.bytes()) {
-                            Ok(msg) => {
-                                resp = redis::Response { response: msg }.parse();
-                            }
-                            Err(_) => {
-                                resp = ParsedResponse::Invalid;
-                            }
+                            Ok(msg) => redis::Response { response: msg }.parse(),
+                            Err(_) => ParsedResponse::Invalid,
                         }
                     }
                     Protocol::Ping => {
                         match str::from_utf8(buf.bytes()) {
-                            Ok(msg) => {
-                                resp = ping::Response { response: msg }.parse();
-                            }
-                            Err(_) => {
-                                resp = ParsedResponse::Invalid;
-                            }
+                            Ok(msg) => ping::Response { response: msg }.parse(),
+                            Err(_) => ParsedResponse::Invalid,
                         }
                     }
                     Protocol::Unknown => {
@@ -231,7 +215,7 @@ impl Connection {
             }
             Err(e) => {
                 debug!("server has terminated: {}", e);
-                self.state = State::Closed
+                self.state = State::Closed;
             }
         }
         resp

@@ -91,9 +91,9 @@ pub fn start(address: SocketAddr,
                 }) {
                     Some(token) => {
                         event_loop.register(&client.connections[token].socket,
-                                                token,
-                                                mio::EventSet::writable(),
-                                                mio::PollOpt::edge() | mio::PollOpt::oneshot())
+                                            token,
+                                            mio::EventSet::writable(),
+                                            mio::PollOpt::edge() | mio::PollOpt::oneshot())
                                   .unwrap();
                     }
                     _ => debug!("too many established connections"),
@@ -502,7 +502,8 @@ pub fn main() {
                 let mut success_rate = 0_f64;
                 let mut hit_rate = 0_f64;
                 if (histogram.entries() + error) > 0 {
-                    success_rate = (100 * histogram.entries()) as f64 / (histogram.entries() + error) as f64;
+                    success_rate = (100 * histogram.entries()) as f64 /
+                                   (histogram.entries() + error) as f64;
                 }
                 if (hit + miss) > 0 {
                     hit_rate = (100 * hit) as f64 / (hit + miss) as f64;
@@ -549,7 +550,7 @@ pub fn main() {
                     heatmap.save(file);
                 }
                 if let Some(file) = matches.opt_str("waterfall") {
-                    let mut waterfall = Waterfall{ heatmap: heatmap };
+                    let mut waterfall = Waterfall { heatmap: heatmap };
                     waterfall.render_png(file);
                 }
                 break;
