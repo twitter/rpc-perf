@@ -6,6 +6,16 @@ rpc-perf was created to help measure the performance of caching systems. We've f
 * *run only* if data in the server can be lost/destroyed/corrupted/etc
 * *run only* if you understand the impact of sending high-levels of traffic across your network
 
+**Contents**
+* [Build](#build)
+* [Configuration](#configuration)
+* [Sample Usage](#sample-usage)
+* [Sample Output](#sample-output)
+* [Practices](#practices)
+* [Features](#features)
+* [Future Work](#future-work)
+* [Contributing](#contributing)
+
 ## Build
 
 rpc-perf is built through the `cargo` command which ships with rust. If you don't have rust installed, I recommend using [multirust][1] to manage your rust installation. Otherwise, follow the instructions on [rust-lang.org][2] to get rust and cargo installed. rpc-perf targets stable rust
@@ -115,6 +125,15 @@ $ ./target/release/rpc-perf --config configs/default.toml -s 10.0.0.11:11211 -d 
 * UDP support
 * multi-key workload generators
 * command log playback
+
+## Contributing
+
+* fork on github
+* clone your fork
+* create a feature branch
+* don't forget to run rustfmt
+* push your feature branch
+* create a pull request
 
 [1]: https://github.com/brson/multirust
 [2]: https://rust-lang.org/
