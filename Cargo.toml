@@ -39,7 +39,7 @@ regex = "0.1.41"
 shuteye = "0.1.0"
 simple_logger = "0.4.0"
 time = "0.1.34"
-toml = "0.1.23"
+toml = "0.1.27"
 waterfall = "0.1.2"
 
 [dependencies.mpmc]
