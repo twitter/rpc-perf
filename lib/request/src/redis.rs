@@ -21,7 +21,7 @@
 ///
 /// assert_eq!(flushall(), "flushall\r\n");
 pub fn flushall() -> String {
-    format!("flushall\r\n")
+    "flushall\r\n".to_owned()
 }
 
 /// SET request
