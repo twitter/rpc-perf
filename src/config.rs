@@ -35,7 +35,7 @@ impl Default for BenchmarkWorkload {
     fn default() -> BenchmarkWorkload {
         BenchmarkWorkload {
             rate: 0,
-            method: "get".to_string(),
+            method: "get".to_owned(),
             bytes: 1,
             bucket: 10000,
             hit: false,
@@ -63,7 +63,7 @@ impl Default for BenchmarkConfig {
             threads: 1,
             duration: 60,
             windows: 5,
-            protocol: "memcache".to_string(),
+            protocol: "memcache".to_owned(),
             tcp_nodelay: false,
             ipv4: true,
             ipv6: true,
@@ -89,53 +89,32 @@ pub fn load_config(path: String) -> Result<BenchmarkConfig, &'static str> {
 
             match table.lookup("general") {
                 Some(general) => {
-                    match general.lookup("connections").and_then(|k| k.as_integer()) {
-                        Some(connections) => {
-                            config.connections = connections as usize;
-                        }
-                        None => {}
+                    if let Some(connections) = general.lookup("connections")
+                                                      .and_then(|k| k.as_integer()) {
+                        config.connections = connections as usize;
+                    };
+                    if let Some(threads) = general.lookup("threads").and_then(|k| k.as_integer()) {
+                        config.threads = threads as usize;
                     }
-                    match general.lookup("threads").and_then(|k| k.as_integer()) {
-                        Some(threads) => {
-                            config.threads = threads as usize;
-                        }
-                        None => {}
+                    if let Some(duration) = general.lookup("duration")
+                                                   .and_then(|k| k.as_integer()) {
+                        config.duration = duration as usize;
                     }
-                    match general.lookup("duration").and_then(|k| k.as_integer()) {
-                        Some(duration) => {
-                            config.duration = duration as usize;
-                        }
-                        None => {}
+                    if let Some(windows) = general.lookup("windows").and_then(|k| k.as_integer()) {
+                        config.windows = windows as usize;
                     }
-                    match general.lookup("windows").and_then(|k| k.as_integer()) {
-                        Some(windows) => {
-                            config.windows = windows as usize;
-                        }
-                        None => {}
+                    if let Some(protocol) = general.lookup("protocol").and_then(|k| k.as_str()) {
+                        config.protocol = protocol.to_string();
                     }
-                    match general.lookup("protocol").and_then(|k| k.as_str()) {
-                        Some(protocol) => {
-                            config.protocol = protocol.to_string();
-                        }
-                        None => {}
+                    if let Some(tcp_nodelay) = general.lookup("tcp-nodelay")
+                                                      .and_then(|k| k.as_bool()) {
+                        config.tcp_nodelay = tcp_nodelay;
                     }
-                    match general.lookup("tcp-nodelay").and_then(|k| k.as_bool()) {
-                        Some(tcp_nodelay) => {
-                            config.tcp_nodelay = tcp_nodelay;
-                        }
-                        None => {}
+                    if let Some(ipv4) = general.lookup("ipv4").and_then(|k| k.as_bool()) {
+                        config.ipv4 = ipv4;
                     }
-                    match general.lookup("ipv4").and_then(|k| k.as_bool()) {
-                        Some(ipv4) => {
-                            config.ipv4 = ipv4;
-                        }
-                        None => {}
-                    }
-                    match general.lookup("ipv6").and_then(|k| k.as_bool()) {
-                        Some(ipv6) => {
-                            config.ipv6 = ipv6;
-                        }
-                        None => {}
+                    if let Some(ipv6) = general.lookup("ipv6").and_then(|k| k.as_bool()) {
+                        config.ipv6 = ipv6;
                     }
                 }
                 None => {
@@ -150,35 +129,20 @@ pub fn load_config(path: String) -> Result<BenchmarkConfig, &'static str> {
                     Some(workload) => {
                         debug!("workload: {} defined", i);
                         let mut w: BenchmarkWorkload = Default::default();
-                        match workload.lookup("method").and_then(|k| k.as_str()) {
-                            Some(method) => {
-                                w.method = method.to_string();
-                            }
-                            None => {}
+                        if let Some(method) = workload.lookup("method").and_then(|k| k.as_str()) {
+                            w.method = method.to_string();
                         }
-                        match workload.lookup("rate").and_then(|k| k.as_integer()) {
-                            Some(rate) => {
-                                w.rate = rate as usize;
-                            }
-                            None => {}
+                        if let Some(rate) = workload.lookup("rate").and_then(|k| k.as_integer()) {
+                            w.rate = rate as usize;
                         }
-                        match workload.lookup("bytes").and_then(|k| k.as_integer()) {
-                            Some(bytes) => {
-                                w.bytes = bytes as usize;
-                            }
-                            None => {}
+                        if let Some(bytes) = workload.lookup("bytes").and_then(|k| k.as_integer()) {
+                            w.bytes = bytes as usize;
                         }
-                        match workload.lookup("hit").and_then(|k| k.as_bool()) {
-                            Some(hit) => {
-                                w.hit = hit;
-                            }
-                            None => {}
+                        if let Some(hit) = workload.lookup("hit").and_then(|k| k.as_bool()) {
+                            w.hit = hit;
                         }
-                        match workload.lookup("flush").and_then(|k| k.as_bool()) {
-                            Some(flush) => {
-                                w.flush = flush;
-                            }
-                            None => {}
+                        if let Some(flush) = workload.lookup("flush").and_then(|k| k.as_bool()) {
+                            w.flush = flush;
                         }
                         config.workloads.push(w);
                     }
