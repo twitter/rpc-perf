@@ -43,41 +43,23 @@ impl<'a> Parse for Response<'a> {
             // special case 1 token responses
             if tokens.len() == 1 {
                 match &*tokens[0] {
-                    "OK" => {
+                    "OK" | "STORED" | "DELETED" => {
                         return ParsedResponse::Ok;
                     }
-                    "END" => {
+                    "END" | "EXISTS" | "NOT_FOUND" | "NOT_STORED" => {
                         return ParsedResponse::Miss;
                     }
                     "VALUE" => {
                         return ParsedResponse::Incomplete;
                     }
                     "ERROR" => {
-                        return ParsedResponse::Error(self.response.to_string());
-                    }
-                    "STORED" => {
-                        return ParsedResponse::Ok;
-                    }
-                    "EXISTS" => {
-                        return ParsedResponse::Miss;
-                    }
-                    "DELETED" => {
-                        return ParsedResponse::Ok;
-                    }
-                    "NOT_FOUND" => {
-                        return ParsedResponse::Miss;
-                    }
-                    "NOT_STORED" => {
-                        return ParsedResponse::Miss;
+                        return ParsedResponse::Error(self.response.to_owned());
                     }
                     _ => {}
                 }
                 // incr/decr give a numeric single token response
-                match tokens[0].parse::<u64>() {
-                    Ok(_) => {
-                        return ParsedResponse::Ok;
-                    }
-                    Err(_) => {}
+                if let Ok(_) = tokens[0].parse::<u64>() {
+                    return ParsedResponse::Ok;
                 }
             } else {
                 match &*tokens[0] {
@@ -88,11 +70,8 @@ impl<'a> Parse for Response<'a> {
                         let v: String = tokens[1..tokens.len()].join(" ");
                         return ParsedResponse::Version(v);
                     }
-                    "SERVER_ERROR" => {
-                        return ParsedResponse::Error(self.response.to_string());
-                    }
-                    "CLIENT_ERROR" => {
-                        return ParsedResponse::Error(self.response.to_string());
+                    "CLIENT_ERROR" | "SERVER_ERROR" => {
+                        return ParsedResponse::Error(self.response.to_owned());
                     }
                     _ => {
                         return ParsedResponse::Unknown;
@@ -103,9 +82,6 @@ impl<'a> Parse for Response<'a> {
             match &*tokens[0] {
                 "VALUE" => {
                     if tokens.len() < 4 {
-                        return ParsedResponse::Incomplete;
-                    }
-                    if lines.len() < 3 {
                         return ParsedResponse::Incomplete;
                     }
                     let bytes = tokens[3];
@@ -237,15 +213,15 @@ mod tests {
     #[test]
     fn test_parse_error() {
         let r = Response { response: "ERROR\r\n" };
-        assert_eq!(r.parse(), ParsedResponse::Error("ERROR\r\n".to_string()));
+        assert_eq!(r.parse(), ParsedResponse::Error("ERROR\r\n".to_owned()));
 
         let r = Response { response: "CLIENT_ERROR some message\r\n" };
         assert_eq!(r.parse(),
-                   ParsedResponse::Error("CLIENT_ERROR some message\r\n".to_string()));
+                   ParsedResponse::Error("CLIENT_ERROR some message\r\n".to_owned()));
 
         let r = Response { response: "SERVER_ERROR some message\r\n" };
         assert_eq!(r.parse(),
-                   ParsedResponse::Error("SERVER_ERROR some message\r\n".to_string()));
+                   ParsedResponse::Error("SERVER_ERROR some message\r\n".to_owned()));
     }
 
     #[test]
@@ -263,6 +239,6 @@ mod tests {
     #[test]
     fn test_parse_version() {
         let r = Response { response: "VERSION 1.2.3\r\n" };
-        assert_eq!(r.parse(), ParsedResponse::Version("1.2.3".to_string()));
+        assert_eq!(r.parse(), ParsedResponse::Version("1.2.3".to_owned()));
     }
 }

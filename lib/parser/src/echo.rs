@@ -47,7 +47,7 @@ impl<'a> Parse for Response<'a> {
         } else {
             debug!("CRC RECV: {:?} CRC CALC: {:?}", crc, crc_bytes);
         }
-        ParsedResponse::Error("bad crc".to_string())
+        ParsedResponse::Error("bad crc".to_owned())
     }
 }
 
@@ -76,6 +76,6 @@ mod tests {
     #[test]
     fn test_parse_error() {
         let r = Response { response: "3421780262\r\n".as_bytes() };
-        assert_eq!(r.parse(), ParsedResponse::Error("bad crc".to_string()));
+        assert_eq!(r.parse(), ParsedResponse::Error("bad crc".to_owned()));
     }
 }

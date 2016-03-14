@@ -43,10 +43,7 @@ impl<'a> Parse for Response<'a> {
             // special case 1 token responses
             if tokens.len() == 1 {
                 match &*tokens[0] {
-                    "PONG" => {
-                        return ParsedResponse::Ok;
-                    }
-                    "+PONG" => {
+                    "PONG" | "+PONG" => {
                         return ParsedResponse::Ok;
                     }
                     _ => {}
