@@ -21,5 +21,5 @@
 ///
 /// assert_eq!(ping(), "PING\r\n");
 pub fn ping() -> String {
-    format!("PING\r\n")
+    "PING\r\n".to_owned()
 }

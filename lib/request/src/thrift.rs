@@ -140,7 +140,7 @@ impl Buffer {
 pub fn ping() -> Vec<u8> {
     let mut buffer = Buffer::new();
     buffer.protocol_header();
-    buffer.method_name("ping".to_string());
+    buffer.method_name("ping".to_owned());
     buffer.sequence_id(0);
     buffer.stop();
     buffer.frame();

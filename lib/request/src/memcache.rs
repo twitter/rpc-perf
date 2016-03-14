@@ -32,7 +32,7 @@ pub fn verbosity(level: usize) -> String {
 ///
 /// assert_eq!(version(), "version\r\n");
 pub fn version() -> String {
-    format!("version\r\n")
+    "version\r\n".to_owned()
 }
 
 /// create a memcache quit request
@@ -43,7 +43,7 @@ pub fn version() -> String {
 ///
 /// assert_eq!(quit(), "quit\r\n");
 pub fn quit() -> String {
-    format!("quit\r\n")
+    "quit\r\n".to_owned()
 }
 
 /// create a set request
@@ -232,5 +232,5 @@ pub fn delete(key: &str) -> String {
 ///
 /// assert_eq!(flush_all(), "flush_all\r\n");
 pub fn flush_all() -> String {
-    format!("flush_all\r\n")
+    "flush_all\r\n".to_owned()
 }
