@@ -25,7 +25,7 @@ impl<'a> Parse for Response<'a> {
         let mut lines: Vec<&str> = self.response.split("\r\n").collect();
 
         // expect an empty line from the split
-        if lines[lines.len() - 1].len() == 0 {
+        if lines[lines.len() - 1].is_empty() {
             let _ = lines.pop();
         } else {
             return ParsedResponse::Incomplete;
@@ -38,14 +38,13 @@ impl<'a> Parse for Response<'a> {
                 // simple string
                 // + simple string
                 match msg {
-                    "OK" => ParsedResponse::Ok,
-                    "PONG" => ParsedResponse::Ok,
-                    _ => ParsedResponse::Invalid, 
+                    "OK" | "PONG" => ParsedResponse::Ok,
+                    _ => ParsedResponse::Invalid,
                 }
             }
             "-" => {
                 // errors
-                ParsedResponse::Error(msg.to_string())
+                ParsedResponse::Error(msg.to_owned())
             }
             ":" => {
                 // integers
