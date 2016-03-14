@@ -128,7 +128,7 @@ pub fn main() {
     opts.optopt("s", "server", "server address", "HOST:PORT");
     opts.optopt("t", "threads", "number of threads", "INTEGER");
     opts.optopt("c", "connections", "connections per thread", "INTEGER");
-    opts.optopt("d", "duration", "number of seconds per window", "INTERGER");
+    opts.optopt("d", "duration", "number of seconds per window", "INTEGER");
     opts.optopt("w", "windows", "number of windows in test", "INTEGER");
     opts.optopt("r", "rate", "global requests per second", "INTEGER");
     opts.optopt("p", "protocol", "client protocol", "STRING");
