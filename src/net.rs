@@ -72,10 +72,8 @@ pub fn to_mio_tcp_stream<T: ToSocketAddrs>(addr: T,
                     }
                 }
             }
-            return Err("Could not connect");
+            Err("Could not connect")
         }
-        Err(_) => {
-            return Err("Could not resolve");
-        }
+        Err(_) => Err("Could not resolve"),
     }
 }

@@ -83,11 +83,7 @@ pub fn start(address: SocketAddr,
         match net::to_mio_tcp_stream(address, internet_protocol) {
             Ok(stream) => {
                 match client.connections.insert_with(|token| {
-                    Connection::new(stream,
-                                    token,
-                                    stats_tx.clone(),
-                                    protocol.clone(),
-                                    tcp_nodelay.clone())
+                    Connection::new(stream, token, stats_tx.clone(), protocol, tcp_nodelay)
                 }) {
                     Some(token) => {
                         event_loop.register(&client.connections[token].socket,
@@ -174,7 +170,7 @@ pub fn main() {
 
     let _ = log::set_logger(|max_log_level| {
         max_log_level.set(log_filter);
-        return Box::new(SimpleLogger);
+        Box::new(SimpleLogger)
     });
 
     let server = match matches.opt_str("server") {
@@ -281,7 +277,7 @@ pub fn main() {
     }
 
     // these map to workload and conflict with config for simplicity
-    if config.workloads.len() == 0 {
+    if config.workloads.is_empty() {
         let mut workload: BenchmarkWorkload = Default::default();
 
         if let Some(r) = matches.opt_str("rate") {
@@ -320,7 +316,7 @@ pub fn main() {
             workload.hit = true;
         }
 
-        let _ = config.workloads.push(workload);
+        config.workloads.push(workload);
 
     } else if matches.opt_present("rate") || matches.opt_present("bytes") ||
        matches.opt_present("method") {
@@ -416,18 +412,18 @@ pub fn main() {
 
     let (stats_tx, stats_rx) = mpsc::channel();
 
-    let socket_addr = &server.to_socket_addrs().unwrap().next().unwrap();
+    let socket_addr = server.to_socket_addrs().unwrap().next().unwrap();
 
     info!("-----");
     info!("Connecting...");
     // spawn client threads
     for _ in 0..config.threads {
         let stats_tx = stats_tx.clone();
-        let server = socket_addr.clone();
-        let connections = config.connections.clone();
+        let server = socket_addr;
+        let connections = config.connections;
         let work_rx = workq.clone();
-        let tcp_nodelay = config.tcp_nodelay.clone();
-        let internet_protocol = internet_protocol.clone();
+        let tcp_nodelay = config.tcp_nodelay;
+        let internet_protocol = internet_protocol;
         let evconfig = evconfig.clone();
 
         thread::spawn(move || {
