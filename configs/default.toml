@@ -1,8 +1,13 @@
+# this example is the default behavior of rpc-perf
+# non-ratelimitied hotkey get suitable for memcache or redis on a 1byte key
+#
+# use-case: measure the peak get rate for a single connection with minimal payload
+
 [general]
 threads = 1
 connections = 1
 duration = 60
-windows = 0
+windows = 5
 protocol = "memcache"
 tcp-nodelay = false
 ipv4 = true
@@ -12,6 +17,7 @@ ipv6 = true
 name = "get"
 method = "get"
 rate = 0
-bytes = 1
-hit = false
-flush = false
+  [[workload.parameter]]
+  style = "static"
+  size = 1
+  seed = 0

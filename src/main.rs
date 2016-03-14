@@ -45,7 +45,6 @@ use histogram::{Histogram, HistogramConfig};
 use log::LogLevelFilter;
 use mpmc::Queue as BoundedQueue;
 use std::env;
-use std::io::prelude::{Read, Write};
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::thread;
 use std::sync::mpsc;
@@ -53,12 +52,12 @@ use std::process;
 use waterfall::Waterfall;
 
 use client::Client;
-use config::{BenchmarkConfig, BenchmarkWorkload};
+use config::BenchmarkConfig;
 use connection::Connection;
 use logger::SimpleLogger;
 use net::InternetProtocol;
 use stats::{Stat, Status};
-use workload::Protocol;
+use workload::{Protocol, Workload};
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 const ONE_SECOND: isize = 1_000_000_000;
@@ -126,15 +125,11 @@ pub fn main() {
     opts.optopt("c", "connections", "connections per thread", "INTEGER");
     opts.optopt("d", "duration", "number of seconds per window", "INTEGER");
     opts.optopt("w", "windows", "number of windows in test", "INTEGER");
-    opts.optopt("r", "rate", "global requests per second", "INTEGER");
     opts.optopt("p", "protocol", "client protocol", "STRING");
-    opts.optopt("m", "method", "request command", "STRING");
-    opts.optopt("b", "bytes", "value size in bytes", "INTEGER");
     opts.optopt("", "config", "TOML config file", "FILE");
     opts.optopt("", "trace", "write histogram data to file", "FILE");
     opts.optopt("", "waterfall", "output waterfall PNG", "FILE");
     opts.optflag("", "tcp-nodelay", "enable tcp nodelay");
-    opts.optflag("", "hit", "prepopulate key to get");
     opts.optflag("", "flush", "flush cache prior to test");
     opts.optflag("", "ipv4", "force IPv4 only");
     opts.optflag("", "ipv6", "force IPv6 only");
@@ -276,56 +271,14 @@ pub fn main() {
         config.tcp_nodelay = true;
     }
 
+    let workq = BoundedQueue::<Vec<u8>>::with_capacity(BUCKET_SIZE);
+
     // these map to workload and conflict with config for simplicity
     if config.workloads.is_empty() {
-        let mut workload: BenchmarkWorkload = Default::default();
-
-        if let Some(r) = matches.opt_str("rate") {
-            match r.parse() {
-                Ok(rate) => {
-                    workload.rate = rate;
-                }
-                Err(e) => {
-                    error!("Bad parameter: {} Cause: {}", "rate", e);
-                    return;
-                }
-            }
-        }
-
-        if let Some(b) = matches.opt_str("bytes") {
-            match b.parse() {
-                Ok(bytes) => {
-                    workload.bytes = bytes;
-                }
-                Err(e) => {
-                    error!("Bad parameter: {} Cause: {}", "bytes", e);
-                    return;
-                }
-            }
-        }
-
-        if let Some(method) = matches.opt_str("method") {
-            workload.method = method;
-        }
-
-        if matches.opt_present("flush") {
-            workload.flush = true;
-        }
-
-        if matches.opt_present("hit") {
-            workload.hit = true;
-        }
-
-        config.workloads.push(workload);
-
-    } else if matches.opt_present("rate") || matches.opt_present("bytes") ||
-       matches.opt_present("method") {
-        error!("workload is specified in config and commandline");
-        print_usage(&program, opts);
+        error!("configuration contains no workload sections");
         return;
     }
 
-    let workq = BoundedQueue::<Vec<u8>>::with_capacity(BUCKET_SIZE);
 
     match Protocol::new(&*config.protocol) {
         Ok(p) => {
@@ -333,6 +286,18 @@ pub fn main() {
         }
         Err(_) => {
             panic!("Bad protocol: {}", &*config.protocol);
+        }
+    }
+
+    if matches.opt_present("flush") {
+        match client_protocol {
+            Protocol::Memcache => {
+                let _ = workq.push(request::memcache::flush_all().into_bytes());
+            }
+            Protocol::Redis => {
+                let _ = workq.push(request::redis::flushall().into_bytes());
+            }
+            _ => {}
         }
     }
 
@@ -384,24 +349,18 @@ pub fn main() {
 
     for i in 0..config.workloads.len() {
         let w = config.workloads[i].clone();
-        info!("Workload {}: Method: {} Bytes: {} Rate: {} Hit: {} Flush: {}",
-              i,
-              w.method,
-              w.bytes,
-              w.rate,
-              w.hit,
-              w.flush);
+        info!("Workload {}: Method: {} Rate: {}", i, w.method, w.rate);
 
-        let mut workload = workload::Hotkey::new(i,
-                                                 config.protocol.clone(),
-                                                 w.method,
-                                                 w.bytes,
-                                                 w.rate as u64,
-                                                 workq.clone(),
-                                                 1,
-                                                 w.hit,
-                                                 w.flush)
+        let protocol = Protocol::new(&config.protocol.clone()).unwrap();
+
+        let mut workload = Workload::new(protocol, w.method, Some(w.rate as u64), workq.clone())
                                .unwrap();
+
+        for j in 0..w.parameters.len() {
+            info!("Parameter: {:?}", w.parameters[j]);
+            workload.add_param(w.parameters[j].clone());
+        }
+
 
         thread::spawn(move || {
             loop {
