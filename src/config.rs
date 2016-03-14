@@ -15,20 +15,19 @@
 
 extern crate log;
 extern crate toml;
+extern crate workload;
 
 use std::fs::File;
 use std::io::Read;
 use toml::Parser;
 use toml::Value::Table;
+use workload::Parameter;
 
 #[derive(Clone)]
 pub struct BenchmarkWorkload {
     pub rate: usize,
     pub method: String,
-    pub bytes: usize,
-    pub bucket: usize,
-    pub hit: bool,
-    pub flush: bool,
+    pub parameters: Vec<Parameter>,
 }
 
 impl Default for BenchmarkWorkload {
@@ -36,10 +35,7 @@ impl Default for BenchmarkWorkload {
         BenchmarkWorkload {
             rate: 0,
             method: "get".to_owned(),
-            bytes: 1,
-            bucket: 10000,
-            hit: false,
-            flush: false,
+            parameters: Vec::<Parameter>::new(),
         }
     }
 }
@@ -87,38 +83,33 @@ pub fn load_config(path: String) -> Result<BenchmarkConfig, &'static str> {
             let mut config: BenchmarkConfig = Default::default();
             let table = Table(toml);
 
-            match table.lookup("general") {
-                Some(general) => {
-                    if let Some(connections) = general.lookup("connections")
-                                                      .and_then(|k| k.as_integer()) {
-                        config.connections = connections as usize;
-                    };
-                    if let Some(threads) = general.lookup("threads").and_then(|k| k.as_integer()) {
-                        config.threads = threads as usize;
-                    }
-                    if let Some(duration) = general.lookup("duration")
-                                                   .and_then(|k| k.as_integer()) {
-                        config.duration = duration as usize;
-                    }
-                    if let Some(windows) = general.lookup("windows").and_then(|k| k.as_integer()) {
-                        config.windows = windows as usize;
-                    }
-                    if let Some(protocol) = general.lookup("protocol").and_then(|k| k.as_str()) {
-                        config.protocol = protocol.to_string();
-                    }
-                    if let Some(tcp_nodelay) = general.lookup("tcp-nodelay")
-                                                      .and_then(|k| k.as_bool()) {
-                        config.tcp_nodelay = tcp_nodelay;
-                    }
-                    if let Some(ipv4) = general.lookup("ipv4").and_then(|k| k.as_bool()) {
-                        config.ipv4 = ipv4;
-                    }
-                    if let Some(ipv6) = general.lookup("ipv6").and_then(|k| k.as_bool()) {
-                        config.ipv6 = ipv6;
-                    }
+            if let Some(general) = table.lookup("general") {
+                if let Some(connections) = general.lookup("connections")
+                                                  .and_then(|k| k.as_integer()) {
+                    config.connections = connections as usize;
+                };
+                if let Some(threads) = general.lookup("threads").and_then(|k| k.as_integer()) {
+                    config.threads = threads as usize;
                 }
-                None => {
-                    return Err("config has no general section");
+                if let Some(duration) = general.lookup("duration")
+                                               .and_then(|k| k.as_integer()) {
+                    config.duration = duration as usize;
+                }
+                if let Some(windows) = general.lookup("windows").and_then(|k| k.as_integer()) {
+                    config.windows = windows as usize;
+                }
+                if let Some(protocol) = general.lookup("protocol").and_then(|k| k.as_str()) {
+                    config.protocol = protocol.to_owned();
+                }
+                if let Some(tcp_nodelay) = general.lookup("tcp-nodelay")
+                                                  .and_then(|k| k.as_bool()) {
+                    config.tcp_nodelay = tcp_nodelay;
+                }
+                if let Some(ipv4) = general.lookup("ipv4").and_then(|k| k.as_bool()) {
+                    config.ipv4 = ipv4;
+                }
+                if let Some(ipv6) = general.lookup("ipv6").and_then(|k| k.as_bool()) {
+                    config.ipv6 = ipv6;
                 }
             }
 
@@ -130,19 +121,59 @@ pub fn load_config(path: String) -> Result<BenchmarkConfig, &'static str> {
                         debug!("workload: {} defined", i);
                         let mut w: BenchmarkWorkload = Default::default();
                         if let Some(method) = workload.lookup("method").and_then(|k| k.as_str()) {
-                            w.method = method.to_string();
+                            w.method = method.to_owned();
                         }
                         if let Some(rate) = workload.lookup("rate").and_then(|k| k.as_integer()) {
                             w.rate = rate as usize;
                         }
-                        if let Some(bytes) = workload.lookup("bytes").and_then(|k| k.as_integer()) {
-                            w.bytes = bytes as usize;
-                        }
-                        if let Some(hit) = workload.lookup("hit").and_then(|k| k.as_bool()) {
-                            w.hit = hit;
-                        }
-                        if let Some(flush) = workload.lookup("flush").and_then(|k| k.as_bool()) {
-                            w.flush = flush;
+                        let mut j = 0;
+                        loop {
+                            let param_key = format!("parameter.{}", j);
+                            match workload.lookup(&param_key) {
+                                Some(parameter) => {
+                                    let style = match parameter.lookup("style")
+                                                               .and_then(|k| k.as_str()) {
+                                        Some(s) => s,
+                                        None => "static",
+                                    };
+                                    let seed = match parameter.lookup("seed")
+                                                              .and_then(|k| k.as_integer()) {
+                                        Some(s) => s as usize,
+                                        None => i,
+                                    };
+                                    let size = match parameter.lookup("size")
+                                                              .and_then(|k| k.as_integer()) {
+                                        Some(s) => s as usize,
+                                        None => 1,
+                                    };
+                                    let regenerate = match parameter.lookup("regenerate")
+                                                               .and_then(|k| k.as_bool()) {
+                                        Some(s) => s,
+                                        None => false,
+                                    };
+                                    match style {
+                                        "random" => {
+                                            w.parameters.push(workload::Parameter::Random {
+                                                size: size,
+                                                regenerate: regenerate,
+                                            });
+                                        }
+                                        "static" => {
+                                            w.parameters.push(workload::Parameter::Static {
+                                                size: size,
+                                                seed: seed,
+                                            });
+                                        }
+                                        _ => {
+                                            panic!("bad parameter style: {}", style);
+                                        }
+                                    }
+                                    j += 1;
+                                }
+                                None => {
+                                    break;
+                                }
+                            }
                         }
                         config.workloads.push(w);
                     }

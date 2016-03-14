@@ -24,9 +24,8 @@ use std::mem::transmute;
 /// ```
 /// # use request::echo::*;
 ///
-/// assert_eq!(echo("123456789"), [49, 50, 51, 52, 53, 54, 55, 56, 57, 203, 244, 57, 38, 13, 10]);
-pub fn echo(v: &str) -> Vec<u8> {
-    let value = v.as_bytes();
+/// assert_eq!(echo(b"123456789"), [49, 50, 51, 52, 53, 54, 55, 56, 57, 203, 244, 57, 38, 13, 10]);
+pub fn echo(value: &[u8]) -> Vec<u8> {
     let crc = crc32::checksum_ieee(value);
     let mut msg: Vec<u8> = Vec::new();
     msg.extend(value.iter().cloned());

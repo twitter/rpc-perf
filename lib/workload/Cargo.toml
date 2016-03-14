@@ -1,6 +1,6 @@
 [package]
 name = "workload"
-version = "0.1.3"
+version = "0.2.0"
 authors = ["Brian Martin <bmartin@twitter.com>"]
 
 license = "apache-2.0"
@@ -13,6 +13,7 @@ time = "0.1.34"
 rand = "0.3.14"
 ratelimit = "0.2.2"
 shuteye = "0.1.0"
+pad = "0.1.4"
 
 [dependencies.mpmc]
 git = "https://github.com/brayniac/mpmc"

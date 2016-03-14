@@ -1,14 +1,25 @@
-[general]
-threads = 4
-connections = 25
+# this example runs a mixed key-value workload suitable for memcache and redis
+# gets and sets occur on a 3byte keyspace with set injecting 4 byte values
+# read/write 80%/20% at 50kqps aggregate
+
+[[workload]]
+name = "get"
+method = "get"
+rate = 40000
+  [[workload.parameter]]
+  style = "random"
+  size = 3
+  regenerate = true
 
 [[workload]]
 name = "set"
 method = "set"
 rate = 10000
-
-[[workload]]
-name = "get"
-method = "get"
-hit = true
-rate = 50000
+  [[workload.parameter]]
+  style = "random"
+  size = 3
+  regenerate = true
+  [[workload.parameter]]
+  style = "random"
+  size = 4
+  regenerate = false
