@@ -147,7 +147,7 @@ pub fn load_config(path: String) -> Result<BenchmarkConfig, &'static str> {
                                         None => 1,
                                     };
                                     let regenerate = match parameter.lookup("regenerate")
-                                                               .and_then(|k| k.as_bool()) {
+                                                                    .and_then(|k| k.as_bool()) {
                                         Some(s) => s,
                                         None => false,
                                     };

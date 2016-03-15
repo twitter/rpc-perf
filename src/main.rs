@@ -45,7 +45,7 @@ use histogram::{Histogram, HistogramConfig};
 use log::LogLevelFilter;
 use mpmc::Queue as BoundedQueue;
 use std::env;
-use std::net::{SocketAddr, ToSocketAddrs};
+use std::net::ToSocketAddrs;
 use std::thread;
 use std::sync::mpsc;
 use std::process;
@@ -63,7 +63,7 @@ const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 const ONE_SECOND: isize = 1_000_000_000;
 const BUCKET_SIZE: usize = 10_000;
 
-pub fn start(address: SocketAddr,
+pub fn start(servers: Vec<String>,
              connections: usize,
              stats_tx: mpsc::Sender<Stat>,
              protocol: Protocol,
@@ -77,30 +77,35 @@ pub fn start(address: SocketAddr,
     let mut client = Client::new(work_rx.clone());
 
     let mut failures = 0;
+    let mut connects = 0;
 
-    for _ in 0..connections {
-        match net::to_mio_tcp_stream(address, internet_protocol) {
-            Ok(stream) => {
-                match client.connections.insert_with(|token| {
-                    Connection::new(stream, token, stats_tx.clone(), protocol, tcp_nodelay)
-                }) {
-                    Some(token) => {
-                        event_loop.register(&client.connections[token].socket,
-                                            token,
-                                            mio::EventSet::writable(),
-                                            mio::PollOpt::edge() | mio::PollOpt::oneshot())
-                                  .unwrap();
+    for server in servers {
+        let address = &server.to_socket_addrs().unwrap().next().unwrap();
+        for _ in 0..connections {
+            match net::to_mio_tcp_stream(address, internet_protocol) {
+                Ok(stream) => {
+                    match client.connections.insert_with(|token| {
+                        Connection::new(stream, token, stats_tx.clone(), protocol, tcp_nodelay)
+                    }) {
+                        Some(token) => {
+                            event_loop.register(&client.connections[token].socket,
+                                                token,
+                                                mio::EventSet::writable(),
+                                                mio::PollOpt::edge() | mio::PollOpt::oneshot())
+                                      .unwrap();
+                            connects += 1;
+                        }
+                        _ => debug!("too many established connections"),
                     }
-                    _ => debug!("too many established connections"),
                 }
-            }
-            Err(e) => {
-                failures += 1;
-                debug!("connect error: {}", e);
+                Err(e) => {
+                    failures += 1;
+                    debug!("connect error: {}", e);
+                }
             }
         }
     }
-    info!("Connections: {} Failures: {}", connections, failures);
+    info!("Connections: {} Failures: {}", connects, failures);
     if failures == connections {
         error!("All connections have failed");
         process::exit(1);
@@ -120,7 +125,7 @@ pub fn main() {
 
     let mut opts = Options::new();
 
-    opts.optopt("s", "server", "server address", "HOST:PORT");
+    opts.optmulti("s", "server", "server address", "HOST:PORT");
     opts.optopt("t", "threads", "number of threads", "INTEGER");
     opts.optopt("c", "connections", "connections per thread", "INTEGER");
     opts.optopt("d", "duration", "number of seconds per window", "INTEGER");
@@ -168,13 +173,10 @@ pub fn main() {
         Box::new(SimpleLogger)
     });
 
-    let server = match matches.opt_str("server") {
-        Some(s) => s,
-        None => {
-            error!("require server parameter");
-            print_usage(&program, opts);
-            return;
-        }
+    if matches.opt_count("server") < 1 {
+        error!("require server parameter");
+        print_usage(&program, opts);
+        return;
     };
 
     let trace = matches.opt_str("trace");
@@ -334,7 +336,9 @@ pub fn main() {
     info!("rpc-perf {} initializing...", VERSION);
     info!("-----");
     info!("Config:");
-    info!("Config: Server: {} Protocol: {}", server, config.protocol);
+    for server in matches.opt_strs("server") {
+        info!("Config: Server: {} Protocol: {}", server, config.protocol);
+    }
     info!("Config: IP: {:?} TCP_NODELAY: {}",
           internet_protocol,
           config.tcp_nodelay);
@@ -371,14 +375,13 @@ pub fn main() {
 
     let (stats_tx, stats_rx) = mpsc::channel();
 
-    let socket_addr = server.to_socket_addrs().unwrap().next().unwrap();
-
     info!("-----");
     info!("Connecting...");
     // spawn client threads
-    for _ in 0..config.threads {
+    for i in 0..config.threads {
+        info!("Client: {}", i);
         let stats_tx = stats_tx.clone();
-        let server = socket_addr;
+        let servers = matches.opt_strs("server").clone();
         let connections = config.connections;
         let work_rx = workq.clone();
         let tcp_nodelay = config.tcp_nodelay;
@@ -386,7 +389,7 @@ pub fn main() {
         let evconfig = evconfig.clone();
 
         thread::spawn(move || {
-            start(server,
+            start(servers,
                   connections,
                   stats_tx,
                   client_protocol,
