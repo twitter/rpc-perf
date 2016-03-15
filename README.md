@@ -32,19 +32,12 @@ This will produce a binary at `./target/release/rpc-perf` which can be run in-pl
 
 ## Configuration
 
-rpc-perf is configured through a combination of a TOML config file and command line parameters. This provides quick iteration through the command line while allowing more complex configurations to be encoded in a file. Where possible, the command line will override the config file. Be aware of the following rules:
+rpc-perf is configured through a combination of a TOML config file and command line parameters. The workload itself is always specified in the config file. Some runtime parameters are passed on the command line. Where possible, the command line can override the configuration file. For example, the protocol can be overriden to test memcache or redis with the same workload.
 
 Some configuration is **only** through command line parameters:
 * `--server [HOST:PORT]` the target server *is always* required
-* `--trace [FILE]` an optional trace file
-
-Some features are **only** accessible through the config file, as they would be difficult to express through the command line:
-* multiple workloads
-
-**DO NOT** specify a workload in the config in-combination with the following on the command line:
-* `method`
-* `rate`
-* `bytes`
+* `--trace [FILE]` an optional latency trace file
+* `--waterfall [FILE]` an optional PNG waterfall plot
 
 All other test configuration parameters are available through the TOML config file and/or on the command line. The command line parameter will take precedence when both are specified.
 
@@ -59,13 +52,13 @@ Sample configurations can be found in the `configs` directory of this project. T
 ./target/release/rpc-perf --help
 
 # memcache get hit
-./target/release/rpc-perf --server 127.0.0.1:11211 --protocol memcache --method get --hit
+./target/release/rpc-perf --config configs/hotkey_hit.toml --server 127.0.0.1:11211
 
 # memcache get miss
-./target/release/rpc-perf --server 127.0.0.1:11211 --protocol memcache --method get --flush
+./target/release/rpc-perf --config configs/hotkey_hit.toml --server 127.0.0.1:11211 --flush
 
-# redis get with ratelimit of 50kqps
-./target/release/rpc-perf --server 127.0.0.1:6379 --protocol redis --method get --hit --rate 50000
+# redis mixed workload
+./target/release/rpc-perf ---config configs/mixed_workload.toml -server 127.0.0.1:6379 --protocol redis
 
 # run the same test against memcache and redis
 ./target/release/rpc-perf --config configs/default.toml --server 127.0.0.1:11211 --protocol memcache
@@ -123,7 +116,7 @@ $ ./target/release/rpc-perf --config configs/default.toml -s 10.0.0.11:11211 -d 
 
 * extend command sets for both memcache and redis protocols
 * UDP support
-* multi-key workload generators
+* additional workload generators
 * command log playback
 
 ## Contributing
