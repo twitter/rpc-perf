@@ -1,6 +1,6 @@
 [package]
 name = "workload"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Brian Martin <bmartin@twitter.com>"]
 
 license = "apache-2.0"
@@ -11,7 +11,7 @@ description = "rpc-perf workload generation"
 log = "0.3.5"
 time = "0.1.34"
 rand = "0.3.14"
-ratelimit = "0.2.2"
+ratelimit = "0.2.4"
 shuteye = "0.1.1"
 pad = "0.1.4"
 
