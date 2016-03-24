@@ -15,7 +15,7 @@
 
 extern crate log;
 extern crate toml;
-extern crate workload;
+extern crate rpcperf_workload as workload;
 
 use std::fs::File;
 use std::io::Read;

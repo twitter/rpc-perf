@@ -14,7 +14,6 @@
 //  limitations under the License.
 
 #![crate_type = "lib"]
-#![crate_name = "request"]
 
 extern crate byteorder;
 extern crate crc;

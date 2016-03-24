@@ -39,7 +39,7 @@ impl Buffer {
     ///
     /// # Example
     /// ```
-    /// # use request::thrift::*;
+    /// # use rpcperf_request::thrift::*;
     ///
     // let mut buffer = Vec::<u8>::new();
     // protocol_header(&mut buffer);
@@ -54,7 +54,7 @@ impl Buffer {
     ///
     /// # Example
     /// ```
-    /// # use request::thrift::*;
+    /// # use rpcperf_request::thrift::*;
     ///
     /// let mut b = Buffer::new();
     /// b.sequence_id(0_i32);
@@ -71,7 +71,7 @@ impl Buffer {
     ///
     /// # Example
     /// ```
-    /// # use request::thrift::Buffer;
+    /// # use rpcperf_request::thrift::Buffer;
     ///
     /// let mut b = Buffer::new();
     /// b.method_name("ping".to_string());
@@ -85,7 +85,7 @@ impl Buffer {
     ///
     /// # Example
     /// ```
-    /// # use request::thrift::Buffer;
+    /// # use rpcperf_request::thrift::Buffer;
     ///
     /// let mut b = Buffer::new();
     /// b.sequence_id(0_i32);
@@ -99,7 +99,7 @@ impl Buffer {
     ///
     /// # Example
     /// ```
-    /// # use request::thrift::Buffer;
+    /// # use rpcperf_request::thrift::Buffer;
     ///
     /// let mut b = Buffer::new();
     /// b.stop();
@@ -134,7 +134,7 @@ impl Buffer {
 ///
 /// # Example
 /// ```
-/// # use request::thrift::*;
+/// # use rpcperf_request::thrift::*;
 ///
 /// assert_eq!(ping(), [0, 0, 0, 17, 128, 1, 0, 1, 0, 0, 0, 4, 112, 105, 110, 103, 0, 0, 0, 0, 0]);
 pub fn ping() -> Vec<u8> {

@@ -17,7 +17,7 @@
 ///
 /// # Example
 /// ```
-/// # use request::ping::*;
+/// # use rpcperf_request::ping::*;
 ///
 /// assert_eq!(ping(), "PING\r\n");
 pub fn ping() -> String {
