@@ -18,9 +18,9 @@ use std::process::Command;
 #[cfg(test)]
 #[test]
 fn main() {
-    test_subcrate("parser");
-    test_subcrate("request");
-    test_subcrate("workload");
+    test_subcrate("rpcperf_parser");
+    test_subcrate("rpcperf_request");
+    test_subcrate("rpcperf_workload");
 }
 
 fn test_subcrate(subcrate: &'static str) {

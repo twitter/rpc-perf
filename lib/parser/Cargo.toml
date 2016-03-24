@@ -1,11 +1,16 @@
 [package]
-name = "parser"
-version = "0.1.4"
+name = "rpcperf_parser"
+version = "1.0.0"
 authors = ["Brian Martin <bmartin@twitter.com>"]
 
-license = "apache-2.0"
+license = "Apache-2.0"
 
 description = "rpc-perf response parsers"
+
+homepage = "https://github.com/twitter/rpc-perf"
+repository = "https://github.com/twitter/rpc-perf"
+
+readme = "README.md"
 
 [dependencies]
 log = "0.3.5"

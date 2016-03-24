@@ -15,7 +15,6 @@
 
 extern crate mio;
 extern crate time;
-extern crate parser;
 
 use bytes::{Buf, ByteBuf, MutByteBuf};
 use mio::{TryRead, TryWrite};

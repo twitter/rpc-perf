@@ -22,7 +22,7 @@ use std::mem::transmute;
 ///
 /// # Example
 /// ```
-/// # use request::echo::*;
+/// # use rpcperf_request::echo::*;
 ///
 /// assert_eq!(echo(b"123456789"), [49, 50, 51, 52, 53, 54, 55, 56, 57, 203, 244, 57, 38, 13, 10]);
 pub fn echo(value: &[u8]) -> Vec<u8> {

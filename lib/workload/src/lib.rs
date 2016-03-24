@@ -14,15 +14,15 @@
 //  limitations under the License.
 
 #![crate_type = "lib"]
-#![crate_name = "workload"]
+#![crate_name = "rpcperf_workload"]
 
 extern crate mpmc;
 extern crate pad;
-extern crate request;
-extern crate ratelimit;
-extern crate time;
 extern crate rand;
+extern crate ratelimit;
+extern crate rpcperf_request as request;
 extern crate shuteye;
+extern crate time;
 
 const ONE_SECOND: u64 = 1_000_000_000;
 pub const BUCKET_SIZE: usize = 10_000;

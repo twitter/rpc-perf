@@ -17,7 +17,7 @@
 ///
 /// # Example
 /// ```
-/// # use request::redis::*;
+/// # use rpcperf_request::redis::*;
 ///
 /// assert_eq!(flushall(), "flushall\r\n");
 pub fn flushall() -> String {
@@ -28,7 +28,7 @@ pub fn flushall() -> String {
 ///
 /// # Example
 /// ```
-/// # use request::redis::*;
+/// # use rpcperf_request::redis::*;
 ///
 /// assert_eq!(set("key", "value"), "set key value\r\n");
 pub fn set(key: &str, value: &str) -> String {
@@ -39,7 +39,7 @@ pub fn set(key: &str, value: &str) -> String {
 ///
 /// # Example
 /// ```
-/// # use request::redis::*;
+/// # use rpcperf_request::redis::*;
 ///
 /// assert_eq!(hset("hash", "key", "value"), "hset hash key value\r\n");
 pub fn hset(hash: &str, key: &str, value: &str) -> String {
@@ -50,7 +50,7 @@ pub fn hset(hash: &str, key: &str, value: &str) -> String {
 ///
 /// # Example
 /// ```
-/// # use request::redis::*;
+/// # use rpcperf_request::redis::*;
 ///
 /// assert_eq!(get("key"), "get key\r\n");
 pub fn get(key: &str) -> String {
@@ -61,7 +61,7 @@ pub fn get(key: &str) -> String {
 ///
 /// # Example
 /// ```
-/// # use request::redis::*;
+/// # use rpcperf_request::redis::*;
 ///
 /// assert_eq!(hget("hash", "key"), "hget hash key\r\n");
 pub fn hget(hash: &str, key: &str) -> String {
@@ -72,7 +72,7 @@ pub fn hget(hash: &str, key: &str) -> String {
 ///
 /// # Example
 /// ```
-/// # use request::redis::*;
+/// # use rpcperf_request::redis::*;
 ///
 /// assert_eq!(del("key"), "del key\r\n");
 pub fn del(key: &str) -> String {
@@ -83,7 +83,7 @@ pub fn del(key: &str) -> String {
 ///
 /// # Example
 /// ```
-/// # use request::redis::*;
+/// # use rpcperf_request::redis::*;
 ///
 /// assert_eq!(expire("key", 1000), "expire key 1000\r\n");
 pub fn expire(key: &str, seconds: usize) -> String {
@@ -94,7 +94,7 @@ pub fn expire(key: &str, seconds: usize) -> String {
 ///
 /// # Example
 /// ```
-/// # use request::redis::*;
+/// # use rpcperf_request::redis::*;
 ///
 /// assert_eq!(incr("key"), "incr key\r\n");
 pub fn incr(key: &str) -> String {
@@ -105,7 +105,7 @@ pub fn incr(key: &str) -> String {
 ///
 /// # Example
 /// ```
-/// # use request::redis::*;
+/// # use rpcperf_request::redis::*;
 ///
 /// assert_eq!(decr("key"), "decr key\r\n");
 pub fn decr(key: &str) -> String {
@@ -116,7 +116,7 @@ pub fn decr(key: &str) -> String {
 ///
 /// # Example
 /// ```
-/// # use request::redis::*;
+/// # use rpcperf_request::redis::*;
 ///
 /// assert_eq!(append("key", "value"), "append key value\r\n");
 pub fn append(key: &str, value: &str) -> String {
@@ -127,7 +127,7 @@ pub fn append(key: &str, value: &str) -> String {
 ///
 /// # Example
 /// ```
-/// # use request::redis::*;
+/// # use rpcperf_request::redis::*;
 ///
 /// assert_eq!(prepend("key", "value"), "prepend key value\r\n");
 pub fn prepend(key: &str, value: &str) -> String {

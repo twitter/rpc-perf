@@ -23,13 +23,13 @@ extern crate histogram;
 extern crate time;
 extern crate mio;
 extern crate mpmc;
-extern crate parser;
 extern crate regex;
-extern crate request;
+extern crate rpcperf_parser as parser;
+extern crate rpcperf_request as request;
+extern crate rpcperf_workload as workload;
 extern crate shuteye;
 extern crate toml;
 extern crate waterfall;
-extern crate workload;
 
 pub mod client;
 pub mod config;

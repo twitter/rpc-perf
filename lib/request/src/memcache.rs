@@ -17,7 +17,7 @@
 ///
 /// # Example
 /// ```
-/// # use request::memcache::*;
+/// # use rpcperf_request::memcache::*;
 ///
 /// assert_eq!(verbosity(4), "verbosity 4\r\n");
 pub fn verbosity(level: usize) -> String {
@@ -28,7 +28,7 @@ pub fn verbosity(level: usize) -> String {
 ///
 /// # Example
 /// ```
-/// # use request::memcache::*;
+/// # use rpcperf_request::memcache::*;
 ///
 /// assert_eq!(version(), "version\r\n");
 pub fn version() -> String {
@@ -39,7 +39,7 @@ pub fn version() -> String {
 ///
 /// # Example
 /// ```
-/// # use request::memcache::*;
+/// # use rpcperf_request::memcache::*;
 ///
 /// assert_eq!(quit(), "quit\r\n");
 pub fn quit() -> String {
@@ -50,7 +50,7 @@ pub fn quit() -> String {
 ///
 /// # Example
 /// ```
-/// # use request::memcache::*;
+/// # use rpcperf_request::memcache::*;
 ///
 /// assert_eq!(set("key", "value", None, None), "set key 0 0 5\r\nvalue\r\n");
 pub fn set(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>) -> String {
@@ -68,7 +68,7 @@ pub fn set(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>) -> 
 ///
 /// # Example
 /// ```
-/// # use request::memcache::*;
+/// # use rpcperf_request::memcache::*;
 ///
 /// assert_eq!(cas("key", "value", None, None, 100_u64), "cas key 0 0 5 100\r\nvalue\r\n");
 pub fn cas(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>, cas: u64) -> String {
@@ -87,7 +87,7 @@ pub fn cas(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>, cas
 ///
 /// # Example
 /// ```
-/// # use request::memcache::*;
+/// # use rpcperf_request::memcache::*;
 ///
 /// assert_eq!(add("key", "value", None, None), "add key 0 0 5\r\nvalue\r\n");
 pub fn add(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>) -> String {
@@ -105,7 +105,7 @@ pub fn add(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>) -> 
 ///
 /// # Example
 /// ```
-/// # use request::memcache::*;
+/// # use rpcperf_request::memcache::*;
 ///
 /// assert_eq!(replace("key", "value", None, None), "replace key 0 0 5\r\nvalue\r\n");
 pub fn replace(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>) -> String {
@@ -123,7 +123,7 @@ pub fn replace(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>)
 ///
 /// # Example
 /// ```
-/// # use request::memcache::*;
+/// # use rpcperf_request::memcache::*;
 ///
 /// assert_eq!(append("key", "value", None, None), "append key 0 0 5\r\nvalue\r\n");
 pub fn append(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>) -> String {
@@ -141,7 +141,7 @@ pub fn append(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>) 
 ///
 /// # Example
 /// ```
-/// # use request::memcache::*;
+/// # use rpcperf_request::memcache::*;
 ///
 /// assert_eq!(prepend("key", "value", None, None), "prepend key 0 0 5\r\nvalue\r\n");
 pub fn prepend(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>) -> String {
@@ -159,7 +159,7 @@ pub fn prepend(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>)
 ///
 /// # Example
 /// ```
-/// # use request::memcache::*;
+/// # use rpcperf_request::memcache::*;
 ///
 /// assert_eq!(incr("key", 1), "incr key 1\r\n");
 /// assert_eq!(incr("key", 1000), "incr key 1000\r\n");
@@ -171,7 +171,7 @@ pub fn incr(key: &str, value: u64) -> String {
 ///
 /// # Example
 /// ```
-/// # use request::memcache::*;
+/// # use rpcperf_request::memcache::*;
 ///
 /// assert_eq!(decr("key", 1), "decr key 1\r\n");
 /// assert_eq!(decr("key", 1000), "decr key 1000\r\n");
@@ -183,7 +183,7 @@ pub fn decr(key: &str, value: u64) -> String {
 ///
 /// # Example
 /// ```
-/// # use request::memcache::*;
+/// # use rpcperf_request::memcache::*;
 ///
 /// assert_eq!(touch("key", None), "touch key 0\r\n");
 pub fn touch(key: &str, exptime: Option<u32>) -> String {
@@ -195,7 +195,7 @@ pub fn touch(key: &str, exptime: Option<u32>) -> String {
 ///
 /// # Example
 /// ```
-/// # use request::memcache::*;
+/// # use rpcperf_request::memcache::*;
 ///
 /// assert_eq!(get("key"), "get key\r\n");
 pub fn get(key: &str) -> String {
@@ -206,7 +206,7 @@ pub fn get(key: &str) -> String {
 ///
 /// # Example
 /// ```
-/// # use request::memcache::*;
+/// # use rpcperf_request::memcache::*;
 ///
 /// assert_eq!(gets("key"), "gets key\r\n");
 pub fn gets(key: &str) -> String {
@@ -217,7 +217,7 @@ pub fn gets(key: &str) -> String {
 ///
 /// # Example
 /// ```
-/// # use request::memcache::*;
+/// # use rpcperf_request::memcache::*;
 ///
 /// assert_eq!(delete("key"), "delete key\r\n");
 pub fn delete(key: &str) -> String {
@@ -228,7 +228,7 @@ pub fn delete(key: &str) -> String {
 ///
 /// # Example
 /// ```
-/// # use request::memcache::*;
+/// # use rpcperf_request::memcache::*;
 ///
 /// assert_eq!(flush_all(), "flush_all\r\n");
 pub fn flush_all() -> String {

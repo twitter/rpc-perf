@@ -1,22 +1,23 @@
 [package]
-name = "workload"
-version = "0.2.1"
+name = "rpcperf_workload"
+version = "1.0.0"
 authors = ["Brian Martin <bmartin@twitter.com>"]
 
-license = "apache-2.0"
+license = "Apache-2.0"
 
 description = "rpc-perf workload generation"
 
+homepage = "https://github.com/twitter/rpc-perf"
+repository = "https://github.com/twitter/rpc-perf"
+
+readme = "README.md"
+
 [dependencies]
 log = "0.3.5"
-time = "0.1.34"
+mpmc = "0.1.2"
+pad = "0.1.4"
 rand = "0.3.14"
 ratelimit = "0.2.4"
+rpcperf_request = "1.0.0"
 shuteye = "0.1.1"
-pad = "0.1.4"
-
-[dependencies.mpmc]
-git = "https://github.com/brayniac/mpmc"
-
-[dependencies.request]
-path = "../request/"
+time = "0.1.34"

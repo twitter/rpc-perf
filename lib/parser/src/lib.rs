@@ -14,7 +14,6 @@
 //  limitations under the License.
 
 #![crate_type = "lib"]
-#![crate_name = "parser"]
 
 #[macro_use]
 extern crate log;
