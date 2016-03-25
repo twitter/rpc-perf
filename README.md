@@ -7,7 +7,7 @@ rpc-perf was created to help measure the performance of caching systems. We've f
 * *run only* if you understand the impact of sending high-levels of traffic across your network
 
 **Contents**
-* [Build](#build)
+* [Getting rpc-perf](#getting-rpc-perf)
 * [Configuration](#configuration)
 * [Sample Usage](#sample-usage)
 * [Sample Output](#sample-output)
@@ -16,9 +16,21 @@ rpc-perf was created to help measure the performance of caching systems. We've f
 * [Future Work](#future-work)
 * [Contributing](#contributing)
 
-## Build
+## Getting rpc-perf
 
-rpc-perf is built through the `cargo` command which ships with rust. If you don't have rust installed, I recommend using [multirust][1] to manage your rust installation. Otherwise, follow the instructions on [rust-lang.org][2] to get rust and cargo installed. rpc-perf targets stable rust
+rpc-perf is built through the `cargo` command which ships with rust. If you don't have rust installed, I recommend using [multirust][1] to manage your rust installation. Otherwise, follow the instructions on [rust-lang.org][2] to get rust and cargo installed. rpc-perf targets stable rust. You can follow either of the two paths below to get a working rpc-perf binary
+
+### Install with cargo
+
+With rust installed, simply run:
+
+```shell
+cargo install rpc-perf
+```
+
+You may then run rpc-perf from your cargo path. You will want to use a config from the configs directory of this repository.
+
+### Build from source
 
 With rust installed, clone this repo, and cd into this folder:
 
@@ -35,7 +47,7 @@ This will produce a binary at `./target/release/rpc-perf` which can be run in-pl
 rpc-perf is configured through a combination of a TOML config file and command line parameters. The workload itself is always specified in the config file. Some runtime parameters are passed on the command line. Where possible, the command line can override the configuration file. For example, the protocol can be overriden to test memcache or redis with the same workload.
 
 Some configuration is **only** through command line parameters:
-* `--server [HOST:PORT]` the target server *is always* required
+* `--server [HOST:PORT]` the target server *is always* required. You may specify more than one.
 * `--trace [FILE]` an optional latency trace file
 * `--waterfall [FILE]` an optional PNG waterfall plot
 
@@ -68,32 +80,33 @@ Sample configurations can be found in the `configs` directory of this project. T
 ## Sample Output
 
 ```
-$ ./target/release/rpc-perf --config configs/default.toml -s 10.0.0.11:11211 -d 60 -w 1
-2016-01-17 20:32:21 INFO  [rpc-perf] rpc-perf 0.2.1 initializing...
-2016-01-17 20:32:21 INFO  [rpc-perf] -----
-2016-01-17 20:32:21 INFO  [rpc-perf] Config:
-2016-01-17 20:32:21 INFO  [rpc-perf] Config: Server: 10.0.0.11:11211 Protocol: memcache
-2016-01-17 20:32:21 INFO  [rpc-perf] Config: IP: IP::Any TCP_NODELAY: false
-2016-01-17 20:32:21 INFO  [rpc-perf] Config: Threads: 4 Connections: 25
-2016-01-17 20:32:21 INFO  [rpc-perf] Config: Windows: 1 Duration: 60
-2016-01-17 20:32:21 INFO  [rpc-perf] -----
-2016-01-17 20:32:21 INFO  [rpc-perf] Workload:
-2016-01-17 20:32:21 INFO  [rpc-perf] Workload 0: Method: set Bytes: 1 Rate: 10000 Hit: false Flush: false
-2016-01-17 20:32:21 INFO  [rpc-perf] Workload 1: Method: get Bytes: 1 Rate: 50000 Hit: true Flush: false
-2016-01-17 20:32:21 INFO  [rpc-perf] -----
-2016-01-17 20:32:21 INFO  [rpc-perf] Connecting...
-2016-01-17 20:32:21 INFO  [rpc-perf] Connections: 25 Failures: 0
-2016-01-17 20:32:21 INFO  [rpc-perf] Connections: 25 Failures: 0
-2016-01-17 20:32:21 INFO  [rpc-perf] Connections: 25 Failures: 0
-2016-01-17 20:32:21 INFO  [rpc-perf] Connections: 25 Failures: 0
-2016-01-17 20:33:21 INFO  [rpc-perf] -----
-2016-01-17 20:33:21 INFO  [rpc-perf] Warmup complete
-2016-01-17 20:34:21 INFO  [rpc-perf] -----
-2016-01-17 20:34:21 INFO  [rpc-perf] Window: 1
-2016-01-17 20:34:21 INFO  [rpc-perf] Requests: 3600001 Ok: 3600001 Miss: 0 Error: 0 Closed: 0
-2016-01-17 20:34:21 INFO  [rpc-perf] Rate: 60000 rps Success: 100 % Hitrate: 100 %
-2016-01-17 20:34:21 INFO  [rpc-perf] Latency: min: 22245 ns max: 8053903 ns avg: 55236 ns stddev: 69891 ns
-2016-01-17 20:34:21 INFO  [rpc-perf] Percentiles: p50: 47485 ns p90: 65792 ns p99: 140130 ns p999: 1094714 ns p9999: 2219836 ns
+$ rpc-perf --server 127.0.0.1:11211 --config hotkey_hit.toml --windows 1
+2016-03-25 15:00:37 INFO  [rpc-perf] rpc-perf 1.0.0-nightly.20160324 initializing...
+2016-03-25 15:00:37 INFO  [rpc-perf] -----
+2016-03-25 15:00:37 INFO  [rpc-perf] Config:
+2016-03-25 15:00:37 INFO  [rpc-perf] Config: Server: 127.0.0.1:11211 Protocol: memcache
+2016-03-25 15:00:37 INFO  [rpc-perf] Config: IP: IP::Any TCP_NODELAY: false
+2016-03-25 15:00:37 INFO  [rpc-perf] Config: Threads: 1 Connections: 1
+2016-03-25 15:00:37 INFO  [rpc-perf] Config: Windows: 1 Duration: 60
+2016-03-25 15:00:37 INFO  [rpc-perf] -----
+2016-03-25 15:00:37 INFO  [rpc-perf] Workload:
+2016-03-25 15:00:37 INFO  [rpc-perf] Workload 0: Method: get Rate: 0
+2016-03-25 15:00:37 INFO  [rpc-perf] Parameter: Static { size: 1, seed: 0 }
+2016-03-25 15:00:37 INFO  [rpc-perf] Workload 1: Method: set Rate: 1
+2016-03-25 15:00:37 INFO  [rpc-perf] Parameter: Static { size: 1, seed: 0 }
+2016-03-25 15:00:37 INFO  [rpc-perf] Parameter: Random { size: 128, regenerate: false }
+2016-03-25 15:00:37 INFO  [rpc-perf] -----
+2016-03-25 15:00:37 INFO  [rpc-perf] Connecting...
+2016-03-25 15:00:37 INFO  [rpc-perf] Client: 0
+2016-03-25 15:00:37 INFO  [rpc-perf] Connections: 1 Failures: 0
+2016-03-25 15:01:37 INFO  [rpc-perf] -----
+2016-03-25 15:01:37 INFO  [rpc-perf] Warmup complete
+2016-03-25 15:02:37 INFO  [rpc-perf] -----
+2016-03-25 15:02:37 INFO  [rpc-perf] Window: 1
+2016-03-25 15:02:37 INFO  [rpc-perf] Requests: 986233 Ok: 986233 Miss: 0 Error: 0 Closed: 0
+2016-03-25 15:02:37 INFO  [rpc-perf] Rate: 16437.21 rps Success: 100.00 % Hitrate: 100.00 %
+2016-03-25 15:02:38 INFO  [rpc-perf] Latency: min: 24103 ns max: 37876243 ns avg: 49437 ns stddev: 83165 ns
+2016-03-25 15:02:38 INFO  [rpc-perf] Percentiles: p50: 47393 ns p90: 55116 ns p99: 75688 ns p999: 224553 ns p9999: 3929854 ns
 ```
 
 ## Practices
@@ -108,15 +121,15 @@ $ ./target/release/rpc-perf --config configs/default.toml -s 10.0.0.11:11211 -d 
 * high-resolution latency metrics
 * supports memcache and redis protocols
 * [mio][3] for async networking
-* optional trace file for generating heatmaps
+* optional trace file for further analysis
+* optional waterfall visualization of latencies
 * ratelimited workload
-* mixed-workload (get/set)
+* mixed-workload (get/set/...)
 
 ## Future work
 
 * extend command sets for both memcache and redis protocols
 * UDP support
-* additional workload generators
 * command log playback
 
 ## Contributing
