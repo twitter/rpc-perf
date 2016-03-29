@@ -63,29 +63,35 @@ const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 const ONE_SECOND: isize = 1_000_000_000;
 const BUCKET_SIZE: usize = 10_000;
 
-pub fn start(servers: Vec<String>,
-             connections: usize,
-             stats_tx: mpsc::Sender<Stat>,
-             protocol: Protocol,
-             internet_protocol: InternetProtocol,
-             work_rx: BoundedQueue<Vec<u8>>,
-             tcp_nodelay: bool,
-             config: mio::EventLoopConfig) {
+struct ClientConfig {
+    servers: Vec<String>,
+    connections: usize,
+    stats_tx: mpsc::Sender<Stat>,
+    client_protocol: Protocol,
+    internet_protocol: InternetProtocol,
+    work_rx: BoundedQueue<Vec<u8>>,
+    tcp_nodelay: bool,
+    mio_config: mio::EventLoopConfig,
+}
 
-    let mut event_loop = mio::EventLoop::configured(config).unwrap();
-
-    let mut client = Client::new(work_rx.clone());
+fn start(config: ClientConfig) {
+    let mut event_loop = mio::EventLoop::configured(config.mio_config.clone()).unwrap();
+    let mut client = Client::new(config.work_rx.clone());
 
     let mut failures = 0;
     let mut connects = 0;
 
-    for server in servers {
+    for server in config.servers.clone() {
         let address = &server.to_socket_addrs().unwrap().next().unwrap();
-        for _ in 0..connections {
-            match net::to_mio_tcp_stream(address, internet_protocol) {
+        for _ in 0..config.connections {
+            match net::to_mio_tcp_stream(address, config.internet_protocol) {
                 Ok(stream) => {
                     match client.connections.insert_with(|token| {
-                        Connection::new(stream, token, stats_tx.clone(), protocol, tcp_nodelay)
+                        Connection::new(stream,
+                                        token,
+                                        config.stats_tx.clone(),
+                                        config.client_protocol,
+                                        config.tcp_nodelay)
                     }) {
                         Some(token) => {
                             event_loop.register(&client.connections[token].socket,
@@ -106,7 +112,7 @@ pub fn start(servers: Vec<String>,
         }
     }
     info!("Connections: {} Failures: {}", connects, failures);
-    if failures == connections {
+    if failures == config.connections {
         error!("All connections have failed");
         process::exit(1);
     } else {
@@ -388,15 +394,19 @@ pub fn main() {
         let internet_protocol = internet_protocol;
         let evconfig = evconfig.clone();
 
+        let client_config = ClientConfig {
+            servers: servers,
+            connections: connections,
+            stats_tx: stats_tx,
+            client_protocol: client_protocol,
+            internet_protocol: internet_protocol,
+            work_rx: work_rx,
+            tcp_nodelay: tcp_nodelay,
+            mio_config: evconfig,
+        };
+
         thread::spawn(move || {
-            start(servers,
-                  connections,
-                  stats_tx,
-                  client_protocol,
-                  internet_protocol,
-                  work_rx,
-                  tcp_nodelay,
-                  evconfig);
+            start(client_config);
         });
     }
 
