@@ -81,7 +81,7 @@ fn start(config: ClientConfig) {
     let mut failures = 0;
     let mut connects = 0;
 
-    for server in config.servers.clone() {
+    for server in &config.servers {
         let address = &server.to_socket_addrs().unwrap().next().unwrap();
         for _ in 0..config.connections {
             match net::to_mio_tcp_stream(address, config.internet_protocol) {
@@ -127,7 +127,7 @@ fn print_usage(program: &str, opts: Options) {
 
 pub fn main() {
     let args: Vec<String> = env::args().collect();
-    let program = args[0].clone();
+    let program = &args[0];
 
     let mut opts = Options::new();
 
@@ -357,18 +357,18 @@ pub fn main() {
     info!("-----");
     info!("Workload:");
 
-    for i in 0..config.workloads.len() {
-        let w = config.workloads[i].clone();
+    for (i,w) in config.workloads.iter().enumerate() {
+        //let w = &config.workloads[i];
         info!("Workload {}: Method: {} Rate: {}", i, w.method, w.rate);
 
         let protocol = Protocol::new(&config.protocol.clone()).unwrap();
 
-        let mut workload = Workload::new(protocol, w.method, Some(w.rate as u64), workq.clone())
+        let mut workload = Workload::new(protocol, w.method.clone(), Some(w.rate as u64), workq.clone())
                                .unwrap();
 
-        for j in 0..w.parameters.len() {
-            info!("Parameter: {:?}", w.parameters[j]);
-            workload.add_param(w.parameters[j].clone());
+        for p in &w.parameters {
+            info!("Parameter: {:?}", p);
+            workload.add_param(p.clone());
         }
 
 
@@ -387,7 +387,7 @@ pub fn main() {
     for i in 0..config.threads {
         info!("Client: {}", i);
         let stats_tx = stats_tx.clone();
-        let servers = matches.opt_strs("server").clone();
+        let servers = matches.opt_strs("server");
         let connections = config.connections;
         let work_rx = workq.clone();
         let tcp_nodelay = config.tcp_nodelay;
