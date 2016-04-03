@@ -412,7 +412,7 @@ impl Workload {
                     panic!("unsupported protocol");
                 }
             };
-            let _ = self.queue.push(query.clone());
+            let _ = self.queue.push(query);
         }
     }
 }
