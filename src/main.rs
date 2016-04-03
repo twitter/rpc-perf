@@ -357,13 +357,15 @@ pub fn main() {
     info!("-----");
     info!("Workload:");
 
-    for (i,w) in config.workloads.iter().enumerate() {
-        //let w = &config.workloads[i];
+    for (i, w) in config.workloads.iter().enumerate() {
         info!("Workload {}: Method: {} Rate: {}", i, w.method, w.rate);
 
         let protocol = Protocol::new(&config.protocol.clone()).unwrap();
 
-        let mut workload = Workload::new(protocol, w.method.clone(), Some(w.rate as u64), workq.clone())
+        let mut workload = Workload::new(protocol,
+                                         w.method.clone(),
+                                         Some(w.rate as u64),
+                                         workq.clone())
                                .unwrap();
 
         for p in &w.parameters {

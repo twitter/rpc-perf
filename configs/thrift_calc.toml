@@ -1,0 +1,57 @@
+# this example illustrates using rpc-perf with generic thrift protocols
+# in this particular case, we benchmark the tutorial calculator example
+#
+# use-case: demonstrate thrift functionality
+
+[general]
+protocol = "thrift"
+
+# this is just the ping, it's not currently generic anyway
+[[workload]]
+name = "ping"
+method = "ping"
+rate = 1
+
+# this is a modified addition example, randomly generate the numbers
+[[workload]]
+name = "add"
+method = "add"
+rate = 1
+  [[workload.parameter]]
+  id = 1
+  type = "i32"
+  style = "random"
+  regenerate = true
+  [[workload.parameter]]
+  id = 2
+  type = "i32"
+  style = "random"
+  regenerate = true
+
+# this is an exact copy of the example subtraction: 15 - 10 = 5
+# it also shows how we can do structs
+[[workload]]
+name = "sub"
+method = "calculate"
+rate = 1
+  [[workload.parameter]]
+  id = 1 # this is the operation log id
+  type = "i32"
+  seed = 1
+  [[workload.parameter]]
+  id = 2 # this is the work struct
+  type = "struct"
+  [[workload.parameter]]
+  id = 1 # this is the thing to subtract from
+  type = "i32"
+  seed = 15 # here is the value
+  [[workload.parameter]]
+  id = 2 # here is the thing to subtract
+  type = "i32"
+  seed = 10 # here is the value
+  [[workload.parameter]]
+  id = 3 # this is the op type field
+  type = "i32"
+  seed = 2 # 2 is for subtration
+  [[workload.parameter]]
+  type = "stop" #required to end the struct
