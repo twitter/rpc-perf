@@ -21,7 +21,7 @@ use std::fs::File;
 use std::io::Read;
 use toml::Parser;
 use toml::Value::Table;
-use workload::Parameter;
+use workload::{Parameter, Style, Type};
 
 #[derive(Clone)]
 pub struct BenchmarkWorkload {
@@ -131,43 +131,64 @@ pub fn load_config(path: String) -> Result<BenchmarkConfig, &'static str> {
                             let param_key = format!("parameter.{}", j);
                             match workload.lookup(&param_key) {
                                 Some(parameter) => {
+                                    let mut p = Parameter::default();
+                                    p.id = match parameter.lookup("id")
+                                                          .and_then(|k| k.as_integer()) {
+                                        Some(s) => Some(s as i16),
+                                        None => None,
+                                    };
+
+                                    p.ptype = match parameter.lookup("type")
+                                                             .and_then(|k| k.as_str()) {
+                                        Some("stop") => Type::Stop,
+                                        Some("void") => Type::Void,
+                                        Some("bool") => Type::Bool,
+                                        Some("byte") => Type::Byte,
+                                        Some("double") => Type::Double,
+                                        Some("i16") => Type::Int16,
+                                        Some("i32") => Type::Int32,
+                                        Some("i64") => Type::Int64,
+                                        Some("string") => Type::String,
+                                        Some("struct") => Type::Struct,
+                                        Some("map") => Type::Map,
+                                        Some("set") => Type::Set,
+                                        Some("list") => {
+                                            Type::List(parameter.lookup("contains")
+                                                                .and_then(|k| k.as_str())
+                                                                .unwrap()
+                                                                .to_owned())
+                                        }
+                                        Some(_) => Type::None,
+                                        None => Type::None,
+                                    };
                                     let style = match parameter.lookup("style")
                                                                .and_then(|k| k.as_str()) {
                                         Some(s) => s,
                                         None => "static",
                                     };
-                                    let seed = match parameter.lookup("seed")
-                                                              .and_then(|k| k.as_integer()) {
+                                    p.seed = match parameter.lookup("seed")
+                                                            .and_then(|k| k.as_integer()) {
                                         Some(s) => s as usize,
                                         None => i,
                                     };
-                                    let size = match parameter.lookup("size")
-                                                              .and_then(|k| k.as_integer()) {
+                                    p.size = match parameter.lookup("size")
+                                                            .and_then(|k| k.as_integer()) {
                                         Some(s) => s as usize,
                                         None => 1,
                                     };
-                                    let regenerate = match parameter.lookup("regenerate")
-                                                                    .and_then(|k| k.as_bool()) {
+                                    p.regenerate = match parameter.lookup("regenerate")
+                                                                  .and_then(|k| k.as_bool()) {
                                         Some(s) => s,
                                         None => false,
                                     };
-                                    match style {
-                                        "random" => {
-                                            w.parameters.push(workload::Parameter::Random {
-                                                size: size,
-                                                regenerate: regenerate,
-                                            });
-                                        }
-                                        "static" => {
-                                            w.parameters.push(workload::Parameter::Static {
-                                                size: size,
-                                                seed: seed,
-                                            });
-                                        }
+                                    p.style = match style {
+                                        "random" => Style::Random,
+                                        "static" => Style::Static,
                                         _ => {
                                             panic!("bad parameter style: {}", style);
                                         }
-                                    }
+                                    };
+                                    w.parameters.push(p);
                                     j += 1;
                                 }
                                 None => {

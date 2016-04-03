@@ -17,7 +17,51 @@ extern crate byteorder;
 
 use byteorder::{ByteOrder, BigEndian, WriteBytesExt};
 
-/// this is work in progress to speak framed binary thrift
+const STOP: u8 = 0;
+const VOID: u8 = 1;
+const BOOL: u8 = 2;
+const BYTE: u8 = 3;
+const I16: u8 = 6;
+const I32: u8 = 8;
+const I64: u8 = 10;
+const STRING: u8 = 11;
+const STRUCT: u8 = 12;
+const MAP: u8 = 13;
+const SET: u8 = 14;
+const LIST: u8 = 15;
+
+#[derive(Debug, Clone)]
+pub enum ThriftType<'a> {
+    Stop,
+    Void,
+    Bool(Option<i16>, bool),
+    Byte(Option<i16>, u8),
+    Int16(Option<i16>, i16),
+    Int32(Option<i16>, i32),
+    Int64(Option<i16>, i64),
+    String(Option<i16>, &'a str),
+    Struct(i16),
+    Map(i16),
+    Set(i16),
+    List(i16, &'a str, i32), // field_id, type, length
+}
+
+#[derive(Clone)]
+pub struct ThriftRequest<'a> {
+    pub method: &'a str,
+    pub sequence_id: i32,
+    pub payload: Vec<ThriftType<'a>>,
+}
+
+impl<'a> Default for ThriftRequest<'a> {
+    fn default() -> ThriftRequest<'a> {
+        ThriftRequest {
+            method: "ping",
+            sequence_id: 0,
+            payload: Vec::<ThriftType>::new(),
+        }
+    }
+}
 
 #[derive(Clone)]
 pub struct Buffer {
@@ -32,6 +76,15 @@ impl Buffer {
         Buffer { buffer: buffer }
     }
 
+    /// returns the Vec<u8> from the `Buffer`
+    ///
+    /// # Example
+    /// ```
+    /// # use rpcperf_request::thrift::*;
+    ///
+    /// let mut b = Buffer::new();
+    /// let expected = vec![0, 0, 0, 0];
+    /// assert_eq!(b.into_vec(), expected);
     pub fn into_vec(self) -> Vec<u8> {
         self.buffer
     }
@@ -42,10 +95,10 @@ impl Buffer {
     /// ```
     /// # use rpcperf_request::thrift::*;
     ///
-    // let mut buffer = Vec::<u8>::new();
-    // protocol_header(&mut buffer);
-    // let expected = vec![128, 1, 0, 1];
-    // assert_eq!(buffer, expected);
+    /// let mut b = Buffer::new();
+    /// b.protocol_header();
+    /// let expected = vec![0, 0, 0, 0, 128, 1, 0, 1];
+    /// assert_eq!(b.into_vec(), expected);
     pub fn protocol_header(&mut self) -> &Self {
         self.buffer.extend_from_slice(&[128, 1, 0, 1]);
         self
@@ -110,18 +163,45 @@ impl Buffer {
     /// let expected = vec![0, 0, 0, 0, 0];
     /// assert_eq!(b.into_vec(), expected);
     pub fn stop(&mut self) -> &Self {
-        self.write_bytes(&[0])
+        self.write_bytes(&[STOP])
     }
 
+    // write an i16 to the buffer
+    #[inline]
+    fn write_i16(&mut self, value: i16) -> &Self {
+        let bytes = self.buffer.len();
+        self.buffer.resize(bytes + 2, 0);
+        BigEndian::write_i16(&mut self.buffer[bytes..], value);
+        self
+    }
+
+    // write an i32 to the buffer
     #[inline]
     fn write_i32(&mut self, value: i32) -> &Self {
         let _ = self.buffer.write_i32::<BigEndian>(value).unwrap();
         self
     }
 
+    // write an i64 to the buffer
+    #[inline]
+    fn write_i64(&mut self, value: i64) -> &Self {
+        let bytes = self.buffer.len();
+        self.buffer.resize(bytes + 8, 0);
+        BigEndian::write_i64(&mut self.buffer[bytes..], value);
+        self
+    }
+
+    // write a literal byte sequence to the buffer
     #[inline]
     fn write_bytes(&mut self, bytes: &[u8]) -> &Self {
         self.buffer.extend_from_slice(bytes);
+        self
+    }
+
+    // write bool to the buffer
+    #[inline]
+    fn write_bool(&mut self, b: bool) -> &Self {
+        self.buffer.extend_from_slice(&[(b as u8)]);
         self
     }
 
@@ -142,11 +222,149 @@ impl Buffer {
 ///
 /// assert_eq!(ping(), [0, 0, 0, 17, 128, 1, 0, 1, 0, 0, 0, 4, 112, 105, 110, 103, 0, 0, 0, 0, 0]);
 pub fn ping() -> Vec<u8> {
+    generic(ThriftRequest {
+        method: "ping",
+        sequence_id: 0,
+        payload: Vec::<ThriftType>::new(),
+    })
+}
+
+pub fn generic(request: ThriftRequest) -> Vec<u8> {
     let mut buffer = Buffer::new();
     buffer.protocol_header();
-    buffer.method_name("ping");
-    buffer.sequence_id(0);
+    buffer.method_name(&request.method);
+    buffer.sequence_id(request.sequence_id);
+    for item in request.payload {
+        match item {
+            ThriftType::Stop => {
+                buffer.stop();
+            }
+            ThriftType::Void => {
+                buffer.write_bytes(&[VOID]);
+            }
+            ThriftType::Bool(id, val) => {
+                if let Some(id) = id {
+                    buffer.write_bytes(&[BOOL]);
+                    buffer.write_i16(id);
+                }
+                buffer.write_bool(val);
+            }
+            ThriftType::Byte(id, val) => {
+                if let Some(id) = id {
+                    buffer.write_bytes(&[BYTE]);
+                    buffer.write_i16(id);
+                }
+                buffer.write_bytes(&[val]);
+            }
+            ThriftType::Int16(id, val) => {
+                if let Some(id) = id {
+                    buffer.write_bytes(&[I16]);
+                    buffer.write_i16(id);
+                }
+                buffer.write_i16(val);
+            }
+            ThriftType::Int32(id, val) => {
+                if let Some(id) = id {
+                    buffer.write_bytes(&[I32]);
+                    buffer.write_i16(id);
+                }
+                buffer.write_i32(val);
+            }
+            ThriftType::Int64(id, val) => {
+                if let Some(id) = id {
+                    buffer.write_bytes(&[I64]);
+                    buffer.write_i16(id);
+                }
+                buffer.write_i64(val);
+            }
+            ThriftType::String(id, val) => {
+                if let Some(id) = id {
+                    buffer.write_bytes(&[STRING]);
+                    buffer.write_i16(id);
+                }
+                buffer.write_str(&val);
+            }
+            ThriftType::Struct(id) => {
+                buffer.write_bytes(&[STRUCT]);
+                buffer.write_i16(id);
+            }
+            ThriftType::Map(id) => {
+                buffer.write_bytes(&[MAP]);
+                buffer.write_i16(id);
+            }
+            ThriftType::Set(id) => {
+                buffer.write_bytes(&[SET]);
+                buffer.write_i16(id);
+            }
+            ThriftType::List(id, ttype, len) => {
+                buffer.write_bytes(&[LIST]);
+                buffer.write_i16(id);
+
+                // TODO: this could be better
+                let byte = match &*ttype {
+                    "string" => STRING,
+                    "struct" => STRUCT,
+                    _ => {
+                        panic!("unsupported ttype for list");
+                    }
+                };
+                buffer.write_bytes(&[byte]);
+                buffer.write_i32(len);
+            }
+        }
+    }
     buffer.stop();
     buffer.frame();
     buffer.into_vec()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn thrift_ping() {
+        let request = ThriftRequest {
+            method: "ping",
+            sequence_id: 0,
+            payload: Vec::<ThriftType>::new(),
+        };
+        assert_eq!(generic(request),
+                   vec![0, 0, 0, 17, 128, 1, 0, 1, 0, 0, 0, 4, 112, 105, 110, 103, 0, 0, 0, 0, 0]);
+    }
+
+    // thrift calculator `add` example
+    #[test]
+    fn thrift_add() {
+        let mut request = ThriftRequest {
+            method: "add",
+            sequence_id: 0,
+            payload: Vec::<ThriftType>::new(),
+        };
+        request.payload.push(ThriftType::Int32(Some(1), 1));
+        request.payload.push(ThriftType::Int32(Some(2), 1));
+        assert_eq!(generic(request),
+                   vec![0, 0, 0, 30, 128, 1, 0, 1, 0, 0, 0, 3, 97, 100, 100, 0, 0, 0, 0, 8, 0, 1,
+                        0, 0, 0, 1, 8, 0, 2, 0, 0, 0, 1, 0]);
+    }
+
+    // thrift calculator subtraction example
+    #[test]
+    fn thrift_subtract() {
+        let mut request = ThriftRequest {
+            method: "calculate",
+            sequence_id: 0,
+            payload: Vec::<ThriftType>::new(),
+        };
+        request.payload.push(ThriftType::Int32(Some(1), 1));
+        request.payload.push(ThriftType::Struct(2));
+        request.payload.push(ThriftType::Int32(Some(1), 15));
+        request.payload.push(ThriftType::Int32(Some(2), 10));
+        request.payload.push(ThriftType::Int32(Some(3), 2));
+        request.payload.push(ThriftType::Stop);
+        assert_eq!(generic(request),
+                   vec![0, 0, 0, 54, 128, 1, 0, 1, 0, 0, 0, 9, 99, 97, 108, 99, 117, 108, 97,
+                        116, 101, 0, 0, 0, 0, 8, 0, 1, 0, 0, 0, 1, 12, 0, 2, 8, 0, 1, 0, 0, 0,
+                        15, 8, 0, 2, 0, 0, 0, 10, 8, 0, 3, 0, 0, 0, 2, 0, 0]);
+    }
 }

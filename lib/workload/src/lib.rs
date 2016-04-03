@@ -14,7 +14,6 @@
 //  limitations under the License.
 
 #![crate_type = "lib"]
-#![crate_name = "rpcperf_workload"]
 
 extern crate mpmc;
 extern crate pad;
@@ -33,6 +32,7 @@ use rand::{thread_rng, Rng};
 use ratelimit::Ratelimit;
 use request::{echo, memcache, ping, redis, thrift};
 use std::str;
+use request::thrift::*;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Protocol {
@@ -78,20 +78,75 @@ fn seeded_string(size: usize, seed: usize) -> String {
 }
 
 #[derive(Clone, Debug)]
-pub enum Parameter {
-    Random {
-        size: usize,
-        regenerate: bool,
-    }, // random first or everytime
-    Static {
-        size: usize,
-        seed: usize,
-    }, // fixed based on some seed
+pub enum Type {
+    Stop,
+    Void,
+    Bool,
+    Byte,
+    Double,
+    Int16,
+    Int32,
+    Int64,
+    String,
+    Struct,
+    Map,
+    Set,
+    List(String),
+    None,
+}
+
+#[derive(Clone, Debug)]
+pub enum Style {
+    Random,
+    Static,
+}
+
+#[derive(Clone, Debug)]
+pub struct Parameter {
+    pub id: Option<i16>,
+    pub ptype: Type,
+    pub seed: usize,
+    pub size: usize,
+    pub style: Style,
+    pub regenerate: bool,
+    pub value: Value,
+}
+
+#[derive(Clone, Debug)]
+pub enum Value {
+    Stop,
+    Void,
+    Bool(bool),
+    Byte(u8),
+    Double(f64),
+    Int16(i16),
+    Int32(i32),
+    Int64(i64),
+    String(String),
+    Struct,
+    Map,
+    Set,
+    List(String, i32),
+    None,
+}
+
+impl Default for Value {
+    fn default() -> Value {
+        Value::None
+    }
 }
 
 impl Default for Parameter {
     fn default() -> Parameter {
-        Parameter::Static { size: 1, seed: 0 }
+        Parameter {
+            id: None,
+            ptype: Type::None,
+            seed: 0,
+            size: 1,
+            style: Style::Static,
+            regenerate: false,
+            value: Default::default(),
+        }
     }
 }
 
@@ -137,14 +192,41 @@ impl Workload {
 
     fn generate_values(&mut self, force: bool) {
         for i in 0..self.parameters.len() {
-            match self.parameters[i] {
-                Parameter::Random { size, regenerate } => {
-                    if regenerate || force {
-                        self.values[i] = random_string(size).into_bytes();
+            match self.parameters[i].style {
+                Style::Random => {
+                    if self.parameters[i].regenerate || force {
+                        self.parameters[i].value = match self.parameters[i].ptype {
+                            Type::Stop => Value::Stop,
+                            Type::Void => Value::Void,
+                            Type::Bool => Value::Bool(rand::random::<bool>()),
+                            Type::Int16 => Value::Int16(rand::random::<i16>()),
+                            Type::Int32 => Value::Int32(rand::random::<i32>()),
+                            Type::Int64 => Value::Int64(rand::random::<i64>()),
+                            Type::Struct => Value::Struct,
+                            Type::String => Value::String(random_string(self.parameters[i].size)),
+                            _ => {
+                                self.values[i] = random_string(self.parameters[i].size)
+                                                     .into_bytes();
+                                Value::None
+                            }
+                        }
                     }
                 }
-                Parameter::Static { size, seed } => {
-                    self.values[i] = seeded_string(size, seed).into_bytes();
+                Style::Static => {
+                    self.parameters[i].value = match self.parameters[i].ptype.clone() {
+                        Type::Int16 => Value::Int16(self.parameters[i].seed as i16),
+                        Type::Int32 => Value::Int32(self.parameters[i].seed as i32),
+                        Type::Int64 => Value::Int64(self.parameters[i].seed as i64),
+                        Type::List(ttype) => Value::List(ttype.clone(), self.parameters[i].seed as i32),
+                        Type::Stop => Value::Stop,
+                        Type::Struct => Value::Struct,
+                        _ => {
+                            self.values[i] = seeded_string(self.parameters[i].size,
+                                                           self.parameters[i].seed)
+                                                 .into_bytes();
+                            Value::None
+                        }
+                    }
                 }
             }
         }
@@ -285,9 +367,44 @@ impl Workload {
                     match &*self.command {
                         "ping" => thrift::ping(),
                         _ => {
-                            panic!("unknown command: {} for protocol: {:?}",
-                                   self.command,
-                                   self.protocol);
+                            let mut thrift = thrift::ThriftRequest::default();
+                            thrift.method = &self.command;
+                            for p in &self.parameters {
+                                match p.value {
+                                    Value::Stop => {
+                                        thrift.payload.push(ThriftType::Stop)
+                                    }
+                                    Value::Void => {
+                                        thrift.payload.push(ThriftType::Void)
+                                    }
+                                    Value::Bool(v) => {
+                                        thrift.payload.push(ThriftType::Bool(p.id, v))
+                                    }
+                                    Value::Byte(v) => {
+                                        thrift.payload.push(ThriftType::Byte(p.id, v))
+                                    }
+                                    Value::Int16(v) => {
+                                        thrift.payload.push(ThriftType::Int16(p.id, v))
+                                    }
+                                    Value::Int32(v) => {
+                                        thrift.payload.push(ThriftType::Int32(p.id, v))
+                                    }
+                                    Value::Int64(v) => {
+                                        thrift.payload.push(ThriftType::Int64(p.id, v))
+                                    }
+                                    Value::String(ref v) => {
+                                        thrift.payload.push(ThriftType::String(p.id, v))
+                                    }
+                                    Value::Struct => {
+                                        thrift.payload.push(ThriftType::Struct(p.id.unwrap()))
+                                    }
+                                    Value::List(ref ttype, length) => {
+                                        thrift.payload.push(ThriftType::List(p.id.unwrap(), ttype, length))
+                                    }
+                                    _ => {}
+                                }
+                            }
+                            thrift::generic(thrift)
                         }
                     }
                 }

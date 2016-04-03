@@ -61,6 +61,7 @@ impl mio::Handler for Client {
             State::Writing => {
                 match self.work_rx.pop() {
                     Some(work) => {
+                        trace!("sending: {:?}", work);
                         self.connections[token].ready(event_loop, events, Some(work));
                     }
                     None => {
