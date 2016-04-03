@@ -22,11 +22,11 @@ pub struct SimpleLogger;
 
 impl log::Log for SimpleLogger {
     fn enabled(&self, metadata: &LogMetadata) -> bool {
-        metadata.level() <= LogLevel::Trace
+        metadata.level() <= LogLevel::Debug
     }
 
     fn log(&self, record: &LogRecord) {
-        if self.enabled(record.metadata()) {
+        if self.enabled(record.metadata()) && record.location().module_path() == "rpc_perf" {
             println!("{} {:<5} [{}] {}",
                      time::strftime("%Y-%m-%d %H:%M:%S", &time::now()).unwrap(),
                      record.level().to_string(),
