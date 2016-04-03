@@ -169,25 +169,21 @@ impl Buffer {
     // write an i16 to the buffer
     #[inline]
     fn write_i16(&mut self, value: i16) -> &Self {
-        let bytes = self.buffer.len();
-        self.buffer.resize(bytes + 2, 0);
-        BigEndian::write_i16(&mut self.buffer[bytes..], value);
+        self.buffer.write_i16::<BigEndian>(value).unwrap();
         self
     }
 
     // write an i32 to the buffer
     #[inline]
     fn write_i32(&mut self, value: i32) -> &Self {
-        let _ = self.buffer.write_i32::<BigEndian>(value).unwrap();
+        self.buffer.write_i32::<BigEndian>(value).unwrap();
         self
     }
 
     // write an i64 to the buffer
     #[inline]
     fn write_i64(&mut self, value: i64) -> &Self {
-        let bytes = self.buffer.len();
-        self.buffer.resize(bytes + 8, 0);
-        BigEndian::write_i64(&mut self.buffer[bytes..], value);
+        self.buffer.write_i64::<BigEndian>(value).unwrap();
         self
     }
 
