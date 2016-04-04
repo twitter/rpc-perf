@@ -189,7 +189,15 @@ pub fn main() {
 
     // load config from file if specified
     if let Some(toml) = matches.opt_str("config") {
-        config = config::load_config(toml).unwrap();
+        match config::load_config(toml) {
+            Ok(cfg) => {
+                config = cfg;
+            }
+            Err(msg) => {
+                error!("{}", msg);
+                return;
+            }
+        }
     }
 
     // override config with commandline options
