@@ -34,7 +34,7 @@ use request::{echo, memcache, ping, redis, thrift};
 use std::str;
 use request::thrift::*;
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum Protocol {
     Echo,
     Memcache,
@@ -77,7 +77,7 @@ fn seeded_string(size: usize, seed: usize) -> String {
     s.pad(size, '0', Alignment::Right, true)
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Type {
     Stop,
     Void,
@@ -95,7 +95,7 @@ pub enum Type {
     None,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Style {
     Random,
     Static,
@@ -112,7 +112,7 @@ pub struct Parameter {
     pub value: Value,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Value {
     Stop,
     Void,

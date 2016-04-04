@@ -17,11 +17,15 @@ extern crate log;
 extern crate toml;
 extern crate rpcperf_workload as workload;
 
+use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::Read;
 use toml::Parser;
-use toml::Value::Table;
+use toml::Value;
+use toml::Value::{Array, Table};
 use workload::{Parameter, Style, Type};
+
+type CResult<T> = Result<T, String>;
 
 #[derive(Clone)]
 pub struct BenchmarkWorkload {
@@ -68,160 +72,206 @@ impl Default for BenchmarkConfig {
     }
 }
 
-pub fn load_config(path: String) -> Result<BenchmarkConfig, &'static str> {
+pub fn load_config(path: &str) -> Result<BenchmarkConfig, String> {
     let mut f = File::open(&path).unwrap();
 
     let mut s = String::new();
     f.read_to_string(&mut s).unwrap();
+    load_config_str(path, &s)
+}
 
-    let mut p = Parser::new(&s);
+pub fn load_config_str(config_name: &str, config: &str) -> Result<BenchmarkConfig, String> {
+    let mut p = Parser::new(config);
 
     match p.parse() {
-        Some(toml) => {
+        Some(table) => {
             debug!("toml parsed successfully. creating config");
 
             let mut config: BenchmarkConfig = Default::default();
-            let table = Table(toml);
 
-            if let Some(general) = table.lookup("general") {
-                if let Some(connections) = general.lookup("connections")
+            if let Some(&Table(ref general)) = table.get("general") {
+                if let Some(connections) = general.get("connections")
                                                   .and_then(|k| k.as_integer()) {
                     config.connections = connections as usize;
                 };
-                if let Some(threads) = general.lookup("threads").and_then(|k| k.as_integer()) {
+                if let Some(threads) = general.get("threads").and_then(|k| k.as_integer()) {
                     config.threads = threads as usize;
                 }
-                if let Some(duration) = general.lookup("duration")
+                if let Some(duration) = general.get("duration")
                                                .and_then(|k| k.as_integer()) {
                     config.duration = duration as usize;
                 }
-                if let Some(windows) = general.lookup("windows").and_then(|k| k.as_integer()) {
+                if let Some(windows) = general.get("windows").and_then(|k| k.as_integer()) {
                     config.windows = windows as usize;
                 }
-                if let Some(protocol) = general.lookup("protocol").and_then(|k| k.as_str()) {
+                if let Some(protocol) = general.get("protocol").and_then(|k| k.as_str()) {
                     config.protocol = protocol.to_owned();
                 }
-                if let Some(tcp_nodelay) = general.lookup("tcp-nodelay")
+                if let Some(tcp_nodelay) = general.get("tcp-nodelay")
                                                   .and_then(|k| k.as_bool()) {
                     config.tcp_nodelay = tcp_nodelay;
                 }
-                if let Some(ipv4) = general.lookup("ipv4").and_then(|k| k.as_bool()) {
+                if let Some(ipv4) = general.get("ipv4").and_then(|k| k.as_bool()) {
                     config.ipv4 = ipv4;
                 }
-                if let Some(ipv6) = general.lookup("ipv6").and_then(|k| k.as_bool()) {
+                if let Some(ipv6) = general.get("ipv6").and_then(|k| k.as_bool()) {
                     config.ipv6 = ipv6;
                 }
             }
 
-            let mut i = 0;
-            loop {
-                let key = format!("workload.{}", i);
-                match table.lookup(&key) {
-                    Some(workload) => {
-                        debug!("workload: {} defined", i);
-                        let mut w: BenchmarkWorkload = Default::default();
-                        if let Some(method) = workload.lookup("method").and_then(|k| k.as_str()) {
-                            w.method = method.to_owned();
+            match table.get("workload") {
+                None => return Err("no workload section".to_owned()),
+                Some(&Array(ref workloads)) => {
+                    for (i, workload) in workloads.iter().enumerate() {
+                        if let &Table(ref workload) = workload {
+                            let w = try!(extract_workload(i, workload));
+                            config.workloads.push(w);
+                        } else {
+                            return Err("malformed config: workload must be a struct".to_owned());
                         }
-                        if let Some(rate) = workload.lookup("rate").and_then(|k| k.as_integer()) {
-                            w.rate = rate as usize;
-                        }
-                        let mut j = 0;
-                        loop {
-                            let param_key = format!("parameter.{}", j);
-                            match workload.lookup(&param_key) {
-                                Some(parameter) => {
-                                    let mut p = Parameter::default();
-                                    p.id = match parameter.lookup("id")
-                                                          .and_then(|k| k.as_integer()) {
-                                        Some(s) => Some(s as i16),
-                                        None => None,
-                                    };
-
-                                    p.ptype = match parameter.lookup("type")
-                                                             .and_then(|k| k.as_str()) {
-                                        Some("stop") => Type::Stop,
-                                        Some("void") => Type::Void,
-                                        Some("bool") => Type::Bool,
-                                        Some("byte") => Type::Byte,
-                                        Some("double") => Type::Double,
-                                        Some("i16") => Type::Int16,
-                                        Some("i32") => Type::Int32,
-                                        Some("i64") => Type::Int64,
-                                        Some("string") => Type::String,
-                                        Some("struct") => Type::Struct,
-                                        Some("map") => Type::Map,
-                                        Some("set") => Type::Set,
-                                        Some("list") => {
-                                            Type::List(parameter.lookup("contains")
-                                                                .and_then(|k| k.as_str())
-                                                                .unwrap()
-                                                                .to_owned())
-                                        }
-                                        Some(_) => Type::None,
-                                        None => Type::None,
-                                    };
-                                    let style = match parameter.lookup("style")
-                                                               .and_then(|k| k.as_str()) {
-                                        Some(s) => s,
-                                        None => "static",
-                                    };
-                                    p.seed = match parameter.lookup("seed")
-                                                            .and_then(|k| k.as_integer()) {
-                                        Some(s) => s as usize,
-                                        None => i,
-                                    };
-                                    p.size = match parameter.lookup("size")
-                                                            .and_then(|k| k.as_integer()) {
-                                        Some(s) => s as usize,
-                                        None => 1,
-                                    };
-                                    p.regenerate = match parameter.lookup("regenerate")
-                                                                  .and_then(|k| k.as_bool()) {
-                                        Some(s) => s,
-                                        None => false,
-                                    };
-                                    p.style = match style {
-                                        "random" => Style::Random,
-                                        "static" => Style::Static,
-                                        _ => {
-                                            panic!("bad parameter style: {}", style);
-                                        }
-                                    };
-                                    w.parameters.push(p);
-                                    j += 1;
-                                }
-                                None => {
-                                    break;
-                                }
-                            }
-                        }
-                        config.workloads.push(w);
-                    }
-                    None => {
-                        break;
                     }
                 }
-                i += 1;
+                Some(_) => return Err("malformed config: workloads must be an array".to_owned()),
             }
-            if i < 1 {
-                return Err("no workload section");
-            }
-            return Ok(config);
+
+            Ok(config)
         }
         None => {
             for err in &p.errors {
                 let (loline, locol) = p.to_linecol(err.lo);
                 let (hiline, hicol) = p.to_linecol(err.hi);
                 println!("{}:{}:{}-{}:{} error: {}",
-                         path,
+                         config_name,
                          loline,
                          locol,
                          hiline,
                          hicol,
                          err.desc);
             }
+            Err("failed to load config".to_owned())
         }
     }
-    Err("failed to load config")
+}
+
+fn extract_workload(i: usize, workload: &BTreeMap<String,Value>) -> CResult<BenchmarkWorkload> {
+    let mut w: BenchmarkWorkload = Default::default();
+    if let Some(method) = workload.get("method").and_then(|k| k.as_str()) {
+        w.method = method.to_owned();
+    }
+    if let Some(rate) = workload.get("rate").and_then(|k| k.as_integer()) {
+        w.rate = rate as usize;
+    }
+
+    match workload.get("parameter") {
+        Some(&Array(ref params)) => {
+            for param in params {
+                match param {
+                    &Table(ref parameter) => {
+                        let p = try!(extract_parameter(i, parameter));
+                        w.parameters.push(p);
+                    }
+                    _ => {
+                        return Err("malformed config: a parameter must be a struct".to_owned());
+                    }
+                }
+            }
+
+        }
+        Some(_) => return Err("malformed config: 'parameter' must be an array".to_owned()),
+        None => {}
+    }
+    Ok(w)
+}
+
+fn extract_parameter(i: usize, parameter: &BTreeMap<String,Value>) -> CResult<Parameter> {
+
+    let mut p = Parameter::default();
+    p.id = match parameter.get("id")
+                          .and_then(|k| k.as_integer()) {
+        Some(s) => Some(s as i16),
+        None => None,
+    };
+
+    p.ptype = match parameter.get("type")
+                             .and_then(|k| k.as_str()) {
+        Some("stop") => Type::Stop,
+        Some("void") => Type::Void,
+        Some("bool") => Type::Bool,
+        Some("byte") => Type::Byte,
+        Some("double") => Type::Double,
+        Some("i16") => Type::Int16,
+        Some("i32") => Type::Int32,
+        Some("i64") => Type::Int64,
+        Some("string") => Type::String,
+        Some("struct") => Type::Struct,
+        Some("map") => Type::Map,
+        Some("set") => Type::Set,
+        Some("list") => {
+            Type::List(parameter.get("contains")
+                                .and_then(|k| k.as_str())
+                                .unwrap()
+                                .to_owned())
+        }
+        Some(unknown) => return Err(format!("unknown parameter type: {}", unknown)),
+        None => Type::None,
+    };
+
+    p.style = match parameter.get("style")
+                               .and_then(|k| k.as_str()) {
+        Some("random") => Style::Random,
+        Some("static") => Style::Static,
+        None => Style::Static,
+        Some(other) => return Err(format!("bad parameter style: {}", other)),
+    };
+
+    p.seed = match parameter.get("seed")
+                            .and_then(|k| k.as_integer()) {
+        Some(s) => s as usize,
+        None => i,
+    };
+    p.size = match parameter.get("size")
+                            .and_then(|k| k.as_integer()) {
+        Some(s) => s as usize,
+        None => 1,
+    };
+    p.regenerate = match parameter.get("regenerate")
+                                  .and_then(|k| k.as_bool()) {
+        Some(s) => s,
+        None => false,
+    };
+
+    Ok(p)
+}
+
+#[test]
+fn test_load_config() {
+    let config_str = include_str!("../configs/thrift_calc.toml");
+    let workload = load_config_str("thrift_calc.toml", config_str).unwrap();
+
+    assert_eq!(workload.protocol, "thrift");
+    assert_eq!(workload.workloads.len(), 3);
+
+    let w0 = &workload.workloads[0];
+    // Check the first workload
+    assert_eq!(w0.method, "ping");
+    assert_eq!(w0.rate, 1);
+    assert_eq!(w0.parameters.len(), 0);
+
+    let w2 = &workload.workloads[2];
+    // check the third workload
+    assert_eq!(w2.method, "calculate");
+    assert_eq!(w2.rate, 1);
+    assert_eq!(w2.parameters.len(), 6);
+
+    // Check that the first parameter of the third workload was parsed correctly
+    assert_eq!(w2.parameters[0].id, Some(1));
+    assert_eq!(w2.parameters[0].ptype, Type::Int32);
+    assert_eq!(w2.parameters[0].style, Style::Static);
+    assert_eq!(w2.parameters[0].regenerate, false);
+
+    // Check that the last parameter was also parsed correctly
+    assert_eq!(w2.parameters[5].id, None);
+    assert_eq!(w2.parameters[5].ptype, Type::Stop);
+    assert_eq!(w2.parameters[5].style, Style::Static);
+    assert_eq!(w2.parameters[5].regenerate, false);
 }

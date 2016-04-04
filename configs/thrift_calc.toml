@@ -1,3 +1,7 @@
+# Note: this is used in the config unit tests: modification may result
+#       in test faulure. If you change this, you may need to change these
+#       tests.
+#
 # this example illustrates using rpc-perf with generic thrift protocols
 # in this particular case, we benchmark the tutorial calculator example
 #
