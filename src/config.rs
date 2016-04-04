@@ -212,7 +212,7 @@ fn extract_parameters(i: usize, parameter: &BTreeMap<String,Value>) -> CResult<P
                                 .unwrap()
                                 .to_owned())
         }
-        Some(_) => Type::None,
+        Some(unknown) => return Err(format!("unknown parameter type: {}", unknown)),
         None => Type::None,
     };
 
@@ -258,12 +258,12 @@ fn test_load_config() {
     assert_eq!(w0.parameters.len(), 0);
 
     let w2 = &workload.workloads[2];
-    // check the second workload
+    // check the third workload
     assert_eq!(w2.method, "calculate");
     assert_eq!(w2.rate, 1);
     assert_eq!(w2.parameters.len(), 6);
 
-    // Check that the first parameter of the second workload was parsed correctly
+    // Check that the first parameter of the third workload was parsed correctly
     assert_eq!(w2.parameters[0].id, Some(1));
     assert_eq!(w2.parameters[0].ptype, Type::Int32);
     assert_eq!(w2.parameters[0].style, Style::Static);
