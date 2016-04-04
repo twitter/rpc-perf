@@ -167,7 +167,7 @@ fn extract_workload(i: usize, workload: &BTreeMap<String,Value>) -> CResult<Benc
             for param in params {
                 match param {
                     &Table(ref parameter) => {
-                        let p = try!(extract_parameters(i, parameter));
+                        let p = try!(extract_parameter(i, parameter));
                         w.parameters.push(p);
                     }
                     _ => {
@@ -183,7 +183,7 @@ fn extract_workload(i: usize, workload: &BTreeMap<String,Value>) -> CResult<Benc
     Ok(w)
 }
 
-fn extract_parameters(i: usize, parameter: &BTreeMap<String,Value>) -> CResult<Parameter> {
+fn extract_parameter(i: usize, parameter: &BTreeMap<String,Value>) -> CResult<Parameter> {
 
     let mut p = Parameter::default();
     p.id = match parameter.get("id")
