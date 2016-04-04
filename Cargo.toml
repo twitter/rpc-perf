@@ -1,6 +1,6 @@
 [package]
 name = "rpc-perf"
-version = "1.0.0-nightly.20160324"
+version = "1.0.0-nightly.20160404"
 authors = ["Brian Martin <bmartin@twitter.com>"]
 
 license = "Apache-2.0"
@@ -11,6 +11,8 @@ homepage = "https://github.com/twitter/rpc-perf"
 repository = "https://github.com/twitter/rpc-perf"
 
 readme = "README.md"
+
+exclude = ["./lib"]
 
 [profile.dev]
 opt-level = 0
@@ -37,9 +39,9 @@ log = "0.3.5"
 mio = "0.5.0"
 mpmc = "0.1.2"
 regex = "0.1.41"
-rpcperf_parser = { path = "./lib/parser" }
-rpcperf_request = { path = "./lib/request" }
-rpcperf_workload = { path = "./lib/workload" }
+rpcperf_parser = { path = "./lib/parser", version = "1.0.0" }
+rpcperf_request = { path = "./lib/request", version = "1.1.0" }
+rpcperf_workload = { path = "./lib/workload", version = "2.0.0" }
 shuteye = "0.1.1"
 simple_logger = "0.4.0"
 time = "0.1.34"
