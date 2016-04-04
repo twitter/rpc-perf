@@ -189,7 +189,7 @@ pub fn main() {
 
     // load config from file if specified
     if let Some(toml) = matches.opt_str("config") {
-        match config::load_config(toml) {
+        match config::load_config(&toml) {
             Ok(cfg) => {
                 config = cfg;
             }

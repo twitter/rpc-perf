@@ -72,13 +72,16 @@ impl Default for BenchmarkConfig {
     }
 }
 
-pub fn load_config(path: String) -> Result<BenchmarkConfig, String> {
+pub fn load_config(path: &str) -> Result<BenchmarkConfig, String> {
     let mut f = File::open(&path).unwrap();
 
     let mut s = String::new();
     f.read_to_string(&mut s).unwrap();
+    load_config_str(path, &s)
+}
 
-    let mut p = Parser::new(&s);
+pub fn load_config_str(config_name: &str, config: &str) -> Result<BenchmarkConfig, String> {
+    let mut p = Parser::new(config);
 
     match p.parse() {
         Some(table) => {
@@ -138,7 +141,7 @@ pub fn load_config(path: String) -> Result<BenchmarkConfig, String> {
                 let (loline, locol) = p.to_linecol(err.lo);
                 let (hiline, hicol) = p.to_linecol(err.hi);
                 println!("{}:{}:{}-{}:{} error: {}",
-                         path,
+                         config_name,
                          loline,
                          locol,
                          hiline,
@@ -212,11 +215,15 @@ fn extract_parameters(i: usize, parameter: &BTreeMap<String,Value>) -> CResult<P
         Some(_) => Type::None,
         None => Type::None,
     };
-    let style = match parameter.get("style")
+
+    p.style = match parameter.get("style")
                                .and_then(|k| k.as_str()) {
-        Some(s) => s,
-        None => "static",
+        Some("random") => Style::Random,
+        Some("static") => Style::Static,
+        None => Style::Static,
+        Some(other) => return Err(format!("bad parameter style: {}", other)),
     };
+
     p.seed = match parameter.get("seed")
                             .and_then(|k| k.as_integer()) {
         Some(s) => s as usize,
@@ -232,12 +239,39 @@ fn extract_parameters(i: usize, parameter: &BTreeMap<String,Value>) -> CResult<P
         Some(s) => s,
         None => false,
     };
-    p.style = match style {
-        "random" => Style::Random,
-        "static" => Style::Static,
-        _ => {
-            return Err(format!("bad parameter style: {}", style));
-        }
-    };
+
     Ok(p)
+}
+
+#[test]
+fn test_load_config() {
+    let config_str = include_str!("../configs/thrift_calc.toml");
+    let workload = load_config_str("thrift_calc.toml", config_str).unwrap();
+
+    assert_eq!(workload.protocol, "thrift");
+    assert_eq!(workload.workloads.len(), 3);
+
+    let w0 = &workload.workloads[0];
+    // Check the first workload
+    assert_eq!(w0.method, "ping");
+    assert_eq!(w0.rate, 1);
+    assert_eq!(w0.parameters.len(), 0);
+
+    let w2 = &workload.workloads[2];
+    // check the second workload
+    assert_eq!(w2.method, "calculate");
+    assert_eq!(w2.rate, 1);
+    assert_eq!(w2.parameters.len(), 6);
+
+    // Check that the first parameter of the second workload was parsed correctly
+    assert_eq!(w2.parameters[0].id, Some(1));
+    assert_eq!(w2.parameters[0].ptype, Type::Int32);
+    assert_eq!(w2.parameters[0].style, Style::Static);
+    assert_eq!(w2.parameters[0].regenerate, false);
+
+    // Check that the last parameter was also parsed correctly
+    assert_eq!(w2.parameters[5].id, None);
+    assert_eq!(w2.parameters[5].ptype, Type::Stop);
+    assert_eq!(w2.parameters[5].style, Style::Static);
+    assert_eq!(w2.parameters[5].regenerate, false);
 }
