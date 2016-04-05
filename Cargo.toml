@@ -41,7 +41,6 @@ mpmc = "0.1.2"
 regex = "0.1.41"
 rpcperf_parser = { path = "./lib/parser", version = "1.0.0" }
 rpcperf_request = { path = "./lib/request", version = "1.1.0" }
-rpcperf_workload = { path = "./lib/workload", version = "2.0.0" }
 shuteye = "0.1.1"
 simple_logger = "0.4.0"
 time = "0.1.34"

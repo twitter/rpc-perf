@@ -20,7 +20,6 @@ use std::process::Command;
 fn main() {
     test_subcrate("rpcperf_parser");
     test_subcrate("rpcperf_request");
-    test_subcrate("rpcperf_workload");
 }
 
 fn test_subcrate(subcrate: &'static str) {

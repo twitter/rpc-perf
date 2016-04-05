@@ -15,7 +15,7 @@
 
 extern crate log;
 extern crate toml;
-extern crate rpcperf_workload as workload;
+extern crate rpcperf_request as request;
 
 use std::collections::BTreeMap;
 use std::fs::File;
@@ -23,7 +23,8 @@ use std::io::Read;
 use toml::Parser;
 use toml::Value;
 use toml::Value::{Array, Table};
-use workload::{Parameter, Style, Type};
+
+use request::workload::{Parameter, Style, Type};
 
 type CResult<T> = Result<T, String>;
 

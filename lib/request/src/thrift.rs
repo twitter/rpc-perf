@@ -13,14 +13,14 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-extern crate byteorder;
-
 use byteorder::{ByteOrder, BigEndian, WriteBytesExt};
+use workload::{Value, Parameter};
 
 const STOP: u8 = 0;
 const VOID: u8 = 1;
 const BOOL: u8 = 2;
 const BYTE: u8 = 3;
+const DOUBLE: u8 = 4;
 const I16: u8 = 6;
 const I32: u8 = 8;
 const I64: u8 = 10;
@@ -29,39 +29,6 @@ const STRUCT: u8 = 12;
 const MAP: u8 = 13;
 const SET: u8 = 14;
 const LIST: u8 = 15;
-
-#[derive(Debug, Clone)]
-pub enum ThriftType<'a> {
-    Stop,
-    Void,
-    Bool(Option<i16>, bool),
-    Byte(Option<i16>, u8),
-    Int16(Option<i16>, i16),
-    Int32(Option<i16>, i32),
-    Int64(Option<i16>, i64),
-    String(Option<i16>, &'a str),
-    Struct(i16),
-    Map(i16),
-    Set(i16),
-    List(i16, &'a str, i32), // field_id, type, length
-}
-
-#[derive(Clone)]
-pub struct ThriftRequest<'a> {
-    pub method: &'a str,
-    pub sequence_id: i32,
-    pub payload: Vec<ThriftType<'a>>,
-}
-
-impl<'a> Default for ThriftRequest<'a> {
-    fn default() -> ThriftRequest<'a> {
-        ThriftRequest {
-            method: "ping",
-            sequence_id: 0,
-            payload: Vec::<ThriftType>::new(),
-        }
-    }
-}
 
 #[derive(Clone)]
 pub struct Buffer {
@@ -187,6 +154,12 @@ impl Buffer {
         self
     }
 
+    #[inline]
+    fn write_f64(&mut self, value: f64) -> &Self {
+        self.buffer.write_f64::<BigEndian>(value).unwrap();
+        self
+    }
+
     // write a literal byte sequence to the buffer
     #[inline]
     fn write_bytes(&mut self, bytes: &[u8]) -> &Self {
@@ -218,86 +191,105 @@ impl Buffer {
 ///
 /// assert_eq!(ping(), [0, 0, 0, 17, 128, 1, 0, 1, 0, 0, 0, 4, 112, 105, 110, 103, 0, 0, 0, 0, 0]);
 pub fn ping() -> Vec<u8> {
-    generic(ThriftRequest {
-        method: "ping",
-        sequence_id: 0,
-        payload: Vec::<ThriftType>::new(),
-    })
+    generic("ping", 0, &Vec::new())
 }
 
-pub fn generic(request: ThriftRequest) -> Vec<u8> {
+pub fn generic(method: &str, sequence_id: i32, payload: &Vec<Parameter>) -> Vec<u8> {
     let mut buffer = Buffer::new();
     buffer.protocol_header();
-    buffer.method_name(&request.method);
-    buffer.sequence_id(request.sequence_id);
-    for item in request.payload {
-        match item {
-            ThriftType::Stop => {
+    buffer.method_name(method);
+    buffer.sequence_id(sequence_id);
+    for p in payload {
+        match p.value {
+            Value::Stop => {
                 buffer.stop();
             }
-            ThriftType::Void => {
+            Value::Void => {
                 buffer.write_bytes(&[VOID]);
             }
-            ThriftType::Bool(id, val) => {
-                if let Some(id) = id {
+            Value::Bool(val) => {
+                if let Some(id) = p.id {
                     buffer.write_bytes(&[BOOL]);
                     buffer.write_i16(id);
                 }
                 buffer.write_bool(val);
             }
-            ThriftType::Byte(id, val) => {
-                if let Some(id) = id {
+            Value::Byte(val) => {
+                if let Some(id) = p.id {
                     buffer.write_bytes(&[BYTE]);
                     buffer.write_i16(id);
                 }
                 buffer.write_bytes(&[val]);
             }
-            ThriftType::Int16(id, val) => {
-                if let Some(id) = id {
+            Value::Double(val) => {
+                if let Some(id) = p.id {
+                    buffer.write_bytes(&[DOUBLE]);
+                    buffer.write_i16(id);
+                }
+                buffer.write_f64(val);
+            }
+            Value::Int16(val) => {
+                if let Some(id) = p.id {
                     buffer.write_bytes(&[I16]);
                     buffer.write_i16(id);
                 }
                 buffer.write_i16(val);
             }
-            ThriftType::Int32(id, val) => {
-                if let Some(id) = id {
+            Value::Int32(val) => {
+                if let Some(id) = p.id {
                     buffer.write_bytes(&[I32]);
                     buffer.write_i16(id);
                 }
                 buffer.write_i32(val);
             }
-            ThriftType::Int64(id, val) => {
-                if let Some(id) = id {
+            Value::Int64(val) => {
+                if let Some(id) = p.id {
                     buffer.write_bytes(&[I64]);
                     buffer.write_i16(id);
                 }
                 buffer.write_i64(val);
             }
-            ThriftType::String(id, val) => {
-                if let Some(id) = id {
+            Value::String(ref val) => {
+                if let Some(id) = p.id {
                     buffer.write_bytes(&[STRING]);
                     buffer.write_i16(id);
                 }
                 buffer.write_str(&val);
             }
-            ThriftType::Struct(id) => {
-                buffer.write_bytes(&[STRUCT]);
-                buffer.write_i16(id);
+            Value::Struct => {
+                if let Some(id) = p.id {
+                    buffer.write_bytes(&[STRUCT]);
+                    buffer.write_i16(id);
+                } else {
+                    panic!("parameters of type struct must have an id");
+                }
             }
-            ThriftType::Map(id) => {
-                buffer.write_bytes(&[MAP]);
-                buffer.write_i16(id);
+            Value::Map => {
+                if let Some(id) = p.id {
+                    buffer.write_bytes(&[MAP]);
+                    buffer.write_i16(id);
+                } else {
+                    panic!("parameters of type map must have an id");
+                }
             }
-            ThriftType::Set(id) => {
-                buffer.write_bytes(&[SET]);
-                buffer.write_i16(id);
+            Value::Set => {
+                if let Some(id) = p.id {
+                    buffer.write_bytes(&[SET]);
+                    buffer.write_i16(id);
+                } else {
+                    panic!("parameters of type set must have an id");
+                }
             }
-            ThriftType::List(id, ttype, len) => {
-                buffer.write_bytes(&[LIST]);
-                buffer.write_i16(id);
+            Value::List(ref ttype, len) => {
+                if let Some(id) = p.id {
+                    buffer.write_bytes(&[LIST]);
+                    buffer.write_i16(id);
+                } else {
+                    panic!("parameters of type list must have an id");
+                }
 
                 // TODO: this could be better
-                let byte = match &*ttype {
+                let byte = match ttype.as_str() {
                     "string" => STRING,
                     "struct" => STRUCT,
                     _ => {
@@ -307,6 +299,7 @@ pub fn generic(request: ThriftRequest) -> Vec<u8> {
                 buffer.write_bytes(&[byte]);
                 buffer.write_i32(len);
             }
+            ref other => panic!("unknown thrift parameter type: {:?}", other),
         }
     }
     buffer.stop();
@@ -317,29 +310,29 @@ pub fn generic(request: ThriftRequest) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use workload::{Value, Parameter};
+
+    fn mk_param(id: i16, value: Value) -> Parameter {
+        let mut p = Parameter::default();
+        p.id = Some(id);
+        p.value = value;
+        p
+    }
 
     #[test]
     fn thrift_ping() {
-        let request = ThriftRequest {
-            method: "ping",
-            sequence_id: 0,
-            payload: Vec::<ThriftType>::new(),
-        };
-        assert_eq!(generic(request),
+        assert_eq!(generic("ping", 0, &Vec::new()),
                    vec![0, 0, 0, 17, 128, 1, 0, 1, 0, 0, 0, 4, 112, 105, 110, 103, 0, 0, 0, 0, 0]);
     }
 
     // thrift calculator `add` example
     #[test]
     fn thrift_add() {
-        let mut request = ThriftRequest {
-            method: "add",
-            sequence_id: 0,
-            payload: Vec::<ThriftType>::new(),
-        };
-        request.payload.push(ThriftType::Int32(Some(1), 1));
-        request.payload.push(ThriftType::Int32(Some(2), 1));
-        assert_eq!(generic(request),
+        let mut payload = Vec::new();
+        payload.push(mk_param(1, Value::Int32(1)));
+        payload.push(mk_param(2, Value::Int32(1)));
+
+        assert_eq!(generic("add", 0, &payload),
                    vec![0, 0, 0, 30, 128, 1, 0, 1, 0, 0, 0, 3, 97, 100, 100, 0, 0, 0, 0, 8, 0, 1,
                         0, 0, 0, 1, 8, 0, 2, 0, 0, 0, 1, 0]);
     }
@@ -347,18 +340,15 @@ mod tests {
     // thrift calculator subtraction example
     #[test]
     fn thrift_subtract() {
-        let mut request = ThriftRequest {
-            method: "calculate",
-            sequence_id: 0,
-            payload: Vec::<ThriftType>::new(),
-        };
-        request.payload.push(ThriftType::Int32(Some(1), 1));
-        request.payload.push(ThriftType::Struct(2));
-        request.payload.push(ThriftType::Int32(Some(1), 15));
-        request.payload.push(ThriftType::Int32(Some(2), 10));
-        request.payload.push(ThriftType::Int32(Some(3), 2));
-        request.payload.push(ThriftType::Stop);
-        assert_eq!(generic(request),
+        let mut payload = Vec::new();
+        payload.push(mk_param(1, Value::Int32(1)));
+        payload.push(mk_param(2, Value::Struct));
+        payload.push(mk_param(1, Value::Int32(15)));
+        payload.push(mk_param(2, Value::Int32(10)));
+        payload.push(mk_param(3, Value::Int32(2)));
+        payload.push(mk_param(0, Value::Stop));
+
+        assert_eq!(generic("calculate", 0, &payload),
                    vec![0, 0, 0, 54, 128, 1, 0, 1, 0, 0, 0, 9, 99, 97, 108, 99, 117, 108, 97,
                         116, 101, 0, 0, 0, 0, 8, 0, 1, 0, 0, 0, 1, 12, 0, 2, 8, 0, 1, 0, 0, 0,
                         15, 8, 0, 2, 0, 0, 0, 10, 8, 0, 3, 0, 0, 0, 2, 0, 0]);

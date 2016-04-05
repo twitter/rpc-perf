@@ -13,26 +13,17 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-#![crate_type = "lib"]
-
-extern crate mpmc;
-extern crate pad;
-extern crate rand;
-extern crate ratelimit;
-extern crate rpcperf_request as request;
-extern crate shuteye;
-extern crate time;
-
 const ONE_SECOND: u64 = 1_000_000_000;
 pub const BUCKET_SIZE: usize = 10_000;
 
 use mpmc::Queue as BoundedQueue;
 use pad::{PadStr, Alignment};
+use rand;
 use rand::{thread_rng, Rng};
 use ratelimit::Ratelimit;
-use request::{echo, memcache, ping, redis, thrift};
+use super::{echo, memcache, ping, redis, thrift};
 use std::str;
-use request::thrift::*;
+use time;
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum Protocol {
@@ -353,31 +344,7 @@ impl Workload {
                     if "ping" == &*self.command {
                         thrift::ping()
                     } else {
-                        let mut thrift = thrift::ThriftRequest::default();
-                        thrift.method = &self.command;
-                        for p in &self.parameters {
-                            match p.value {
-                                Value::Stop => thrift.payload.push(ThriftType::Stop),
-                                Value::Void => thrift.payload.push(ThriftType::Void),
-                                Value::Bool(v) => thrift.payload.push(ThriftType::Bool(p.id, v)),
-                                Value::Byte(v) => thrift.payload.push(ThriftType::Byte(p.id, v)),
-                                Value::Int16(v) => thrift.payload.push(ThriftType::Int16(p.id, v)),
-                                Value::Int32(v) => thrift.payload.push(ThriftType::Int32(p.id, v)),
-                                Value::Int64(v) => thrift.payload.push(ThriftType::Int64(p.id, v)),
-                                Value::String(ref v) => {
-                                    thrift.payload.push(ThriftType::String(p.id, v))
-                                }
-                                Value::Struct => {
-                                    thrift.payload.push(ThriftType::Struct(p.id.unwrap()))
-                                }
-                                Value::List(ref ttype, length) => {
-                                    thrift.payload
-                                          .push(ThriftType::List(p.id.unwrap(), ttype, length))
-                                }
-                                _ => {}
-                            }
-                        }
-                        thrift::generic(thrift)
+                        thrift::generic(&self.command, 0, &self.parameters)
                     }
                 }
                 _ => {
