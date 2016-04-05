@@ -144,6 +144,7 @@ pub fn main() {
     opts.optflag("", "flush", "flush cache prior to test");
     opts.optflag("", "ipv4", "force IPv4 only");
     opts.optflag("", "ipv6", "force IPv6 only");
+    opts.optflag("", "version", "show version and exit");
     opts.optflagmulti("v", "verbose", "verbosity (stacking)");
     opts.optflag("h", "help", "print this help menu");
 
@@ -154,6 +155,11 @@ pub fn main() {
 
     if matches.opt_present("help") {
         print_usage(&program, opts);
+        return;
+    }
+
+    if matches.opt_present("version") {
+        println!("rpc-perf {}", VERSION);
         return;
     }
 
@@ -178,6 +184,8 @@ pub fn main() {
         max_log_level.set(log_filter);
         Box::new(SimpleLogger)
     });
+
+    info!("rpc-perf {} initializing...", VERSION);
 
     if matches.opt_count("server") < 1 {
         error!("require server parameter");
@@ -347,7 +355,6 @@ pub fn main() {
 
     let evconfig = mio::EventLoopConfig::default();
 
-    info!("rpc-perf {} initializing...", VERSION);
     info!("-----");
     info!("Config:");
     for server in matches.opt_strs("server") {
