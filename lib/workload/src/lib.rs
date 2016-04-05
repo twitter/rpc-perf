@@ -217,7 +217,9 @@ impl Workload {
                         Type::Int16 => Value::Int16(self.parameters[i].seed as i16),
                         Type::Int32 => Value::Int32(self.parameters[i].seed as i32),
                         Type::Int64 => Value::Int64(self.parameters[i].seed as i64),
-                        Type::List(ttype) => Value::List(ttype.clone(), self.parameters[i].seed as i32),
+                        Type::List(ttype) => {
+                            Value::List(ttype.clone(), self.parameters[i].seed as i32)
+                        }
                         Type::Stop => Value::Stop,
                         Type::Struct => Value::Struct,
                         _ => {
@@ -240,40 +242,26 @@ impl Workload {
     pub fn prepare(&mut self, preparation: Preparation) {
         match preparation {
             Preparation::Flush => {
-                match self.protocol {
-                    Protocol::Memcache => {
-                        let _ = self.queue.push(memcache::flush_all().into_bytes());
-                    }
-                    Protocol::Redis => {
-                        let _ = self.queue.push(redis::flushall().into_bytes());
-                    }
-                    _ => {}
+                if self.protocol == Protocol::Memcache {
+                    let _ = self.queue.push(memcache::flush_all().into_bytes());
+                } else if self.protocol == Protocol::Redis {
+                    let _ = self.queue.push(redis::flushall().into_bytes());
                 }
             }
             Preparation::Hit => {
-                match &*self.command {
-                    "get" => {
-                        match self.protocol {
-                            Protocol::Memcache => {
-                                if self.values.len() < 2 {
-                                    self.values.push(Default::default());
-                                }
-                                let _ = self.queue
-                                            .push(memcache::set(str::from_utf8(&*self.values[0])
-                                                                    .unwrap(),
-                                                                str::from_utf8(&*self.values[1])
-                                                                    .unwrap(),
-                                                                None,
-                                                                None)
-                                                      .into_bytes());
-                            }
-                            Protocol::Redis => {
-                                let _ = self.queue.push(redis::flushall().into_bytes());
-                            }
-                            _ => {}
+                if &*self.command == "get" {
+                    if self.protocol == Protocol::Memcache {
+                        if self.values.len() < 2 {
+                            self.values.push(Default::default());
                         }
+                        let bytes = memcache::set(str::from_utf8(&*self.values[0]).unwrap(),
+                                                  str::from_utf8(&*self.values[1]).unwrap(),
+                                                  None,
+                                                  None);
+                        let _ = self.queue.push(bytes.into_bytes());
+                    } else if self.protocol == Protocol::Redis {
+                        let _ = self.queue.push(redis::flushall().into_bytes());
                     }
-                    _ => {}
                 }
             }
         }
@@ -289,13 +277,12 @@ impl Workload {
 
             let query = match self.protocol {
                 Protocol::Echo => {
-                    match &*self.command {
-                        "echo" => echo::echo(&*self.values[0]),
-                        _ => {
-                            panic!("unknown command: {} for protocol: {:?}",
-                                   self.command,
-                                   self.protocol);
-                        }
+                    if "echo" == &*self.command {
+                        echo::echo(&*self.values[0])
+                    } else {
+                        panic!("unknown command: {} for protocol: {:?}",
+                               self.command,
+                               self.protocol);
                     }
                 }
                 Protocol::Memcache => {
@@ -328,13 +315,12 @@ impl Workload {
                     }
                 }
                 Protocol::Ping => {
-                    match &*self.command {
-                        "ping" => ping::ping().into_bytes(),
-                        _ => {
-                            panic!("unknown command: {} for protocol: {:?}",
-                                   self.command,
-                                   self.protocol);
-                        }
+                    if "ping" == &*self.command {
+                        ping::ping().into_bytes()
+                    } else {
+                        panic!("unknown command: {} for protocol: {:?}",
+                               self.command,
+                               self.protocol);
                     }
                 }
                 Protocol::Redis => {
@@ -364,48 +350,34 @@ impl Workload {
                     }
                 }
                 Protocol::Thrift => {
-                    match &*self.command {
-                        "ping" => thrift::ping(),
-                        _ => {
-                            let mut thrift = thrift::ThriftRequest::default();
-                            thrift.method = &self.command;
-                            for p in &self.parameters {
-                                match p.value {
-                                    Value::Stop => {
-                                        thrift.payload.push(ThriftType::Stop)
-                                    }
-                                    Value::Void => {
-                                        thrift.payload.push(ThriftType::Void)
-                                    }
-                                    Value::Bool(v) => {
-                                        thrift.payload.push(ThriftType::Bool(p.id, v))
-                                    }
-                                    Value::Byte(v) => {
-                                        thrift.payload.push(ThriftType::Byte(p.id, v))
-                                    }
-                                    Value::Int16(v) => {
-                                        thrift.payload.push(ThriftType::Int16(p.id, v))
-                                    }
-                                    Value::Int32(v) => {
-                                        thrift.payload.push(ThriftType::Int32(p.id, v))
-                                    }
-                                    Value::Int64(v) => {
-                                        thrift.payload.push(ThriftType::Int64(p.id, v))
-                                    }
-                                    Value::String(ref v) => {
-                                        thrift.payload.push(ThriftType::String(p.id, v))
-                                    }
-                                    Value::Struct => {
-                                        thrift.payload.push(ThriftType::Struct(p.id.unwrap()))
-                                    }
-                                    Value::List(ref ttype, length) => {
-                                        thrift.payload.push(ThriftType::List(p.id.unwrap(), ttype, length))
-                                    }
-                                    _ => {}
+                    if "ping" == &*self.command {
+                        thrift::ping()
+                    } else {
+                        let mut thrift = thrift::ThriftRequest::default();
+                        thrift.method = &self.command;
+                        for p in &self.parameters {
+                            match p.value {
+                                Value::Stop => thrift.payload.push(ThriftType::Stop),
+                                Value::Void => thrift.payload.push(ThriftType::Void),
+                                Value::Bool(v) => thrift.payload.push(ThriftType::Bool(p.id, v)),
+                                Value::Byte(v) => thrift.payload.push(ThriftType::Byte(p.id, v)),
+                                Value::Int16(v) => thrift.payload.push(ThriftType::Int16(p.id, v)),
+                                Value::Int32(v) => thrift.payload.push(ThriftType::Int32(p.id, v)),
+                                Value::Int64(v) => thrift.payload.push(ThriftType::Int64(p.id, v)),
+                                Value::String(ref v) => {
+                                    thrift.payload.push(ThriftType::String(p.id, v))
                                 }
+                                Value::Struct => {
+                                    thrift.payload.push(ThriftType::Struct(p.id.unwrap()))
+                                }
+                                Value::List(ref ttype, length) => {
+                                    thrift.payload
+                                          .push(ThriftType::List(p.id.unwrap(), ttype, length))
+                                }
+                                _ => {}
                             }
-                            thrift::generic(thrift)
                         }
+                        thrift::generic(thrift)
                     }
                 }
                 _ => {
