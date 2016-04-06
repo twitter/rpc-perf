@@ -26,7 +26,7 @@ use client::Client;
 use parser::{Parse, ParsedResponse, echo, memcache, ping, redis, thrift};
 use state::State;
 use stats::{Stat, Status};
-use workload::Protocol;
+use request::workload::Protocol;
 
 const MEGABYTE: usize = 1024 * 1024;
 

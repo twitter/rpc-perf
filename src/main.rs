@@ -26,7 +26,6 @@ extern crate mpmc;
 extern crate regex;
 extern crate rpcperf_parser as parser;
 extern crate rpcperf_request as request;
-extern crate rpcperf_workload as workload;
 extern crate shuteye;
 extern crate toml;
 extern crate waterfall;
@@ -57,7 +56,7 @@ use connection::Connection;
 use logger::SimpleLogger;
 use net::InternetProtocol;
 use stats::{Stat, Status};
-use workload::{Protocol, Workload};
+use request::workload::{Protocol, Workload};
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 const ONE_SECOND: isize = 1_000_000_000;

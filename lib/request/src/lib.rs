@@ -17,9 +17,17 @@
 
 extern crate byteorder;
 extern crate crc;
+extern crate mpmc;
+extern crate pad;
+extern crate rand;
+extern crate ratelimit;
+extern crate shuteye;
+extern crate time;
+
 
 pub mod echo;
 pub mod memcache;
 pub mod ping;
 pub mod redis;
 pub mod thrift;
+pub mod workload;
