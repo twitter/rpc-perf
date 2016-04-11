@@ -180,6 +180,54 @@ fn choose_layer_3(ipv4: bool, ipv6: bool) -> Result<InternetProtocol, String> {
     Err("No InternetProtocols remaining! Bad config/options".to_owned())
 }
 
+fn launch_workloads(protocol: String,
+                    workloads: Vec<config::BenchmarkWorkload>,
+                    work_queue: mpmc::Queue<Vec<u8>>) {
+
+    for (i, w) in workloads.iter().enumerate() {
+        info!("Workload {}: Method: {} Rate: {}", i, w.method, w.rate);
+
+        let protocol = Protocol::new(&protocol.clone()).unwrap();
+
+        let mut workload = Workload::new(protocol,
+                                         w.method.clone(),
+                                         Some(w.rate as u64),
+                                         work_queue.clone())
+                               .unwrap();
+
+        for p in &w.parameters {
+            info!("Parameter: {:?}", p);
+            workload.add_param(p.clone());
+        }
+
+
+        thread::spawn(move || {
+            loop {
+                workload.run();
+            }
+        });
+    }
+}
+
+fn load_config(file: Option<String>) -> BenchmarkConfig {
+    let mut config: BenchmarkConfig = Default::default();
+
+     // load config from file if specified
+    if let Some(toml) = file {
+        match config::load_config(&toml) {
+            Ok(cfg) => {
+                config = cfg;
+            }
+            Err(msg) => {
+                error!("{}", msg);
+                panic!();
+            }
+        }
+    }
+
+    config
+}
+
 pub fn main() {
     let args: Vec<String> = env::args().collect();
 
@@ -203,7 +251,6 @@ pub fn main() {
     }
 
     // defaults
-    let mut config: BenchmarkConfig = Default::default();
     let client_protocol: Protocol;
 
     set_log_level(matches.opt_count("verbose"));
@@ -219,18 +266,7 @@ pub fn main() {
     let waterfall = matches.opt_str("waterfall");
     let trace = matches.opt_str("trace");
 
-    // load config from file if specified
-    if let Some(toml) = matches.opt_str("config") {
-        match config::load_config(&toml) {
-            Ok(cfg) => {
-                config = cfg;
-            }
-            Err(msg) => {
-                error!("{}", msg);
-                return;
-            }
-        }
-    }
+    let mut config = load_config(matches.opt_str("config"));
 
     // override config with commandline options
     config.override_protocol(matches.opt_str("protocol"));
@@ -240,7 +276,7 @@ pub fn main() {
     config.override_duration(matches.opt_str("duration"));
 
     let internet_protocol = match choose_layer_3(matches.opt_present("ipv4"),
-                                           matches.opt_present("ipv6")) {
+                                                 matches.opt_present("ipv6")) {
         Ok(i) => i,
         Err(e) => {
             error!("{}", e);
@@ -252,7 +288,7 @@ pub fn main() {
         config.tcp_nodelay = true;
     }
 
-    let workq = BoundedQueue::<Vec<u8>>::with_capacity(BUCKET_SIZE);
+    let work_queue = BoundedQueue::<Vec<u8>>::with_capacity(BUCKET_SIZE);
 
     // these map to workload and conflict with config for simplicity
     if config.workloads.is_empty() {
@@ -273,10 +309,10 @@ pub fn main() {
     if matches.opt_present("flush") {
         match client_protocol {
             Protocol::Memcache => {
-                let _ = workq.push(request::memcache::flush_all().into_bytes());
+                let _ = work_queue.push(request::memcache::flush_all().into_bytes());
             }
             Protocol::Redis => {
-                let _ = workq.push(request::redis::flushall().into_bytes());
+                let _ = work_queue.push(request::redis::flushall().into_bytes());
             }
             _ => {}
         }
@@ -301,29 +337,7 @@ pub fn main() {
     info!("-----");
     info!("Workload:");
 
-    for (i, w) in config.workloads.iter().enumerate() {
-        info!("Workload {}: Method: {} Rate: {}", i, w.method, w.rate);
-
-        let protocol = Protocol::new(&config.protocol.clone()).unwrap();
-
-        let mut workload = Workload::new(protocol,
-                                         w.method.clone(),
-                                         Some(w.rate as u64),
-                                         workq.clone())
-                               .unwrap();
-
-        for p in &w.parameters {
-            info!("Parameter: {:?}", p);
-            workload.add_param(p.clone());
-        }
-
-
-        thread::spawn(move || {
-            loop {
-                workload.run();
-            }
-        });
-    }
+    launch_workloads(config.protocol, config.workloads, work_queue.clone());
 
     let (stats_sender, stats_receiver) = mpsc::channel();
 
@@ -334,23 +348,16 @@ pub fn main() {
     // spawn client threads
     for i in 0..config.threads {
         info!("Client: {}", i);
-        let stats_tx = stats_sender.clone();
-        let servers = matches.opt_strs("server");
-        let connections = config.connections;
-        let work_rx = workq.clone();
-        let tcp_nodelay = config.tcp_nodelay;
-        let internet_protocol = internet_protocol;
-        let evconfig = evconfig.clone();
 
         let client_config = ClientConfig {
-            servers: servers,
-            connections: connections,
-            stats_tx: stats_tx,
+            servers: matches.opt_strs("server"),
+            connections: config.connections,
+            stats_tx: stats_sender.clone(),
             client_protocol: client_protocol,
             internet_protocol: internet_protocol,
-            work_rx: work_rx,
-            tcp_nodelay: tcp_nodelay,
-            mio_config: evconfig,
+            work_rx: work_queue.clone(),
+            tcp_nodelay: config.tcp_nodelay,
+            mio_config: evconfig.clone(),
         };
 
         thread::spawn(move || {
