@@ -73,8 +73,106 @@ impl Default for BenchmarkConfig {
     }
 }
 
+impl BenchmarkConfig {
+    pub fn override_protocol(&mut self, value: Option<String>) {
+        if let Some(v) = value {
+            self.protocol = v;
+        }
+    }
+
+    pub fn override_threads(&mut self, value: Option<String>) {
+        if let Some(v) = value {
+            match v.parse() {
+                Ok(v) => {
+                    if v > 0 {
+                        self.threads = v;
+                    } else {
+                        error!("Bad parameter: {} Cause: {}",
+                               "threads",
+                               "not greater than zero");
+                        return;
+                    }
+                }
+                Err(e) => {
+                    error!("Bad parameter: {} Cause: {}", "threads", e);
+                    return;
+                }
+            }
+        }
+    }
+
+    pub fn override_connections(&mut self, value: Option<String>) {
+        if let Some(v) = value {
+            match v.parse() {
+                Ok(v) => {
+                    if v > 0 {
+                        self.connections = v;
+                    } else {
+                        error!("Bad parameter: {} Cause: {}",
+                               "connections",
+                               "not greater than zero");
+                        return;
+                    }
+                }
+                Err(e) => {
+                    error!("Bad parameter: {} Cause: {}", "connections", e);
+                    return;
+                }
+            }
+        }
+    }
+
+    pub fn override_windows(&mut self, value: Option<String>) {
+        if let Some(v) = value {
+            match v.parse() {
+                Ok(v) => {
+                    if v > 0 {
+                        self.windows = v;
+                    } else {
+                        error!("Bad parameter: {} Cause: {}",
+                               "windows",
+                               "not greater than zero");
+                        return;
+                    }
+                }
+                Err(e) => {
+                    error!("Bad parameter: {} Cause: {}", "windows", e);
+                    return;
+                }
+            }
+        }
+    }
+
+    pub fn override_duration(&mut self, value: Option<String>) {
+        if let Some(v) = value {
+            match v.parse() {
+                Ok(v) => {
+                    if v > 0 {
+                        self.duration = v;
+                    } else {
+                        error!("Bad parameter: {} Cause: {}",
+                               "duration",
+                               "not greater than zero");
+                        return;
+                    }
+                }
+                Err(e) => {
+                    error!("Bad parameter: {} Cause: {}", "duration", e);
+                    return;
+                }
+            }
+        }
+    }
+}
+
 pub fn load_config(path: &str) -> Result<BenchmarkConfig, String> {
-    let mut f = File::open(&path).unwrap();
+    let mut f = match File::open(&path) {
+        Ok(f) => f,
+        Err(e) => {
+            let error = format!("Error opening config: {}", e);
+            return Err(error);
+        }
+    };
 
     let mut s = String::new();
     f.read_to_string(&mut s).unwrap();
@@ -124,7 +222,7 @@ pub fn load_config_str(config_name: &str, config: &str) -> Result<BenchmarkConfi
                 None => return Err("no workload section".to_owned()),
                 Some(&Array(ref workloads)) => {
                     for (i, workload) in workloads.iter().enumerate() {
-                        if let &Table(ref workload) = workload {
+                        if let Table(ref workload) = *workload {
                             let w = try!(extract_workload(i, workload));
                             config.workloads.push(w);
                         } else {
@@ -154,7 +252,7 @@ pub fn load_config_str(config_name: &str, config: &str) -> Result<BenchmarkConfi
     }
 }
 
-fn extract_workload(i: usize, workload: &BTreeMap<String,Value>) -> CResult<BenchmarkWorkload> {
+fn extract_workload(i: usize, workload: &BTreeMap<String, Value>) -> CResult<BenchmarkWorkload> {
     let mut w: BenchmarkWorkload = Default::default();
     if let Some(method) = workload.get("method").and_then(|k| k.as_str()) {
         w.method = method.to_owned();
@@ -166,8 +264,8 @@ fn extract_workload(i: usize, workload: &BTreeMap<String,Value>) -> CResult<Benc
     match workload.get("parameter") {
         Some(&Array(ref params)) => {
             for param in params {
-                match param {
-                    &Table(ref parameter) => {
+                match *param {
+                    Table(ref parameter) => {
                         let p = try!(extract_parameter(i, parameter));
                         w.parameters.push(p);
                     }
@@ -176,7 +274,6 @@ fn extract_workload(i: usize, workload: &BTreeMap<String,Value>) -> CResult<Benc
                     }
                 }
             }
-
         }
         Some(_) => return Err("malformed config: 'parameter' must be an array".to_owned()),
         None => {}
@@ -184,7 +281,7 @@ fn extract_workload(i: usize, workload: &BTreeMap<String,Value>) -> CResult<Benc
     Ok(w)
 }
 
-fn extract_parameter(i: usize, parameter: &BTreeMap<String,Value>) -> CResult<Parameter> {
+fn extract_parameter(i: usize, parameter: &BTreeMap<String, Value>) -> CResult<Parameter> {
 
     let mut p = Parameter::default();
     p.id = match parameter.get("id")
@@ -218,7 +315,7 @@ fn extract_parameter(i: usize, parameter: &BTreeMap<String,Value>) -> CResult<Pa
     };
 
     p.style = match parameter.get("style")
-                               .and_then(|k| k.as_str()) {
+                             .and_then(|k| k.as_str()) {
         Some("random") => Style::Random,
         Some("static") => Style::Static,
         None => Style::Static,

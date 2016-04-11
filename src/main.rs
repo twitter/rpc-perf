@@ -39,8 +39,6 @@ pub mod state;
 pub mod stats;
 
 use getopts::Options;
-use heatmap::{Heatmap, HeatmapConfig};
-use histogram::{Histogram, HistogramConfig};
 use log::LogLevelFilter;
 use mpmc::Queue as BoundedQueue;
 use std::env;
@@ -48,18 +46,18 @@ use std::net::ToSocketAddrs;
 use std::thread;
 use std::sync::mpsc;
 use std::process;
-use waterfall::Waterfall;
+
 
 use client::Client;
 use config::BenchmarkConfig;
 use connection::Connection;
 use logger::SimpleLogger;
 use net::InternetProtocol;
-use stats::{Stat, Status};
+use stats::Stat;
 use request::workload::{Protocol, Workload};
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
-const ONE_SECOND: isize = 1_000_000_000;
+
 const BUCKET_SIZE: usize = 10_000;
 
 struct ClientConfig {
@@ -124,10 +122,7 @@ fn print_usage(program: &str, opts: Options) {
     print!("{}", opts.usage(&brief));
 }
 
-pub fn main() {
-    let args: Vec<String> = env::args().collect();
-    let program = &args[0];
-
+fn opts() -> Options {
     let mut opts = Options::new();
 
     opts.optmulti("s", "server", "server address", "HOST:PORT");
@@ -147,6 +142,51 @@ pub fn main() {
     opts.optflagmulti("v", "verbose", "verbosity (stacking)");
     opts.optflag("h", "help", "print this help menu");
 
+    opts
+}
+
+fn set_log_level(level: usize) {
+    let log_filter;
+    match level {
+        0 => {
+            log_filter = LogLevelFilter::Info;
+        }
+        1 => {
+            log_filter = LogLevelFilter::Debug;
+        }
+        _ => {
+            log_filter = LogLevelFilter::Trace;
+        }
+    }
+    let _ = log::set_logger(|max_log_level| {
+        max_log_level.set(log_filter);
+        Box::new(SimpleLogger)
+    });
+}
+
+fn choose_layer_3(ipv4: bool, ipv6: bool) -> Result<InternetProtocol, String> {
+    if ipv4 && ipv6 {
+        return Err("Use only --ipv4 or --ipv6".to_owned());
+    }
+
+    if !ipv4 && !ipv6 {
+        return Ok(InternetProtocol::Any);
+    } else if ipv4 {
+        return Ok(InternetProtocol::IpV4);
+    } else if ipv6 {
+        return Ok(InternetProtocol::IpV6);
+    }
+
+    Err("No InternetProtocols remaining! Bad config/options".to_owned())
+}
+
+pub fn main() {
+    let args: Vec<String> = env::args().collect();
+
+    let program = &args[0];
+
+    let opts = opts();
+
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => m,
         Err(f) => panic!(f.to_string()),
@@ -163,26 +203,10 @@ pub fn main() {
     }
 
     // defaults
-    let log_filter;
     let mut config: BenchmarkConfig = Default::default();
     let client_protocol: Protocol;
 
-    match matches.opt_count("verbose") {
-        0 => {
-            log_filter = LogLevelFilter::Info;
-        }
-        1 => {
-            log_filter = LogLevelFilter::Debug;
-        }
-        _ => {
-            log_filter = LogLevelFilter::Trace;
-        }
-    }
-
-    let _ = log::set_logger(|max_log_level| {
-        max_log_level.set(log_filter);
-        Box::new(SimpleLogger)
-    });
+    set_log_level(matches.opt_count("verbose"));
 
     info!("rpc-perf {} initializing...", VERSION);
 
@@ -192,6 +216,7 @@ pub fn main() {
         return;
     };
 
+    let waterfall = matches.opt_str("waterfall");
     let trace = matches.opt_str("trace");
 
     // load config from file if specified
@@ -208,87 +233,20 @@ pub fn main() {
     }
 
     // override config with commandline options
+    config.override_protocol(matches.opt_str("protocol"));
+    config.override_threads(matches.opt_str("threads"));
+    config.override_connections(matches.opt_str("connections"));
+    config.override_windows(matches.opt_str("windows"));
+    config.override_duration(matches.opt_str("duration"));
 
-    // these map to general section, and can override config
-    if let Some(protocol) = matches.opt_str("protocol") {
-        config.protocol = protocol;
-    }
-
-    if let Some(t) = matches.opt_str("threads") {
-        match t.parse() {
-            Ok(threads) => {
-                if threads > 0 {
-                    config.threads = threads;
-                } else {
-                    error!("Bad parameter: {} Cause: {}",
-                           "threads",
-                           "not greater than zero");
-                    return;
-                }
-            }
-            Err(e) => {
-                error!("Bad parameter: {} Cause: {}", "threads", e);
-                return;
-            }
+    let internet_protocol = match choose_layer_3(matches.opt_present("ipv4"),
+                                           matches.opt_present("ipv6")) {
+        Ok(i) => i,
+        Err(e) => {
+            error!("{}", e);
+            return;
         }
-    }
-
-    if let Some(c) = matches.opt_str("connections") {
-        match c.parse() {
-            Ok(connections) => {
-                if connections > 0 {
-                    config.connections = connections;
-                } else {
-                    error!("Bad parameter: {} Cause: {}",
-                           "connections",
-                           "not greater than zero");
-                    return;
-                }
-            }
-            Err(e) => {
-                error!("Bad parameter: {} Cause: {}", "connections", e);
-                return;
-            }
-        }
-    }
-
-    if let Some(w) = matches.opt_str("windows") {
-        match w.parse() {
-            Ok(windows) => {
-                if windows > 0 {
-                    config.windows = windows;
-                } else {
-                    error!("Bad parameter: {} Cause: {}",
-                           "windows",
-                           "not greater than zero");
-                    return;
-                }
-            }
-            Err(e) => {
-                error!("Bad parameter: {} Cause: {}", "windows", e);
-                return;
-            }
-        }
-    }
-
-    if let Some(d) = matches.opt_str("duration") {
-        match d.parse() {
-            Ok(duration) => {
-                if duration > 0 {
-                    config.duration = duration;
-                } else {
-                    error!("Bad parameter: {} Cause: {}",
-                           "duration",
-                           "not greater than zero");
-                    return;
-                }
-            }
-            Err(e) => {
-                error!("Bad parameter: {} Cause: {}", "duration", e);
-                return;
-            }
-        }
-    }
+    };
 
     if matches.opt_present("tcp-nodelay") {
         config.tcp_nodelay = true;
@@ -302,13 +260,13 @@ pub fn main() {
         return;
     }
 
-
     match Protocol::new(&*config.protocol) {
         Ok(p) => {
             client_protocol = p;
         }
         Err(_) => {
-            panic!("Bad protocol: {}", &*config.protocol);
+            error!("Bad protocol: {}", &*config.protocol);
+            return;
         }
     }
 
@@ -322,34 +280,6 @@ pub fn main() {
             }
             _ => {}
         }
-    }
-
-    let mut internet_protocol = InternetProtocol::None;
-
-    if matches.opt_present("ipv4") && matches.opt_present("ipv6") {
-        error!("Use only --ipv4 or --ipv6");
-        print_usage(&program, opts);
-        return;
-    }
-
-    if matches.opt_present("ipv4") {
-        config.ipv4 = true;
-        config.ipv6 = false;
-    }
-    if matches.opt_present("ipv6") {
-        config.ipv4 = false;
-        config.ipv6 = true;
-    }
-    if config.ipv4 && config.ipv6 {
-        internet_protocol = InternetProtocol::Any;
-    } else if config.ipv4 {
-        internet_protocol = InternetProtocol::IpV4;
-    } else if config.ipv6 {
-        internet_protocol = InternetProtocol::IpV6;
-    }
-    if internet_protocol == InternetProtocol::None {
-        error!("No InternetProtocols remaining! Bad config/options");
-        return;
     }
 
     let evconfig = mio::EventLoopConfig::default();
@@ -395,14 +325,16 @@ pub fn main() {
         });
     }
 
-    let (stats_tx, stats_rx) = mpsc::channel();
+    let (stats_sender, stats_receiver) = mpsc::channel();
+
+    let receiver = stats::Receiver::new(stats_receiver);
 
     info!("-----");
     info!("Connecting...");
     // spawn client threads
     for i in 0..config.threads {
         info!("Client: {}", i);
-        let stats_tx = stats_tx.clone();
+        let stats_tx = stats_sender.clone();
         let servers = matches.opt_strs("server");
         let connections = config.connections;
         let work_rx = workq.clone();
@@ -426,119 +358,5 @@ pub fn main() {
         });
     }
 
-    let mut histogram_config = HistogramConfig::new();
-    histogram_config.precision(4).max_value(60 * ONE_SECOND as u64);
-    let mut histogram = Histogram::configured(histogram_config).unwrap();
-
-    let mut heatmap_config = HeatmapConfig::new();
-    heatmap_config.precision(2).max_value(ONE_SECOND as u64);
-    heatmap_config.slice_duration(ONE_SECOND as u64).num_slices((config.duration * config.windows));
-    let mut heatmap = Heatmap::configured(heatmap_config).unwrap();
-
-    let mut printed_at = time::precise_time_ns();
-    let mut ok = 0_u64;
-    let mut hit = 0_u64;
-    let mut miss = 0_u64;
-    let mut error = 0_u64;
-    let mut closed = 0_u64;
-    let mut window = 0;
-    let mut warmup = true;
-
-    loop {
-        match stats_rx.try_recv() {
-            Ok(result) => {
-                match result.status {
-                    Status::Ok => {
-                        ok += 1;
-                    }
-                    Status::Hit => {
-                        hit += 1;
-                        ok += 1;
-                    }
-                    Status::Miss => {
-                        miss += 1;
-                    }
-                    Status::Error => {
-                        error += 1;
-                    }
-                    Status::Closed => {
-                        closed += 1;
-                    }
-                }
-                let _ = histogram.increment(result.stop - result.start);
-                let _ = heatmap.increment(result.start, result.stop - result.start);
-            }
-            Err(_) => {
-                shuteye::sleep(shuteye::Timespec::from_nano(1000).unwrap());
-            }
-        }
-
-        let now = time::precise_time_ns();
-
-        if now - printed_at >= (config.duration as u64 * ONE_SECOND as u64) {
-            if warmup {
-                info!("-----");
-                info!("Warmup complete");
-                warmup = false;
-                let _ = heatmap.clear();
-            } else {
-                let rate = (ONE_SECOND as u64 * (ok + miss)) as f64 / (now - printed_at) as f64;
-                let mut success_rate = 0_f64;
-                let mut hit_rate = 0_f64;
-                if (histogram.entries() + error) > 0 {
-                    success_rate = (100 * histogram.entries()) as f64 /
-                                   (histogram.entries() + error) as f64;
-                }
-                if (hit + miss) > 0 {
-                    hit_rate = (100 * hit) as f64 / (hit + miss) as f64;
-                }
-                info!("-----");
-                info!("Window: {}", window);
-                info!("Requests: {} Ok: {} Miss: {} Error: {} Closed: {}",
-                      histogram.entries(),
-                      ok,
-                      miss,
-                      error,
-                      closed);
-                info!("Rate: {:.*} rps Success: {:.*} % Hitrate: {:.*} %",
-                      2,
-                      rate,
-                      2,
-                      success_rate,
-                      2,
-                      hit_rate);
-                info!("Latency: min: {} ns max: {} ns avg: {} ns stddev: {} ns",
-                        histogram.minimum().unwrap_or(0),
-                        histogram.maximum().unwrap_or(0),
-                        histogram.mean().unwrap_or(0),
-                        histogram.stddev().unwrap_or(0),
-                    );
-                info!("Percentiles: p50: {} ns p90: {} ns p99: {} ns p999: {} ns p9999: {} ns",
-                        histogram.percentile(50.0).unwrap_or(0),
-                        histogram.percentile(90.0).unwrap_or(0),
-                        histogram.percentile(99.0).unwrap_or(0),
-                        histogram.percentile(99.9).unwrap_or(0),
-                        histogram.percentile(99.99).unwrap_or(0),
-                    );
-            }
-            let _ = histogram.clear();
-            ok = 0;
-            hit = 0;
-            miss = 0;
-            error = 0;
-            closed = 0;
-            window += 1;
-            printed_at = now;
-            if window > config.windows {
-                if let Some(file) = trace {
-                    heatmap.save(file);
-                }
-                if let Some(file) = matches.opt_str("waterfall") {
-                    let mut waterfall = Waterfall { heatmap: heatmap };
-                    waterfall.render_png(file);
-                }
-                break;
-            }
-        }
-    }
+    receiver.run(config.duration, config.windows, trace, waterfall);
 }
