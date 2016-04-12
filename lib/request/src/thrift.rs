@@ -312,6 +312,9 @@ mod tests {
     use super::*;
     use workload::{Value, Parameter};
 
+    #[cfg(feature = "unstable")]
+    extern crate test;
+
     fn mk_param(id: i16, value: Value) -> Parameter {
         let mut p = Parameter::default();
         p.id = Some(id);
@@ -352,5 +355,22 @@ mod tests {
                    vec![0, 0, 0, 54, 128, 1, 0, 1, 0, 0, 0, 9, 99, 97, 108, 99, 117, 108, 97,
                         116, 101, 0, 0, 0, 0, 8, 0, 1, 0, 0, 0, 1, 12, 0, 2, 8, 0, 1, 0, 0, 0,
                         15, 8, 0, 2, 0, 0, 0, 10, 8, 0, 3, 0, 0, 0, 2, 0, 0]);
+    }
+
+
+    #[cfg(feature = "unstable")]
+    #[bench]
+    fn ping_benchmark(b: &mut test::Bencher) {
+        b.iter(|| generic("ping", 0, &Vec::new()));
+    }
+
+    #[cfg(feature = "unstable")]
+    #[bench]
+    fn add_benchmark(b: &mut test::Bencher) {
+        b.iter(|| {
+            generic("add",
+                    0,
+                    &vec![mk_param(1, Value::Int32(1)), mk_param(2, Value::Int32(1))])
+        });
     }
 }

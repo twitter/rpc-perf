@@ -13,6 +13,9 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
+#[cfg(feature = "unstable")]
+extern crate test;
+
 /// request to change memcache verbosity
 ///
 /// # Example
@@ -22,6 +25,12 @@
 /// assert_eq!(verbosity(4), "verbosity 4\r\n");
 pub fn verbosity(level: usize) -> String {
     format!("verbosity {}\r\n", level)
+}
+
+#[cfg(feature = "unstable")]
+#[bench]
+fn memcache_verbosity_benchmark(b: &mut test::Bencher) {
+    b.iter(|| verbosity(4));
 }
 
 /// create a memcache version tcp request
@@ -35,6 +44,12 @@ pub fn version() -> String {
     "version\r\n".to_owned()
 }
 
+#[cfg(feature = "unstable")]
+#[bench]
+fn memcache_version_benchmark(b: &mut test::Bencher) {
+    b.iter(|| version());
+}
+
 /// create a memcache quit request
 ///
 /// # Example
@@ -44,6 +59,12 @@ pub fn version() -> String {
 /// assert_eq!(quit(), "quit\r\n");
 pub fn quit() -> String {
     "quit\r\n".to_owned()
+}
+
+#[cfg(feature = "unstable")]
+#[bench]
+fn memcache_quit_benchmark(b: &mut test::Bencher) {
+    b.iter(|| quit());
 }
 
 /// create a set request
@@ -62,6 +83,12 @@ pub fn set(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>) -> 
             exptime,
             value.len(),
             value)
+}
+
+#[cfg(feature = "unstable")]
+#[bench]
+fn memcache_set_benchmark(b: &mut test::Bencher) {
+    b.iter(|| set("key", "value", Some(1), None));
 }
 
 /// create a cas request
@@ -83,6 +110,12 @@ pub fn cas(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>, cas
             value)
 }
 
+#[cfg(feature = "unstable")]
+#[bench]
+fn memcache_cas_benchmark(b: &mut test::Bencher) {
+    b.iter(|| cas("key", "value", Some(1), None, 0));
+}
+
 /// create an add request
 ///
 /// # Example
@@ -99,6 +132,12 @@ pub fn add(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>) -> 
             exptime,
             value.len(),
             value)
+}
+
+#[cfg(feature = "unstable")]
+#[bench]
+fn memcache_add_benchmark(b: &mut test::Bencher) {
+    b.iter(|| add("key", "value", Some(1), None));
 }
 
 /// create a replace request
@@ -119,6 +158,12 @@ pub fn replace(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>)
             value)
 }
 
+#[cfg(feature = "unstable")]
+#[bench]
+fn memcache_replace_benchmark(b: &mut test::Bencher) {
+    b.iter(|| replace("key", "value", Some(1), None));
+}
+
 /// create an append request
 ///
 /// # Example
@@ -135,6 +180,12 @@ pub fn append(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>) 
             exptime,
             value.len(),
             value)
+}
+
+#[cfg(feature = "unstable")]
+#[bench]
+fn memcache_append_benchmark(b: &mut test::Bencher) {
+    b.iter(|| append("key", "value", Some(1), None));
 }
 
 /// create an prepend request
@@ -155,6 +206,12 @@ pub fn prepend(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>)
             value)
 }
 
+#[cfg(feature = "unstable")]
+#[bench]
+fn prepend_benchmark(b: &mut test::Bencher) {
+    b.iter(|| prepend("key", "value", Some(1), None));
+}
+
 /// create a incr request
 ///
 /// # Example
@@ -165,6 +222,12 @@ pub fn prepend(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>)
 /// assert_eq!(incr("key", 1000), "incr key 1000\r\n");
 pub fn incr(key: &str, value: u64) -> String {
     format!("incr {} {}\r\n", key, value)
+}
+
+#[cfg(feature = "unstable")]
+#[bench]
+fn incr_benchmark(b: &mut test::Bencher) {
+    b.iter(|| incr("key", 1));
 }
 
 /// create a decr request
@@ -179,6 +242,12 @@ pub fn decr(key: &str, value: u64) -> String {
     format!("decr {} {}\r\n", key, value)
 }
 
+#[cfg(feature = "unstable")]
+#[bench]
+fn decr_benchmark(b: &mut test::Bencher) {
+    b.iter(|| decr("key", 1));
+}
+
 /// create a touch request
 ///
 /// # Example
@@ -189,6 +258,12 @@ pub fn decr(key: &str, value: u64) -> String {
 pub fn touch(key: &str, exptime: Option<u32>) -> String {
     let exptime = exptime.unwrap_or(0);
     format!("touch {} {}\r\n", key, exptime)
+}
+
+#[cfg(feature = "unstable")]
+#[bench]
+fn touch_benchmark(b: &mut test::Bencher) {
+    b.iter(|| touch("key", None));
 }
 
 /// create a get request
@@ -202,6 +277,12 @@ pub fn get(key: &str) -> String {
     format!("get {}\r\n", key)
 }
 
+#[cfg(feature = "unstable")]
+#[bench]
+fn get_benchmark(b: &mut test::Bencher) {
+    b.iter(|| get("key"));
+}
+
 /// create a gets request
 ///
 /// # Example
@@ -211,6 +292,12 @@ pub fn get(key: &str) -> String {
 /// assert_eq!(gets("key"), "gets key\r\n");
 pub fn gets(key: &str) -> String {
     format!("gets {}\r\n", key)
+}
+
+#[cfg(feature = "unstable")]
+#[bench]
+fn gets_benchmark(b: &mut test::Bencher) {
+    b.iter(|| gets("key"));
 }
 
 /// create a delete request
@@ -224,6 +311,12 @@ pub fn delete(key: &str) -> String {
     format!("delete {}\r\n", key)
 }
 
+#[cfg(feature = "unstable")]
+#[bench]
+fn delete_benchmark(b: &mut test::Bencher) {
+    b.iter(|| delete("key"));
+}
+
 /// create a flush_all request
 ///
 /// # Example
@@ -233,4 +326,10 @@ pub fn delete(key: &str) -> String {
 /// assert_eq!(flush_all(), "flush_all\r\n");
 pub fn flush_all() -> String {
     "flush_all\r\n".to_owned()
+}
+
+#[cfg(feature = "unstable")]
+#[bench]
+fn flush_all_benchmark(b: &mut test::Bencher) {
+    b.iter(|| flush_all());
 }

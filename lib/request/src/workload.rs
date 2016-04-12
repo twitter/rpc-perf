@@ -264,94 +264,296 @@ impl Workload {
             if self.rate != 0 {
                 self.ratelimit.block(1);
             }
-            self.generate_values(false);
-
-            let query = match self.protocol {
-                Protocol::Echo => {
-                    if "echo" == &*self.command {
-                        echo::echo(&*self.values[0])
-                    } else {
-                        panic!("unknown command: {} for protocol: {:?}",
-                               self.command,
-                               self.protocol);
-                    }
-                }
-                Protocol::Memcache => {
-                    match &*self.command {
-                        "set" => {
-                            memcache::set(str::from_utf8(&*self.values[0]).unwrap(),
-                                          str::from_utf8(&*self.values[1]).unwrap(),
-                                          None,
-                                          None)
-                                .into_bytes()
-                        }
-                        "get" => {
-                            memcache::get(str::from_utf8(&*self.values[0]).unwrap()).into_bytes()
-                        }
-                        "gets" => {
-                            memcache::gets(str::from_utf8(&*self.values[0]).unwrap()).into_bytes()
-                        }
-                        "add" => {
-                            memcache::add(str::from_utf8(&*self.values[0]).unwrap(),
-                                          str::from_utf8(&*self.values[1]).unwrap(),
-                                          None,
-                                          None)
-                                .into_bytes()
-                        }
-                        _ => {
-                            panic!("unknown command: {} for protocol: {:?}",
-                                   self.command,
-                                   self.protocol);
-                        }
-                    }
-                }
-                Protocol::Ping => {
-                    if "ping" == &*self.command {
-                        ping::ping().into_bytes()
-                    } else {
-                        panic!("unknown command: {} for protocol: {:?}",
-                               self.command,
-                               self.protocol);
-                    }
-                }
-                Protocol::Redis => {
-                    match &*self.command {
-                        "set" => {
-                            redis::set(str::from_utf8(&*self.values[0]).unwrap(),
-                                       str::from_utf8(&*self.values[1]).unwrap())
-                                .into_bytes()
-                        }
-                        "get" => redis::get(str::from_utf8(&*self.values[0]).unwrap()).into_bytes(),
-                        "hset" => {
-                            redis::hset(str::from_utf8(&*self.values[0]).unwrap(),
-                                        str::from_utf8(&*self.values[1]).unwrap(),
-                                        str::from_utf8(&*self.values[2]).unwrap())
-                                .into_bytes()
-                        }
-                        "hget" => {
-                            redis::hget(str::from_utf8(&*self.values[0]).unwrap(),
-                                        str::from_utf8(&*self.values[1]).unwrap())
-                                .into_bytes()
-                        }
-                        _ => {
-                            panic!("unknown command: {} for protocol: {:?}",
-                                   self.command,
-                                   self.protocol);
-                        }
-                    }
-                }
-                Protocol::Thrift => {
-                    if "ping" == &*self.command {
-                        thrift::ping()
-                    } else {
-                        thrift::generic(&self.command, 0, &self.parameters)
-                    }
-                }
-                _ => {
-                    panic!("unsupported protocol");
-                }
-            };
+            let query = self.step();
             let _ = self.queue.push(query);
         }
+    }
+
+    pub fn step(&mut self) -> Vec<u8> {
+        self.generate_values(false);
+        let query = match self.protocol {
+            Protocol::Echo => {
+                if "echo" == &*self.command {
+                    echo::echo(&*self.values[0])
+                } else {
+                    panic!("unknown command: {} for protocol: {:?}",
+                           self.command,
+                           self.protocol);
+                }
+            }
+            Protocol::Memcache => {
+                match &*self.command {
+                    "set" => {
+                        memcache::set(str::from_utf8(&*self.values[0]).unwrap(),
+                                      str::from_utf8(&*self.values[1]).unwrap(),
+                                      None,
+                                      None)
+                            .into_bytes()
+                    }
+                    "get" => memcache::get(str::from_utf8(&*self.values[0]).unwrap()).into_bytes(),
+                    "gets" => {
+                        memcache::gets(str::from_utf8(&*self.values[0]).unwrap()).into_bytes()
+                    }
+                    "add" => {
+                        memcache::add(str::from_utf8(&*self.values[0]).unwrap(),
+                                      str::from_utf8(&*self.values[1]).unwrap(),
+                                      None,
+                                      None)
+                            .into_bytes()
+                    }
+                    _ => {
+                        panic!("unknown command: {} for protocol: {:?}",
+                               self.command,
+                               self.protocol);
+                    }
+                }
+            }
+            Protocol::Ping => {
+                if "ping" == &*self.command {
+                    ping::ping().into_bytes()
+                } else {
+                    panic!("unknown command: {} for protocol: {:?}",
+                           self.command,
+                           self.protocol);
+                }
+            }
+            Protocol::Redis => {
+                match &*self.command {
+                    "set" => {
+                        redis::set(str::from_utf8(&*self.values[0]).unwrap(),
+                                   str::from_utf8(&*self.values[1]).unwrap())
+                            .into_bytes()
+                    }
+                    "get" => redis::get(str::from_utf8(&*self.values[0]).unwrap()).into_bytes(),
+                    "hset" => {
+                        redis::hset(str::from_utf8(&*self.values[0]).unwrap(),
+                                    str::from_utf8(&*self.values[1]).unwrap(),
+                                    str::from_utf8(&*self.values[2]).unwrap())
+                            .into_bytes()
+                    }
+                    "hget" => {
+                        redis::hget(str::from_utf8(&*self.values[0]).unwrap(),
+                                    str::from_utf8(&*self.values[1]).unwrap())
+                            .into_bytes()
+                    }
+                    _ => {
+                        panic!("unknown command: {} for protocol: {:?}",
+                               self.command,
+                               self.protocol);
+                    }
+                }
+            }
+            Protocol::Thrift => {
+                if "ping" == &*self.command {
+                    thrift::ping()
+                } else {
+                    thrift::generic(&self.command, 0, &self.parameters)
+                }
+            }
+            _ => {
+                panic!("unsupported protocol");
+            }
+        };
+        query
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(feature = "unstable")]
+    extern crate test;
+
+    use mpmc::Queue as BoundedQueue;
+
+    #[cfg(feature = "unstable")]
+    #[bench]
+    fn memcache_get_static_1byte_benchmark(b: &mut test::Bencher) {
+        let work_queue = BoundedQueue::<Vec<u8>>::with_capacity(1);
+        let mut workload = Workload::new(Protocol::Memcache, "get".to_owned(), Some(0), work_queue)
+                               .unwrap();
+        workload.add_param(Parameter {
+            id: None,
+            ptype: Type::None,
+            seed: 0,
+            size: 1,
+            style: Style::Static,
+            regenerate: false,
+            value: Value::None,
+        });
+
+        b.iter(|| workload.step());
+    }
+
+    #[cfg(feature = "unstable")]
+    #[bench]
+    fn memcache_get_random_1byte_benchmark(b: &mut test::Bencher) {
+        let work_queue = BoundedQueue::<Vec<u8>>::with_capacity(1);
+        let mut workload = Workload::new(Protocol::Memcache, "get".to_owned(), Some(0), work_queue)
+                               .unwrap();
+        workload.add_param(Parameter {
+            id: None,
+            ptype: Type::None,
+            seed: 0,
+            size: 1,
+            style: Style::Random,
+            regenerate: true,
+            value: Value::None,
+        });
+
+        b.iter(|| workload.step());
+    }
+
+    #[cfg(feature = "unstable")]
+    #[bench]
+    fn memcache_get_static_10byte_benchmark(b: &mut test::Bencher) {
+        let work_queue = BoundedQueue::<Vec<u8>>::with_capacity(1);
+        let mut workload = Workload::new(Protocol::Memcache, "get".to_owned(), Some(0), work_queue)
+                               .unwrap();
+        workload.add_param(Parameter {
+            id: None,
+            ptype: Type::None,
+            seed: 0,
+            size: 10,
+            style: Style::Static,
+            regenerate: false,
+            value: Value::None,
+        });
+
+        b.iter(|| workload.step());
+    }
+
+    #[cfg(feature = "unstable")]
+    #[bench]
+    fn memcache_get_random_10byte_benchmark(b: &mut test::Bencher) {
+        let work_queue = BoundedQueue::<Vec<u8>>::with_capacity(1);
+        let mut workload = Workload::new(Protocol::Memcache, "get".to_owned(), Some(0), work_queue)
+                               .unwrap();
+        workload.add_param(Parameter {
+            id: None,
+            ptype: Type::None,
+            seed: 0,
+            size: 10,
+            style: Style::Random,
+            regenerate: true,
+            value: Value::None,
+        });
+
+        b.iter(|| workload.step());
+    }
+
+    #[cfg(feature = "unstable")]
+    #[bench]
+    fn memcache_get_static_100byte_benchmark(b: &mut test::Bencher) {
+        let work_queue = BoundedQueue::<Vec<u8>>::with_capacity(1);
+        let mut workload = Workload::new(Protocol::Memcache, "get".to_owned(), Some(0), work_queue)
+                               .unwrap();
+        workload.add_param(Parameter {
+            id: None,
+            ptype: Type::None,
+            seed: 0,
+            size: 100,
+            style: Style::Static,
+            regenerate: false,
+            value: Value::None,
+        });
+
+        b.iter(|| workload.step());
+    }
+
+    #[cfg(feature = "unstable")]
+    #[bench]
+    fn memcache_get_random_100byte_benchmark(b: &mut test::Bencher) {
+        let work_queue = BoundedQueue::<Vec<u8>>::with_capacity(1);
+        let mut workload = Workload::new(Protocol::Memcache, "get".to_owned(), Some(0), work_queue)
+                               .unwrap();
+        workload.add_param(Parameter {
+            id: None,
+            ptype: Type::None,
+            seed: 0,
+            size: 100,
+            style: Style::Random,
+            regenerate: true,
+            value: Value::None,
+        });
+
+        b.iter(|| workload.step());
+    }
+
+    #[cfg(feature = "unstable")]
+    #[bench]
+    fn memcache_get_static_1000byte_benchmark(b: &mut test::Bencher) {
+        let work_queue = BoundedQueue::<Vec<u8>>::with_capacity(1);
+        let mut workload = Workload::new(Protocol::Memcache, "get".to_owned(), Some(0), work_queue)
+                               .unwrap();
+        workload.add_param(Parameter {
+            id: None,
+            ptype: Type::None,
+            seed: 0,
+            size: 1000,
+            style: Style::Static,
+            regenerate: false,
+            value: Value::None,
+        });
+
+        b.iter(|| workload.step());
+    }
+
+    #[cfg(feature = "unstable")]
+    #[bench]
+    fn memcache_get_random_1000byte_benchmark(b: &mut test::Bencher) {
+        let work_queue = BoundedQueue::<Vec<u8>>::with_capacity(1);
+        let mut workload = Workload::new(Protocol::Memcache, "get".to_owned(), Some(0), work_queue)
+                               .unwrap();
+        workload.add_param(Parameter {
+            id: None,
+            ptype: Type::None,
+            seed: 0,
+            size: 1000,
+            style: Style::Random,
+            regenerate: true,
+            value: Value::None,
+        });
+
+        b.iter(|| workload.step());
+    }
+
+    #[cfg(feature = "unstable")]
+    #[bench]
+    fn memcache_get_static_10000byte_benchmark(b: &mut test::Bencher) {
+        let work_queue = BoundedQueue::<Vec<u8>>::with_capacity(1);
+        let mut workload = Workload::new(Protocol::Memcache, "get".to_owned(), Some(0), work_queue)
+                               .unwrap();
+        workload.add_param(Parameter {
+            id: None,
+            ptype: Type::None,
+            seed: 0,
+            size: 10000,
+            style: Style::Static,
+            regenerate: false,
+            value: Value::None,
+        });
+
+        b.iter(|| workload.step());
+    }
+
+    #[cfg(feature = "unstable")]
+    #[bench]
+    fn memcache_get_random_10000byte_benchmark(b: &mut test::Bencher) {
+        let work_queue = BoundedQueue::<Vec<u8>>::with_capacity(1);
+        let mut workload = Workload::new(Protocol::Memcache, "get".to_owned(), Some(0), work_queue)
+                               .unwrap();
+        workload.add_param(Parameter {
+            id: None,
+            ptype: Type::None,
+            seed: 0,
+            size: 10000,
+            style: Style::Random,
+            regenerate: true,
+            value: Value::None,
+        });
+
+        b.iter(|| workload.step());
     }
 }
