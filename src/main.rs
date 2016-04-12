@@ -49,7 +49,6 @@ use std::process;
 
 
 use client::Client;
-use config::BenchmarkConfig;
 use connection::Connection;
 use logger::SimpleLogger;
 use net::InternetProtocol;
@@ -122,7 +121,7 @@ fn print_usage(program: &str, opts: Options) {
     print!("{}", opts.usage(&brief));
 }
 
-fn opts() -> Options {
+pub fn opts() -> Options {
     let mut opts = Options::new();
 
     opts.optmulti("s", "server", "server address", "HOST:PORT");
@@ -209,24 +208,7 @@ fn launch_workloads(protocol: String,
     }
 }
 
-fn load_config(file: Option<String>) -> BenchmarkConfig {
-    let mut config: BenchmarkConfig = Default::default();
 
-     // load config from file if specified
-    if let Some(toml) = file {
-        match config::load_config(&toml) {
-            Ok(cfg) => {
-                config = cfg;
-            }
-            Err(msg) => {
-                error!("{}", msg);
-                panic!();
-            }
-        }
-    }
-
-    config
-}
 
 pub fn main() {
     let args: Vec<String> = env::args().collect();
@@ -237,7 +219,10 @@ pub fn main() {
 
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => m,
-        Err(f) => panic!(f.to_string()),
+        Err(f) => {
+            error!("Failed to parse command line args: {}", f);
+            return;
+        }
     };
 
     if matches.opt_present("help") {
@@ -266,14 +251,14 @@ pub fn main() {
     let waterfall = matches.opt_str("waterfall");
     let trace = matches.opt_str("trace");
 
-    let mut config = load_config(matches.opt_str("config"));
-
-    // override config with commandline options
-    config.override_protocol(matches.opt_str("protocol"));
-    config.override_threads(matches.opt_str("threads"));
-    config.override_connections(matches.opt_str("connections"));
-    config.override_windows(matches.opt_str("windows"));
-    config.override_duration(matches.opt_str("duration"));
+    // Load workload configuration
+    let config = match config::load_config(&matches) {
+        Ok(cfg) => cfg,
+        Err(reason) => {
+            error!("{}", reason);
+            return;
+        }
+    };
 
     let internet_protocol = match choose_layer_3(matches.opt_present("ipv4"),
                                                  matches.opt_present("ipv6")) {
@@ -284,17 +269,7 @@ pub fn main() {
         }
     };
 
-    if matches.opt_present("tcp-nodelay") {
-        config.tcp_nodelay = true;
-    }
-
     let work_queue = BoundedQueue::<Vec<u8>>::with_capacity(BUCKET_SIZE);
-
-    // these map to workload and conflict with config for simplicity
-    if config.workloads.is_empty() {
-        error!("configuration contains no workload sections");
-        return;
-    }
 
     match Protocol::new(&*config.protocol) {
         Ok(p) => {

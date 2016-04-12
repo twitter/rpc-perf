@@ -17,9 +17,12 @@ extern crate log;
 extern crate toml;
 extern crate rpcperf_request as request;
 
+use getopts::Matches;
 use std::collections::BTreeMap;
+use std::fmt::Display;
 use std::fs::File;
 use std::io::Read;
+use std::str::FromStr;
 use toml::Parser;
 use toml::Value;
 use toml::Value::{Array, Table};
@@ -73,183 +76,151 @@ impl Default for BenchmarkConfig {
     }
 }
 
-impl BenchmarkConfig {
-    pub fn override_protocol(&mut self, value: Option<String>) {
-        if let Some(v) = value {
-            self.protocol = v;
+/// Helper for extracting non-string values from the `Matches`
+fn parse_opt<F>(name: &str, matches: &Matches) -> Result<Option<F>, String>
+    where F: FromStr,
+          F::Err: Display
+{
+    if let Some(v) = matches.opt_str(name) {
+        match v.parse() {
+            Ok(v) => Ok(Some(v)),
+            Err(e) => Err(format!("Bad parameter: {}. Cause: {}", name, e)),
         }
-    }
-
-    pub fn override_threads(&mut self, value: Option<String>) {
-        if let Some(v) = value {
-            match v.parse() {
-                Ok(v) => {
-                    if v > 0 {
-                        self.threads = v;
-                    } else {
-                        error!("Bad parameter: {} Cause: {}",
-                               "threads",
-                               "not greater than zero");
-                        return;
-                    }
-                }
-                Err(e) => {
-                    error!("Bad parameter: {} Cause: {}", "threads", e);
-                    return;
-                }
-            }
-        }
-    }
-
-    pub fn override_connections(&mut self, value: Option<String>) {
-        if let Some(v) = value {
-            match v.parse() {
-                Ok(v) => {
-                    if v > 0 {
-                        self.connections = v;
-                    } else {
-                        error!("Bad parameter: {} Cause: {}",
-                               "connections",
-                               "not greater than zero");
-                        return;
-                    }
-                }
-                Err(e) => {
-                    error!("Bad parameter: {} Cause: {}", "connections", e);
-                    return;
-                }
-            }
-        }
-    }
-
-    pub fn override_windows(&mut self, value: Option<String>) {
-        if let Some(v) = value {
-            match v.parse() {
-                Ok(v) => {
-                    if v > 0 {
-                        self.windows = v;
-                    } else {
-                        error!("Bad parameter: {} Cause: {}",
-                               "windows",
-                               "not greater than zero");
-                        return;
-                    }
-                }
-                Err(e) => {
-                    error!("Bad parameter: {} Cause: {}", "windows", e);
-                    return;
-                }
-            }
-        }
-    }
-
-    pub fn override_duration(&mut self, value: Option<String>) {
-        if let Some(v) = value {
-            match v.parse() {
-                Ok(v) => {
-                    if v > 0 {
-                        self.duration = v;
-                    } else {
-                        error!("Bad parameter: {} Cause: {}",
-                               "duration",
-                               "not greater than zero");
-                        return;
-                    }
-                }
-                Err(e) => {
-                    error!("Bad parameter: {} Cause: {}", "duration", e);
-                    return;
-                }
-            }
-        }
+    } else {
+        Ok(None)
     }
 }
 
-pub fn load_config(path: &str) -> Result<BenchmarkConfig, String> {
-    let mut f = match File::open(&path) {
-        Ok(f) => f,
-        Err(e) => {
-            let error = format!("Error opening config: {}", e);
-            return Err(error);
-        }
-    };
+pub fn load_config(matches: &Matches) -> Result<BenchmarkConfig, String> {
 
-    let mut s = String::new();
-    f.read_to_string(&mut s).unwrap();
-    load_config_str(path, &s)
+    // load the config
+    if let Some(toml) = matches.opt_str("config") {
+        let cfg_txt = match File::open(&toml) {
+            Ok(mut f) => {
+                let mut cfg_txt = String::new();
+                f.read_to_string(&mut cfg_txt).unwrap();
+                cfg_txt
+            }
+            Err(e) => return Err(format!("Error opening config: {}", e)),
+        };
+
+        let mut p = Parser::new(&cfg_txt);
+
+        match p.parse() {
+            Some(table) => {
+                debug!("toml parsed successfully. creating config");
+                load_config_table(table, matches)
+            }
+            None => {
+                for err in &p.errors {
+                    let (loline, locol) = p.to_linecol(err.lo);
+                    let (hiline, hicol) = p.to_linecol(err.hi);
+                    println!("{}:{}:{}-{}:{} error: {}",
+                             toml,
+                             loline,
+                             locol,
+                             hiline,
+                             hicol,
+                             err.desc);
+                }
+                Err("failed to load config".to_owned())
+            }
+        }
+    } else {
+        Err("config file not specified".to_owned())
+    }
 }
 
-pub fn load_config_str(config_name: &str, config: &str) -> Result<BenchmarkConfig, String> {
-    let mut p = Parser::new(config);
+pub fn load_config_table(table: BTreeMap<String, Value>,
+                         matches: &Matches)
+                         -> Result<BenchmarkConfig, String> {
+    let mut config: BenchmarkConfig = Default::default();
 
-    match p.parse() {
-        Some(table) => {
-            debug!("toml parsed successfully. creating config");
-
-            let mut config: BenchmarkConfig = Default::default();
-
-            if let Some(&Table(ref general)) = table.get("general") {
-                if let Some(connections) = general.get("connections")
-                                                  .and_then(|k| k.as_integer()) {
-                    config.connections = connections as usize;
-                };
-                if let Some(threads) = general.get("threads").and_then(|k| k.as_integer()) {
-                    config.threads = threads as usize;
-                }
-                if let Some(duration) = general.get("duration")
-                                               .and_then(|k| k.as_integer()) {
-                    config.duration = duration as usize;
-                }
-                if let Some(windows) = general.get("windows").and_then(|k| k.as_integer()) {
-                    config.windows = windows as usize;
-                }
-                if let Some(protocol) = general.get("protocol").and_then(|k| k.as_str()) {
-                    config.protocol = protocol.to_owned();
-                }
-                if let Some(tcp_nodelay) = general.get("tcp-nodelay")
-                                                  .and_then(|k| k.as_bool()) {
-                    config.tcp_nodelay = tcp_nodelay;
-                }
-                if let Some(ipv4) = general.get("ipv4").and_then(|k| k.as_bool()) {
-                    config.ipv4 = ipv4;
-                }
-                if let Some(ipv6) = general.get("ipv6").and_then(|k| k.as_bool()) {
-                    config.ipv6 = ipv6;
-                }
-            }
-
-            match table.get("workload") {
-                None => return Err("no workload section".to_owned()),
-                Some(&Array(ref workloads)) => {
-                    for (i, workload) in workloads.iter().enumerate() {
-                        if let Table(ref workload) = *workload {
-                            let w = try!(extract_workload(i, workload));
-                            config.workloads.push(w);
-                        } else {
-                            return Err("malformed config: workload must be a struct".to_owned());
-                        }
-                    }
-                }
-                Some(_) => return Err("malformed config: workloads must be an array".to_owned()),
-            }
-
-            Ok(config)
+    if let Some(&Table(ref general)) = table.get("general") {
+        if let Some(connections) = general.get("connections")
+                                          .and_then(|k| k.as_integer()) {
+            config.connections = connections as usize;
+        };
+        if let Some(threads) = general.get("threads").and_then(|k| k.as_integer()) {
+            config.threads = threads as usize;
         }
-        None => {
-            for err in &p.errors {
-                let (loline, locol) = p.to_linecol(err.lo);
-                let (hiline, hicol) = p.to_linecol(err.hi);
-                println!("{}:{}:{}-{}:{} error: {}",
-                         config_name,
-                         loline,
-                         locol,
-                         hiline,
-                         hicol,
-                         err.desc);
-            }
-            Err("failed to load config".to_owned())
+        if let Some(duration) = general.get("duration")
+                                       .and_then(|k| k.as_integer()) {
+            config.duration = duration as usize;
+        }
+        if let Some(windows) = general.get("windows").and_then(|k| k.as_integer()) {
+            config.windows = windows as usize;
+        }
+        if let Some(protocol) = general.get("protocol").and_then(|k| k.as_str()) {
+            config.protocol = protocol.to_owned();
+        }
+        if let Some(tcp_nodelay) = general.get("tcp-nodelay")
+                                          .and_then(|k| k.as_bool()) {
+            config.tcp_nodelay = tcp_nodelay;
+        }
+        if let Some(ipv4) = general.get("ipv4").and_then(|k| k.as_bool()) {
+            config.ipv4 = ipv4;
+        }
+        if let Some(ipv6) = general.get("ipv6").and_then(|k| k.as_bool()) {
+            config.ipv6 = ipv6;
         }
     }
+
+    // get any overrides from the command line
+    try!(config_overrides(&mut config, matches));
+
+    // Load workloads
+    match table.get("workload") {
+        None => return Err("malformed config: no workload sections".to_owned()),
+        Some(&Array(ref workloads)) => {
+            for (i, workload) in workloads.iter().enumerate() {
+                if let Table(ref workload) = *workload {
+                    let w = try!(extract_workload(i, workload));
+                    config.workloads.push(w);
+                } else {
+                    return Err("malformed config: workload must be a struct".to_owned());
+                }
+            }
+        }
+        Some(_) => return Err("malformed config: workloads must be an array".to_owned()),
+    }
+
+    // double check that we have at least one workload
+    if config.workloads.is_empty() {
+        Err("malformed config: no worloads specified".to_owned())
+    } else {
+        Ok(config)
+    }
+}
+
+/// Override parameters using command line arguments
+fn config_overrides(config: &mut BenchmarkConfig, matches: &Matches) -> Result<(), String> {
+    // override config with commandline options
+    if let Some(protocol) = matches.opt_str("protocol") {
+        config.protocol = protocol;
+    }
+
+    if let Some(threads) = try!(parse_opt("threads", matches)) {
+        config.threads = threads;
+    }
+
+    if let Some(connections) = try!(parse_opt("connections", matches)) {
+        config.connections = connections;
+    }
+
+    if let Some(windows) = try!(parse_opt("windows", matches)) {
+        config.windows = windows;
+    }
+
+    if let Some(duration) = try!(parse_opt("duration", matches)) {
+        config.duration = duration;
+    }
+
+    if matches.opt_present("tcp-nodelay") {
+        config.tcp_nodelay = true;
+    }
+
+    Ok(())
 }
 
 fn extract_workload(i: usize, workload: &BTreeMap<String, Value>) -> CResult<BenchmarkWorkload> {
@@ -343,19 +314,30 @@ fn extract_parameter(i: usize, parameter: &BTreeMap<String, Value>) -> CResult<P
 
 #[test]
 fn test_load_config() {
-    let config_str = include_str!("../configs/thrift_calc.toml");
-    let workload = load_config_str("thrift_calc.toml", config_str).unwrap();
+    let table = {
+        let config_str = include_str!("../configs/thrift_calc.toml");
+        let mut p = Parser::new(config_str);
+        p.parse().unwrap()
+    };
 
-    assert_eq!(workload.protocol, "thrift");
-    assert_eq!(workload.workloads.len(), 3);
+    let matches = {
+        let opts = super::opts();
+        let args: Vec<String> = Vec::new();
+        opts.parse(&args).unwrap()
+    };
 
-    let w0 = &workload.workloads[0];
+    let config = load_config_table(table, &matches).unwrap();
+
+    assert_eq!(config.protocol, "thrift");
+    assert_eq!(config.workloads.len(), 3);
+
+    let w0 = &config.workloads[0];
     // Check the first workload
     assert_eq!(w0.method, "ping");
     assert_eq!(w0.rate, 1);
     assert_eq!(w0.parameters.len(), 0);
 
-    let w2 = &workload.workloads[2];
+    let w2 = &config.workloads[2];
     // check the third workload
     assert_eq!(w2.method, "calculate");
     assert_eq!(w2.rate, 1);
