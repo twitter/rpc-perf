@@ -92,7 +92,6 @@ fn parse_opt<F>(name: &str, matches: &Matches) -> Result<Option<F>, String>
 }
 
 pub fn load_config(matches: &Matches) -> Result<BenchmarkConfig, String> {
-    let mut config: BenchmarkConfig = Default::default();
 
     // load the config
     if let Some(toml) = matches.opt_str("config") {
@@ -110,7 +109,7 @@ pub fn load_config(matches: &Matches) -> Result<BenchmarkConfig, String> {
         match p.parse() {
             Some(table) => {
                 debug!("toml parsed successfully. creating config");
-                try!(load_config_table(table, &mut config, matches));
+                load_config_table(table, matches)
             }
             None => {
                 for err in &p.errors {
@@ -124,18 +123,18 @@ pub fn load_config(matches: &Matches) -> Result<BenchmarkConfig, String> {
                              hicol,
                              err.desc);
                 }
-                return Err("failed to load config".to_owned());
+                Err("failed to load config".to_owned())
             }
         }
+    } else {
+        Err("config file not specified".to_owned())
     }
-
-    Ok(config)
 }
 
 pub fn load_config_table(table: BTreeMap<String, Value>,
-                       config: &mut BenchmarkConfig,
-                       matches: &Matches)
-                       -> Result<(), String> {
+                         matches: &Matches)
+                         -> Result<BenchmarkConfig, String> {
+    let mut config: BenchmarkConfig = Default::default();
 
     if let Some(&Table(ref general)) = table.get("general") {
         if let Some(connections) = general.get("connections")
@@ -168,11 +167,11 @@ pub fn load_config_table(table: BTreeMap<String, Value>,
     }
 
     // get any overrides from the command line
-    try!(config_overrides(config, matches));
+    try!(config_overrides(&mut config, matches));
 
     // Load workloads
     match table.get("workload") {
-        None => return Err("no workload section".to_owned()),
+        None => return Err("malformed config: no workload sections".to_owned()),
         Some(&Array(ref workloads)) => {
             for (i, workload) in workloads.iter().enumerate() {
                 if let Table(ref workload) = *workload {
@@ -186,7 +185,12 @@ pub fn load_config_table(table: BTreeMap<String, Value>,
         Some(_) => return Err("malformed config: workloads must be an array".to_owned()),
     }
 
-    Ok(())
+    // double check that we have at least one workload
+    if config.workloads.is_empty() {
+        Err("malformed config: no worloads specified".to_owned())
+    } else {
+        Ok(config)
+    }
 }
 
 /// Override parameters using command line arguments
@@ -322,8 +326,7 @@ fn test_load_config() {
         opts.parse(&args).unwrap()
     };
 
-    let mut config = Default::default();
-    load_config_table(table, &mut config, &matches).unwrap();
+    let config = load_config_table(table, &matches).unwrap();
 
     assert_eq!(config.protocol, "thrift");
     assert_eq!(config.workloads.len(), 3);

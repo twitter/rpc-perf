@@ -271,12 +271,6 @@ pub fn main() {
 
     let work_queue = BoundedQueue::<Vec<u8>>::with_capacity(BUCKET_SIZE);
 
-    // these map to workload and conflict with config for simplicity
-    if config.workloads.is_empty() {
-        error!("configuration contains no workload sections");
-        return;
-    }
-
     match Protocol::new(&*config.protocol) {
         Ok(p) => {
             client_protocol = p;
