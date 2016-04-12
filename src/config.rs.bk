@@ -76,10 +76,9 @@ impl Default for BenchmarkConfig {
     }
 }
 
-/// Helper for extracting non-string values from the `Matches`
 fn parse_opt<F>(name: &str, matches: &Matches) -> Result<Option<F>, String>
-    where F: FromStr,
-          F::Err: Display
+where F: FromStr,
+      F::Err: Display
 {
     if let Some(v) = matches.opt_str(name) {
         match v.parse() {
@@ -96,21 +95,22 @@ pub fn load_config(matches: &Matches) -> Result<BenchmarkConfig, String> {
 
     // load the config
     if let Some(toml) = matches.opt_str("config") {
-        let cfg_txt = match File::open(&toml) {
-            Ok(mut f) => {
-                let mut cfg_txt = String::new();
-                f.read_to_string(&mut cfg_txt).unwrap();
-                cfg_txt
+        let mut f = match File::open(&toml) {
+            Ok(f) => f,
+            Err(e) => {
+                let error = format!("Error opening config: {}", e);
+                return Err(error);
             }
-            Err(e) => return Err(format!("Error opening config: {}", e)),
         };
 
+        let mut cfg_txt = String::new();
+        f.read_to_string(&mut cfg_txt).unwrap();
         let mut p = Parser::new(&cfg_txt);
 
         match p.parse() {
             Some(table) => {
                 debug!("toml parsed successfully. creating config");
-                try!(load_config_table(table, &mut config, matches));
+                try!(load_config_str(table, &mut config, matches));
             }
             None => {
                 for err in &p.errors {
@@ -132,10 +132,7 @@ pub fn load_config(matches: &Matches) -> Result<BenchmarkConfig, String> {
     Ok(config)
 }
 
-pub fn load_config_table(table: BTreeMap<String, Value>,
-                       config: &mut BenchmarkConfig,
-                       matches: &Matches)
-                       -> Result<(), String> {
+pub fn load_config_str(table: BTreeMap<String, Value>, config: &mut BenchmarkConfig, matches: &Matches) -> Result<(), String> {
 
     if let Some(&Table(ref general)) = table.get("general") {
         if let Some(connections) = general.get("connections")
@@ -167,30 +164,6 @@ pub fn load_config_table(table: BTreeMap<String, Value>,
         }
     }
 
-    // get any overrides from the command line
-    try!(config_overrides(config, matches));
-
-    // Load workloads
-    match table.get("workload") {
-        None => return Err("no workload section".to_owned()),
-        Some(&Array(ref workloads)) => {
-            for (i, workload) in workloads.iter().enumerate() {
-                if let Table(ref workload) = *workload {
-                    let w = try!(extract_workload(i, workload));
-                    config.workloads.push(w);
-                } else {
-                    return Err("malformed config: workload must be a struct".to_owned());
-                }
-            }
-        }
-        Some(_) => return Err("malformed config: workloads must be an array".to_owned()),
-    }
-
-    Ok(())
-}
-
-/// Override parameters using command line arguments
-fn config_overrides(config: &mut BenchmarkConfig, matches: &Matches) -> Result<(), String> {
     // override config with commandline options
     if let Some(protocol) = matches.opt_str("protocol") {
         config.protocol = protocol;
@@ -214,6 +187,22 @@ fn config_overrides(config: &mut BenchmarkConfig, matches: &Matches) -> Result<(
 
     if matches.opt_present("tcp-nodelay") {
         config.tcp_nodelay = true;
+    }
+
+    // Load workloads
+    match table.get("workload") {
+        None => return Err("no workload section".to_owned()),
+        Some(&Array(ref workloads)) => {
+            for (i, workload) in workloads.iter().enumerate() {
+                if let Table(ref workload) = *workload {
+                    let w = try!(extract_workload(i, workload));
+                    config.workloads.push(w);
+                } else {
+                    return Err("malformed config: workload must be a struct".to_owned());
+                }
+            }
+        }
+        Some(_) => return Err("malformed config: workloads must be an array".to_owned()),
     }
 
     Ok(())
@@ -310,31 +299,19 @@ fn extract_parameter(i: usize, parameter: &BTreeMap<String, Value>) -> CResult<P
 
 #[test]
 fn test_load_config() {
-    let table = {
-        let config_str = include_str!("../configs/thrift_calc.toml");
-        let mut p = Parser::new(config_str);
-        p.parse().unwrap()
-    };
+    let config_str = include_str!("../configs/thrift_calc.toml");
+    let workload = load_config_str("thrift_calc.toml", config_str).unwrap();
 
-    let matches = {
-        let opts = super::opts();
-        let args: Vec<String> = Vec::new();
-        opts.parse(&args).unwrap()
-    };
+    assert_eq!(workload.protocol, "thrift");
+    assert_eq!(workload.workloads.len(), 3);
 
-    let mut config = Default::default();
-    load_config_table(table, &mut config, &matches).unwrap();
-
-    assert_eq!(config.protocol, "thrift");
-    assert_eq!(config.workloads.len(), 3);
-
-    let w0 = &config.workloads[0];
+    let w0 = &workload.workloads[0];
     // Check the first workload
     assert_eq!(w0.method, "ping");
     assert_eq!(w0.rate, 1);
     assert_eq!(w0.parameters.len(), 0);
 
-    let w2 = &config.workloads[2];
+    let w2 = &workload.workloads[2];
     // check the third workload
     assert_eq!(w2.method, "calculate");
     assert_eq!(w2.rate, 1);
