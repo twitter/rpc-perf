@@ -7,5 +7,14 @@ os:
   - linux
   - osx
 matrix:
+  include:
+    - os: linux
+      rust: nightly
+      env: FEATURES="unstable"
+      script: cd lib/request && cargo bench --features $FEATURES
+    - os: osx
+      rust: nightly
+      env: FEATURES="unstable"
+      script: cd lib/request && cargo bench --features $FEATURES
   allow_failures:
     - rust: nightly
