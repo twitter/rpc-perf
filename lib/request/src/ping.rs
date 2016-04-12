@@ -13,6 +13,9 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
+#[cfg(feature = "unstable")]
+extern crate test;
+
 /// ping request
 ///
 /// # Example
@@ -22,4 +25,10 @@
 /// assert_eq!(ping(), "PING\r\n");
 pub fn ping() -> String {
     "PING\r\n".to_owned()
+}
+
+#[cfg(feature = "unstable")]
+#[bench]
+fn ping_benchmark(b: &mut test::Bencher) {
+    b.iter(|| ping());
 }

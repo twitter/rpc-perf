@@ -13,6 +13,9 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
+#[cfg(feature = "unstable")]
+extern crate test;
+
 use crc::crc32;
 use std::mem::transmute;
 
@@ -31,4 +34,11 @@ pub fn echo(value: &[u8]) -> Vec<u8> {
     msg.extend(bytes.iter().cloned());
     msg.extend([13, 10].iter().cloned());
     msg
+}
+
+
+#[cfg(feature = "unstable")]
+#[bench]
+fn echo_benchmark(b: &mut test::Bencher) {
+    b.iter(|| echo(b"123456789"));
 }
