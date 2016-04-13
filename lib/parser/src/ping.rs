@@ -58,6 +58,9 @@ impl<'a> Parse for Response<'a> {
 mod tests {
     use super::{Parse, ParsedResponse, Response};
 
+    #[cfg(feature = "unstable")]
+    extern crate test;
+
     #[test]
     fn test_parse_pong() {
         let r = Response { response: "PONG" };
@@ -68,5 +71,12 @@ mod tests {
 
         let r = Response { response: "ERROR\r\n" };
         assert_eq!(r.parse(), ParsedResponse::Unknown);
+    }
+
+    #[cfg(feature = "unstable")]
+    #[bench]
+    fn parse_ok_benchmark(b: &mut test::Bencher) {
+        let r = Response { response: "PONG\r\n" };
+        b.iter(|| r.parse());
     }
 }

@@ -55,6 +55,9 @@ impl<'a> Parse for Response<'a> {
 mod tests {
     use super::{Parse, ParsedResponse, Response};
 
+    #[cfg(feature = "unstable")]
+    extern crate test;
+
     #[test]
     fn test_parse_incomplete() {
         let r = Response { response: &[0] };
@@ -77,5 +80,19 @@ mod tests {
     fn test_parse_error() {
         let r = Response { response: "3421780262\r\n".as_bytes() };
         assert_eq!(r.parse(), ParsedResponse::Error("bad crc".to_owned()));
+    }
+
+    #[cfg(feature = "unstable")]
+    #[bench]
+    fn parse_ok_benchmark(b: &mut test::Bencher) {
+        let r = Response { response: &[0, 1, 2, 8, 84, 137, 127, 13, 10] };
+        b.iter(|| r.parse());
+    }
+
+    #[cfg(feature = "unstable")]
+    #[bench]
+    fn parse_err_benchmark(b: &mut test::Bencher) {
+        let r = Response { response: "3421780262\r\n".as_bytes() };
+        b.iter(|| r.parse());
     }
 }

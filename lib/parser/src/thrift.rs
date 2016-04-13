@@ -39,6 +39,9 @@ impl<'a> Parse for Response<'a> {
 mod tests {
     use super::{Parse, ParsedResponse, Response};
 
+    #[cfg(feature = "unstable")]
+    extern crate test;
+
     #[test]
     fn test_parse_ok() {
         assert_eq!(Response { response: &[0, 0, 0, 1, 0] }.parse(),
@@ -55,5 +58,19 @@ mod tests {
                    ParsedResponse::Incomplete);
         assert_eq!(Response { response: &[0, 0, 0, 2, 0] }.parse(),
                    ParsedResponse::Incomplete);
+    }
+
+    #[cfg(feature = "unstable")]
+    #[bench]
+    fn parse_ok_benchmark(b: &mut test::Bencher) {
+        let r = Response { response: &[0, 0, 0, 1, 0] };
+        b.iter(|| r.parse());
+    }
+
+    #[cfg(feature = "unstable")]
+    #[bench]
+    fn parse_incomplete_benchmark(b: &mut test::Bencher) {
+        let r = Response { response: &[0, 0, 0, 2, 0] };
+        b.iter(|| r.parse());
     }
 }

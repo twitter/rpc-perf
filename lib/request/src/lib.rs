@@ -13,8 +13,7 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-#![cfg_attr(any(feature = "unstable", feature = "custom-unstable"), feature(test))]
-
+#![cfg_attr(feature = "unstable", feature(test))]
 
 #![crate_type = "lib"]
 

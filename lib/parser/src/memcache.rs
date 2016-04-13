@@ -135,6 +135,9 @@ impl<'a> Parse for Response<'a> {
 mod tests {
     use super::{Parse, ParsedResponse, Response};
 
+    #[cfg(feature = "unstable")]
+    extern crate test;
+
     #[test]
     fn test_parse_incomplete() {
         let r = Response { response: "0" };
@@ -240,5 +243,19 @@ mod tests {
     fn test_parse_version() {
         let r = Response { response: "VERSION 1.2.3\r\n" };
         assert_eq!(r.parse(), ParsedResponse::Version("1.2.3".to_owned()));
+    }
+
+    #[cfg(feature = "unstable")]
+    #[bench]
+    fn parse_hit_benchmark(b: &mut test::Bencher) {
+        let r = Response { response: "VALUE key 0 10\r\n0123456789\r\nEND\r\n" };
+        b.iter(|| r.parse());
+    }
+
+    #[cfg(feature = "unstable")]
+    #[bench]
+    fn parse_miss_benchmark(b: &mut test::Bencher) {
+        let r = Response { response: "NOT_FOUND\r\n" };
+        b.iter(|| r.parse());
     }
 }
