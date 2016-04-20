@@ -89,6 +89,7 @@ impl Receiver {
                         }
                         Status::Miss => {
                             miss += 1;
+                            ok += 1;
                         }
                         Status::Error => {
                             error += 1;
@@ -119,8 +120,8 @@ impl Receiver {
                     let mut success_rate = 0_f64;
                     let mut hit_rate = 0_f64;
                     if (histogram.entries() + error) > 0 {
-                        success_rate = (100 * histogram.entries()) as f64 /
-                                       (histogram.entries() + error) as f64;
+                        success_rate = (100 * ok) as f64 /
+                                       (histogram.entries()) as f64;
                     }
                     if (hit + miss) > 0 {
                         hit_rate = (100 * hit) as f64 / (hit + miss) as f64;
