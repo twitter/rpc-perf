@@ -13,23 +13,52 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-#![cfg_attr(feature = "unstable", feature(test))]
-
 #![crate_type = "lib"]
 
-extern crate byteorder;
-extern crate crc;
+#[macro_use]
+extern crate log;
+extern crate getopts;
+extern crate toml;
+
 extern crate mpmc;
-extern crate pad;
-extern crate rand;
 extern crate ratelimit;
 extern crate shuteye;
 extern crate time;
 
+extern crate rpcperf_cfgtypes as cfgtypes;
+extern crate rpcperf_echo as echo;
+extern crate rpcperf_redis as redis;
+extern crate rpcperf_memcache as memcache;
+extern crate rpcperf_ping as ping;
+extern crate rpcperf_thrift as thrift;
 
-pub mod echo;
-pub mod memcache;
-pub mod ping;
-pub mod redis;
-pub mod thrift;
+pub mod config;
 pub mod workload;
+
+use cfgtypes::ProtocolConfig;
+
+pub struct BenchmarkConfig {
+    pub connections: usize,
+    pub threads: usize,
+    pub duration: usize,
+    pub windows: usize,
+    pub tcp_nodelay: bool,
+    pub ipv4: bool,
+    pub ipv6: bool,
+    pub protocol_config: ProtocolConfig,
+}
+
+impl BenchmarkConfig {
+    fn new(protocol: ProtocolConfig) -> BenchmarkConfig {
+        BenchmarkConfig {
+            connections: 1,
+            threads: 1,
+            duration: 60,
+            windows: 5,
+            tcp_nodelay: false,
+            ipv4: true,
+            ipv6: true,
+            protocol_config: protocol,
+        }
+    }
+}

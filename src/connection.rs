@@ -20,13 +20,12 @@ use bytes::{Buf, ByteBuf, MutByteBuf};
 use mio::{TryRead, TryWrite};
 use mio::tcp::TcpStream;
 use std::sync::mpsc;
-use std::str;
 
 use client::Client;
-use parser::{Parse, ParsedResponse, echo, memcache, ping, redis, thrift};
 use state::State;
 use stats::{Stat, Status};
-use request::workload::Protocol;
+use cfgtypes::{ParsedResponse, ProtocolParse};
+
 
 const MEGABYTE: usize = 1024 * 1024;
 
@@ -38,14 +37,14 @@ pub struct Connection {
     mut_buf: Option<MutByteBuf>,
     last_write: u64,
     stats_tx: mpsc::Sender<Stat>,
-    protocol: Protocol,
+    protocol: Box<ProtocolParse>,
 }
 
 impl Connection {
     pub fn new(socket: TcpStream,
                token: mio::Token,
                stats_tx: mpsc::Sender<Stat>,
-               protocol: Protocol,
+               protocol: Box<ProtocolParse>,
                tcp_nodelay: bool)
                -> Connection {
 
@@ -166,31 +165,7 @@ impl Connection {
                 let buf = buf.flip();
 
                 // protocol dependant parsing
-                resp = match self.protocol {
-                    Protocol::Echo => echo::Response { response: buf.bytes() }.parse(),
-                    Protocol::Thrift => thrift::Response { response: buf.bytes() }.parse(),
-                    Protocol::Memcache => {
-                        match str::from_utf8(buf.bytes()) {
-                            Ok(msg) => memcache::Response { response: msg }.parse(),
-                            Err(_) => ParsedResponse::Invalid,
-                        }
-                    }
-                    Protocol::Redis => {
-                        match str::from_utf8(buf.bytes()) {
-                            Ok(msg) => redis::Response { response: msg }.parse(),
-                            Err(_) => ParsedResponse::Invalid,
-                        }
-                    }
-                    Protocol::Ping => {
-                        match str::from_utf8(buf.bytes()) {
-                            Ok(msg) => ping::Response { response: msg }.parse(),
-                            Err(_) => ParsedResponse::Invalid,
-                        }
-                    }
-                    Protocol::Unknown => {
-                        panic!("unhandled protocol!");
-                    }
-                };
+                resp = self.protocol.parse(buf.bytes());
 
                 // if incomplete replace the buffer contents, otherwise transition
                 match resp {

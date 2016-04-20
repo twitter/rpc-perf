@@ -17,14 +17,13 @@
 extern crate test;
 
 /// request to change memcache verbosity
-///
-/// # Example
-/// ```
-/// # use rpcperf_request::memcache::*;
-///
-/// assert_eq!(verbosity(4), "verbosity 4\r\n");
 pub fn verbosity(level: usize) -> String {
     format!("verbosity {}\r\n", level)
+}
+
+#[test]
+fn test_verbosity() {
+    assert_eq!(verbosity(4), "verbosity 4\r\n");
 }
 
 #[cfg(feature = "unstable")]
@@ -34,14 +33,13 @@ fn memcache_verbosity_benchmark(b: &mut test::Bencher) {
 }
 
 /// create a memcache version tcp request
-///
-/// # Example
-/// ```
-/// # use rpcperf_request::memcache::*;
-///
-/// assert_eq!(version(), "version\r\n");
 pub fn version() -> String {
     "version\r\n".to_owned()
+}
+
+#[test]
+fn test_version() {
+    assert_eq!(version(), "version\r\n");
 }
 
 #[cfg(feature = "unstable")]
@@ -51,14 +49,13 @@ fn memcache_version_benchmark(b: &mut test::Bencher) {
 }
 
 /// create a memcache quit request
-///
-/// # Example
-/// ```
-/// # use rpcperf_request::memcache::*;
-///
-/// assert_eq!(quit(), "quit\r\n");
 pub fn quit() -> String {
     "quit\r\n".to_owned()
+}
+
+#[test]
+fn test_quit() {
+    assert_eq!(quit(), "quit\r\n");
 }
 
 #[cfg(feature = "unstable")]
@@ -68,12 +65,6 @@ fn memcache_quit_benchmark(b: &mut test::Bencher) {
 }
 
 /// create a set request
-///
-/// # Example
-/// ```
-/// # use rpcperf_request::memcache::*;
-///
-/// assert_eq!(set("key", "value", None, None), "set key 0 0 5\r\nvalue\r\n");
 pub fn set(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>) -> String {
     let flags = flags.unwrap_or(0);
     let exptime = exptime.unwrap_or(0);
@@ -85,6 +76,11 @@ pub fn set(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>) -> 
             value)
 }
 
+#[test]
+fn test_set() {
+    assert_eq!(set("key", "value", None, None), "set key 0 0 5\r\nvalue\r\n");
+}
+
 #[cfg(feature = "unstable")]
 #[bench]
 fn memcache_set_benchmark(b: &mut test::Bencher) {
@@ -92,12 +88,6 @@ fn memcache_set_benchmark(b: &mut test::Bencher) {
 }
 
 /// create a cas request
-///
-/// # Example
-/// ```
-/// # use rpcperf_request::memcache::*;
-///
-/// assert_eq!(cas("key", "value", None, None, 100_u64), "cas key 0 0 5 100\r\nvalue\r\n");
 pub fn cas(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>, cas: u64) -> String {
     let flags = flags.unwrap_or(0);
     let exptime = exptime.unwrap_or(0);
@@ -110,6 +100,11 @@ pub fn cas(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>, cas
             value)
 }
 
+#[test]
+fn test_cas() {
+    assert_eq!(cas("key", "value", None, None, 100_u64), "cas key 0 0 5 100\r\nvalue\r\n");
+}
+
 #[cfg(feature = "unstable")]
 #[bench]
 fn memcache_cas_benchmark(b: &mut test::Bencher) {
@@ -117,12 +112,6 @@ fn memcache_cas_benchmark(b: &mut test::Bencher) {
 }
 
 /// create an add request
-///
-/// # Example
-/// ```
-/// # use rpcperf_request::memcache::*;
-///
-/// assert_eq!(add("key", "value", None, None), "add key 0 0 5\r\nvalue\r\n");
 pub fn add(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>) -> String {
     let flags = flags.unwrap_or(0);
     let exptime = exptime.unwrap_or(0);
@@ -134,6 +123,11 @@ pub fn add(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>) -> 
             value)
 }
 
+#[test]
+fn test_add() {
+    assert_eq!(add("key", "value", None, None), "add key 0 0 5\r\nvalue\r\n");
+}
+
 #[cfg(feature = "unstable")]
 #[bench]
 fn memcache_add_benchmark(b: &mut test::Bencher) {
@@ -141,12 +135,6 @@ fn memcache_add_benchmark(b: &mut test::Bencher) {
 }
 
 /// create a replace request
-///
-/// # Example
-/// ```
-/// # use rpcperf_request::memcache::*;
-///
-/// assert_eq!(replace("key", "value", None, None), "replace key 0 0 5\r\nvalue\r\n");
 pub fn replace(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>) -> String {
     let flags = flags.unwrap_or(0);
     let exptime = exptime.unwrap_or(0);
@@ -158,6 +146,11 @@ pub fn replace(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>)
             value)
 }
 
+#[test]
+fn test_replace() {
+    assert_eq!(replace("key", "value", None, None), "replace key 0 0 5\r\nvalue\r\n");
+}
+
 #[cfg(feature = "unstable")]
 #[bench]
 fn memcache_replace_benchmark(b: &mut test::Bencher) {
@@ -165,12 +158,6 @@ fn memcache_replace_benchmark(b: &mut test::Bencher) {
 }
 
 /// create an append request
-///
-/// # Example
-/// ```
-/// # use rpcperf_request::memcache::*;
-///
-/// assert_eq!(append("key", "value", None, None), "append key 0 0 5\r\nvalue\r\n");
 pub fn append(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>) -> String {
     let flags = flags.unwrap_or(0);
     let exptime = exptime.unwrap_or(0);
@@ -182,6 +169,11 @@ pub fn append(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>) 
             value)
 }
 
+#[test]
+fn test_append() {
+    assert_eq!(append("key", "value", None, None), "append key 0 0 5\r\nvalue\r\n");
+}
+
 #[cfg(feature = "unstable")]
 #[bench]
 fn memcache_append_benchmark(b: &mut test::Bencher) {
@@ -189,12 +181,6 @@ fn memcache_append_benchmark(b: &mut test::Bencher) {
 }
 
 /// create an prepend request
-///
-/// # Example
-/// ```
-/// # use rpcperf_request::memcache::*;
-///
-/// assert_eq!(prepend("key", "value", None, None), "prepend key 0 0 5\r\nvalue\r\n");
 pub fn prepend(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>) -> String {
     let flags = flags.unwrap_or(0);
     let exptime = exptime.unwrap_or(0);
@@ -206,6 +192,11 @@ pub fn prepend(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>)
             value)
 }
 
+#[test]
+fn test_prepend() {
+    assert_eq!(prepend("key", "value", None, None), "prepend key 0 0 5\r\nvalue\r\n");
+}
+
 #[cfg(feature = "unstable")]
 #[bench]
 fn prepend_benchmark(b: &mut test::Bencher) {
@@ -213,15 +204,14 @@ fn prepend_benchmark(b: &mut test::Bencher) {
 }
 
 /// create a incr request
-///
-/// # Example
-/// ```
-/// # use rpcperf_request::memcache::*;
-///
-/// assert_eq!(incr("key", 1), "incr key 1\r\n");
-/// assert_eq!(incr("key", 1000), "incr key 1000\r\n");
 pub fn incr(key: &str, value: u64) -> String {
     format!("incr {} {}\r\n", key, value)
+}
+
+#[test]
+fn test_incr() {
+    assert_eq!(incr("key", 1), "incr key 1\r\n");
+    assert_eq!(incr("key", 1000), "incr key 1000\r\n");
 }
 
 #[cfg(feature = "unstable")]
@@ -231,15 +221,14 @@ fn incr_benchmark(b: &mut test::Bencher) {
 }
 
 /// create a decr request
-///
-/// # Example
-/// ```
-/// # use rpcperf_request::memcache::*;
-///
-/// assert_eq!(decr("key", 1), "decr key 1\r\n");
-/// assert_eq!(decr("key", 1000), "decr key 1000\r\n");
 pub fn decr(key: &str, value: u64) -> String {
     format!("decr {} {}\r\n", key, value)
+}
+
+#[test]
+fn test_decr() {
+    assert_eq!(decr("key", 1), "decr key 1\r\n");
+    assert_eq!(decr("key", 1000), "decr key 1000\r\n");
 }
 
 #[cfg(feature = "unstable")]
@@ -249,15 +238,14 @@ fn decr_benchmark(b: &mut test::Bencher) {
 }
 
 /// create a touch request
-///
-/// # Example
-/// ```
-/// # use rpcperf_request::memcache::*;
-///
-/// assert_eq!(touch("key", None), "touch key 0\r\n");
 pub fn touch(key: &str, exptime: Option<u32>) -> String {
     let exptime = exptime.unwrap_or(0);
     format!("touch {} {}\r\n", key, exptime)
+}
+
+#[test]
+fn test_touch() {
+    assert_eq!(touch("key", None), "touch key 0\r\n");
 }
 
 #[cfg(feature = "unstable")]
@@ -267,14 +255,13 @@ fn touch_benchmark(b: &mut test::Bencher) {
 }
 
 /// create a get request
-///
-/// # Example
-/// ```
-/// # use rpcperf_request::memcache::*;
-///
-/// assert_eq!(get("key"), "get key\r\n");
 pub fn get(key: &str) -> String {
     format!("get {}\r\n", key)
+}
+
+#[test]
+fn test_get() {
+    assert_eq!(get("key"), "get key\r\n");
 }
 
 #[cfg(feature = "unstable")]
@@ -284,14 +271,13 @@ fn get_benchmark(b: &mut test::Bencher) {
 }
 
 /// create a gets request
-///
-/// # Example
-/// ```
-/// # use rpcperf_request::memcache::*;
-///
-/// assert_eq!(gets("key"), "gets key\r\n");
 pub fn gets(key: &str) -> String {
     format!("gets {}\r\n", key)
+}
+
+#[test]
+fn test_gets() {
+    assert_eq!(gets("key"), "gets key\r\n");
 }
 
 #[cfg(feature = "unstable")]
@@ -301,14 +287,13 @@ fn gets_benchmark(b: &mut test::Bencher) {
 }
 
 /// create a delete request
-///
-/// # Example
-/// ```
-/// # use rpcperf_request::memcache::*;
-///
-/// assert_eq!(delete("key"), "delete key\r\n");
 pub fn delete(key: &str) -> String {
     format!("delete {}\r\n", key)
+}
+
+#[test]
+fn test_delete() {
+    assert_eq!(delete("key"), "delete key\r\n");
 }
 
 #[cfg(feature = "unstable")]
@@ -318,14 +303,13 @@ fn delete_benchmark(b: &mut test::Bencher) {
 }
 
 /// create a flush_all request
-///
-/// # Example
-/// ```
-/// # use rpcperf_request::memcache::*;
-///
-/// assert_eq!(flush_all(), "flush_all\r\n");
 pub fn flush_all() -> String {
     "flush_all\r\n".to_owned()
+}
+
+#[test]
+fn test_flush_all() {
+    assert_eq!(flush_all(), "flush_all\r\n");
 }
 
 #[cfg(feature = "unstable")]

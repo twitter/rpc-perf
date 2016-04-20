@@ -13,24 +13,21 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use std::process::Command;
+#[cfg(feature = "unstable")]
+extern crate test;
 
-#[cfg(test)]
-#[test]
-fn main() {
-    test_subcrate("rpcperf_cfgtypes");
-    test_subcrate("rpcperf_echo");
-    test_subcrate("rpcperf_memcache");
-    test_subcrate("rpcperf_request");
-    test_subcrate("rpcperf_ping");
-    test_subcrate("rpcperf_redis");
-    test_subcrate("rpcperf_thrift");
+
+pub fn ping() -> String {
+    "PING\r\n".to_owned()
 }
 
-fn test_subcrate(subcrate: &str) {
-    let status = Command::new("cargo").args(&["test", "-p", subcrate]).status().unwrap();
-    assert!(status.success(),
-            "test for sub-crate: {} returned: {:?}",
-            subcrate,
-            status.code().unwrap());
+#[cfg(feature = "unstable")]
+#[bench]
+fn ping_benchmark(b: &mut test::Bencher) {
+    b.iter(|| ping());
+}
+
+#[test]
+fn test_ping() {
+    assert_eq!(ping(), "PING\r\n".to_owned());
 }

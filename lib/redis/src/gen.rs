@@ -17,14 +17,13 @@
 extern crate test;
 
 /// FLUSHALL request
-///
-/// # Example
-/// ```
-/// # use rpcperf_request::redis::*;
-///
-/// assert_eq!(flushall(), "flushall\r\n");
 pub fn flushall() -> String {
     "flushall\r\n".to_owned()
+}
+
+#[test]
+fn test_flushall() {
+    assert_eq!(flushall(), "flushall\r\n");
 }
 
 #[cfg(feature = "unstable")]
@@ -34,14 +33,13 @@ fn flushall_benchmark(b: &mut test::Bencher) {
 }
 
 /// SET request
-///
-/// # Example
-/// ```
-/// # use rpcperf_request::redis::*;
-///
-/// assert_eq!(set("key", "value"), "set key value\r\n");
 pub fn set(key: &str, value: &str) -> String {
     format!("set {} {}\r\n", key, value)
+}
+
+#[test]
+fn test_set() {
+    assert_eq!(set("key", "value"), "set key value\r\n");
 }
 
 #[cfg(feature = "unstable")]
@@ -51,14 +49,13 @@ fn set_benchmark(b: &mut test::Bencher) {
 }
 
 /// HSET request
-///
-/// # Example
-/// ```
-/// # use rpcperf_request::redis::*;
-///
-/// assert_eq!(hset("hash", "key", "value"), "hset hash key value\r\n");
 pub fn hset(hash: &str, key: &str, value: &str) -> String {
     format!("hset {} {} {}\r\n", hash, key, value)
+}
+
+#[test]
+fn test_hset() {
+    assert_eq!(hset("hash", "key", "value"), "hset hash key value\r\n");
 }
 
 #[cfg(feature = "unstable")]
@@ -68,14 +65,13 @@ fn hset_benchmark(b: &mut test::Bencher) {
 }
 
 /// GET request
-///
-/// # Example
-/// ```
-/// # use rpcperf_request::redis::*;
-///
-/// assert_eq!(get("key"), "get key\r\n");
 pub fn get(key: &str) -> String {
     format!("get {}\r\n", key)
+}
+
+#[test]
+fn test_get() {
+    assert_eq!(get("key"), "get key\r\n");
 }
 
 #[cfg(feature = "unstable")]
@@ -85,14 +81,13 @@ fn get_benchmark(b: &mut test::Bencher) {
 }
 
 /// HGET request
-///
-/// # Example
-/// ```
-/// # use rpcperf_request::redis::*;
-///
-/// assert_eq!(hget("hash", "key"), "hget hash key\r\n");
 pub fn hget(hash: &str, key: &str) -> String {
     format!("hget {} {}\r\n", hash, key)
+}
+
+#[test]
+fn test_hget() {
+    assert_eq!(hget("hash", "key"), "hget hash key\r\n");
 }
 
 #[cfg(feature = "unstable")]
@@ -102,14 +97,13 @@ fn hget_benchmark(b: &mut test::Bencher) {
 }
 
 /// DEL request
-///
-/// # Example
-/// ```
-/// # use rpcperf_request::redis::*;
-///
-/// assert_eq!(del("key"), "del key\r\n");
 pub fn del(key: &str) -> String {
     format!("del {}\r\n", key)
+}
+
+#[test]
+fn test_del() {
+    assert_eq!(del("key"), "del key\r\n");
 }
 
 #[cfg(feature = "unstable")]
@@ -119,14 +113,13 @@ fn del_benchmark(b: &mut test::Bencher) {
 }
 
 /// EXPIRE request
-///
-/// # Example
-/// ```
-/// # use rpcperf_request::redis::*;
-///
-/// assert_eq!(expire("key", 1000), "expire key 1000\r\n");
 pub fn expire(key: &str, seconds: usize) -> String {
     format!("expire {} {}\r\n", key, seconds)
+}
+
+#[test]
+fn test_expire() {
+    assert_eq!(expire("key", 1000), "expire key 1000\r\n");
 }
 
 #[cfg(feature = "unstable")]
@@ -136,14 +129,13 @@ fn expire_benchmark(b: &mut test::Bencher) {
 }
 
 /// INCR request
-///
-/// # Example
-/// ```
-/// # use rpcperf_request::redis::*;
-///
-/// assert_eq!(incr("key"), "incr key\r\n");
 pub fn incr(key: &str) -> String {
     format!("incr {}\r\n", key)
+}
+
+#[test]
+fn test_incr() {
+    assert_eq!(incr("key"), "incr key\r\n");
 }
 
 #[cfg(feature = "unstable")]
@@ -153,14 +145,13 @@ fn incr_benchmark(b: &mut test::Bencher) {
 }
 
 /// DECR request
-///
-/// # Example
-/// ```
-/// # use rpcperf_request::redis::*;
-///
-/// assert_eq!(decr("key"), "decr key\r\n");
 pub fn decr(key: &str) -> String {
     format!("decr {}\r\n", key)
+}
+
+#[test]
+fn test_decr() {
+    assert_eq!(decr("key"), "decr key\r\n");
 }
 
 #[cfg(feature = "unstable")]
@@ -170,14 +161,13 @@ fn decr_benchmark(b: &mut test::Bencher) {
 }
 
 /// APPEND request
-///
-/// # Example
-/// ```
-/// # use rpcperf_request::redis::*;
-///
-/// assert_eq!(append("key", "value"), "append key value\r\n");
 pub fn append(key: &str, value: &str) -> String {
     format!("append {} {}\r\n", key, value)
+}
+
+#[test]
+fn test_append() {
+    assert_eq!(append("key", "value"), "append key value\r\n");
 }
 
 #[cfg(feature = "unstable")]
@@ -187,14 +177,13 @@ fn append_benchmark(b: &mut test::Bencher) {
 }
 
 /// PREPEND request
-///
-/// # Example
-/// ```
-/// # use rpcperf_request::redis::*;
-///
-/// assert_eq!(prepend("key", "value"), "prepend key value\r\n");
 pub fn prepend(key: &str, value: &str) -> String {
     format!("prepend {} {}\r\n", key, value)
+}
+
+#[test]
+fn test_prepend() {
+    assert_eq!(prepend("key", "value"), "prepend key value\r\n");
 }
 
 #[cfg(feature = "unstable")]

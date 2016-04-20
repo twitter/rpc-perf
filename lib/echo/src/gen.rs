@@ -20,12 +20,6 @@ use crc::crc32;
 use std::mem::transmute;
 
 /// create an echo request with given value
-///
-/// # Example
-/// ```
-/// # use rpcperf_request::echo::*;
-///
-/// assert_eq!(echo(b"123456789"), [49, 50, 51, 52, 53, 54, 55, 56, 57, 203, 244, 57, 38, 13, 10]);
 pub fn echo(value: &[u8]) -> Vec<u8> {
     let crc = crc32::checksum_ieee(value);
     let mut msg: Vec<u8> = Vec::new();
@@ -41,4 +35,9 @@ pub fn echo(value: &[u8]) -> Vec<u8> {
 #[bench]
 fn echo_benchmark(b: &mut test::Bencher) {
     b.iter(|| echo(b"123456789"));
+}
+
+#[test]
+fn echo_test() {
+    assert_eq!(echo(b"123456789"), [49, 50, 51, 52, 53, 54, 55, 56, 57, 203, 244, 57, 38, 13, 10]);
 }

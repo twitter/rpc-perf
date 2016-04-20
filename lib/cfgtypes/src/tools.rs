@@ -13,22 +13,19 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-#[cfg(feature = "unstable")]
-extern crate test;
+use pad::{PadStr, Alignment};
+use rand::{thread_rng, Rng};
 
-/// ping request
-///
-/// # Example
-/// ```
-/// # use rpcperf_request::ping::*;
-///
-/// assert_eq!(ping(), "PING\r\n");
-pub fn ping() -> String {
-    "PING\r\n".to_owned()
+
+pub fn random_string(size: usize) -> String {
+    thread_rng().gen_ascii_chars().take(size).collect()
 }
 
-#[cfg(feature = "unstable")]
-#[bench]
-fn ping_benchmark(b: &mut test::Bencher) {
-    b.iter(|| ping());
+pub fn random_bytes(size: usize) -> Vec<u8> {
+    random_string(size).into_bytes()
+}
+
+pub fn seeded_string(size: usize, seed: usize) -> String {
+    let s = format!("{}", seed);
+    s.pad(size, '0', Alignment::Right, true)
 }

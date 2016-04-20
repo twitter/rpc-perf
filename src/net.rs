@@ -24,7 +24,6 @@ pub enum InternetProtocol {
     IpV4,
     IpV6,
     Any,
-    None,
 }
 
 // custom Debug trait to show protocol name in human form
@@ -34,7 +33,6 @@ impl fmt::Debug for InternetProtocol {
             InternetProtocol::IpV4 => write!(f, "IP::v4"),
             InternetProtocol::IpV6 => write!(f, "IP::v6"),
             InternetProtocol::Any => write!(f, "IP::Any"),
-            InternetProtocol::None => write!(f, "IP::None"),
         }
     }
 }
