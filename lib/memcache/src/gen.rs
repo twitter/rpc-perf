@@ -28,7 +28,7 @@ fn test_verbosity() {
 
 #[cfg(feature = "unstable")]
 #[bench]
-fn memcache_verbosity_benchmark(b: &mut test::Bencher) {
+fn verbosity_benchmark(b: &mut test::Bencher) {
     b.iter(|| verbosity(4));
 }
 
@@ -44,7 +44,7 @@ fn test_version() {
 
 #[cfg(feature = "unstable")]
 #[bench]
-fn memcache_version_benchmark(b: &mut test::Bencher) {
+fn version_benchmark(b: &mut test::Bencher) {
     b.iter(|| version());
 }
 
@@ -60,7 +60,7 @@ fn test_quit() {
 
 #[cfg(feature = "unstable")]
 #[bench]
-fn memcache_quit_benchmark(b: &mut test::Bencher) {
+fn quit_benchmark(b: &mut test::Bencher) {
     b.iter(|| quit());
 }
 
@@ -83,7 +83,7 @@ fn test_set() {
 
 #[cfg(feature = "unstable")]
 #[bench]
-fn memcache_set_benchmark(b: &mut test::Bencher) {
+fn set_benchmark(b: &mut test::Bencher) {
     b.iter(|| set("key", "value", Some(1), None));
 }
 
@@ -107,7 +107,7 @@ fn test_cas() {
 
 #[cfg(feature = "unstable")]
 #[bench]
-fn memcache_cas_benchmark(b: &mut test::Bencher) {
+fn cas_benchmark(b: &mut test::Bencher) {
     b.iter(|| cas("key", "value", Some(1), None, 0));
 }
 
@@ -130,7 +130,7 @@ fn test_add() {
 
 #[cfg(feature = "unstable")]
 #[bench]
-fn memcache_add_benchmark(b: &mut test::Bencher) {
+fn add_benchmark(b: &mut test::Bencher) {
     b.iter(|| add("key", "value", Some(1), None));
 }
 
@@ -153,7 +153,7 @@ fn test_replace() {
 
 #[cfg(feature = "unstable")]
 #[bench]
-fn memcache_replace_benchmark(b: &mut test::Bencher) {
+fn replace_benchmark(b: &mut test::Bencher) {
     b.iter(|| replace("key", "value", Some(1), None));
 }
 
@@ -176,7 +176,7 @@ fn test_append() {
 
 #[cfg(feature = "unstable")]
 #[bench]
-fn memcache_append_benchmark(b: &mut test::Bencher) {
+fn append_benchmark(b: &mut test::Bencher) {
     b.iter(|| append("key", "value", Some(1), None));
 }
 
