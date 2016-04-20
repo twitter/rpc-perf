@@ -1,0 +1,11 @@
+#!/bin/bash
+set -e
+ 
+FEATURES="unstable"
+PROTOCOLS=("echo" "memcache" "ping" "redis" "thrift")
+
+for d in ${PROTOCOLS[@]}; do
+	echo benchmarking: $d
+	(cd lib/$d && cargo bench --features $FEATURES)
+done
+

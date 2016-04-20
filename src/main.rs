@@ -24,26 +24,27 @@ extern crate time;
 extern crate mio;
 extern crate mpmc;
 extern crate regex;
-extern crate rpcperf_parser as parser;
 extern crate rpcperf_request as request;
+extern crate rpcperf_cfgtypes as cfgtypes;
 extern crate shuteye;
 extern crate toml;
 extern crate waterfall;
 
-pub mod client;
-pub mod config;
-pub mod connection;
-pub mod logger;
-pub mod net;
-pub mod state;
-pub mod stats;
+mod client;
+mod connection;
+mod logger;
+mod net;
+mod state;
+mod stats;
 
 use getopts::Options;
 use log::LogLevelFilter;
 use mpmc::Queue as BoundedQueue;
+use request::config;
 use std::env;
 use std::net::ToSocketAddrs;
 use std::thread;
+use std::sync::Arc;
 use std::sync::mpsc;
 use std::process;
 
@@ -53,7 +54,7 @@ use connection::Connection;
 use logger::SimpleLogger;
 use net::InternetProtocol;
 use stats::Stat;
-use request::workload::{Protocol, Workload};
+use request::workload;
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
@@ -63,7 +64,7 @@ struct ClientConfig {
     servers: Vec<String>,
     connections: usize,
     stats_tx: mpsc::Sender<Stat>,
-    client_protocol: Protocol,
+    client_protocol: Arc<cfgtypes::ProtocolParseFactory>,
     internet_protocol: InternetProtocol,
     work_rx: BoundedQueue<Vec<u8>>,
     tcp_nodelay: bool,
@@ -86,7 +87,7 @@ fn start(config: ClientConfig) {
                         Connection::new(stream,
                                         token,
                                         config.stats_tx.clone(),
-                                        config.client_protocol,
+                                        config.client_protocol.new(),
                                         config.tcp_nodelay)
                     }) {
                         Some(token) => {
@@ -179,35 +180,6 @@ fn choose_layer_3(ipv4: bool, ipv6: bool) -> Result<InternetProtocol, String> {
     Err("No InternetProtocols remaining! Bad config/options".to_owned())
 }
 
-fn launch_workloads(protocol: String,
-                    workloads: Vec<config::BenchmarkWorkload>,
-                    work_queue: mpmc::Queue<Vec<u8>>) {
-
-    for (i, w) in workloads.iter().enumerate() {
-        info!("Workload {}: Method: {} Rate: {}", i, w.method, w.rate);
-
-        let protocol = Protocol::new(&protocol.clone()).unwrap();
-
-        let mut workload = Workload::new(protocol,
-                                         w.method.clone(),
-                                         Some(w.rate as u64),
-                                         work_queue.clone())
-                               .unwrap();
-
-        for p in &w.parameters {
-            info!("Parameter: {:?}", p);
-            workload.add_param(p.clone());
-        }
-
-
-        thread::spawn(move || {
-            loop {
-                workload.run();
-            }
-        });
-    }
-}
-
 
 
 pub fn main() {
@@ -236,8 +208,6 @@ pub fn main() {
     }
 
     // defaults
-    let client_protocol: Protocol;
-
     set_log_level(matches.opt_count("verbose"));
 
     info!("rpc-perf {} initializing...", VERSION);
@@ -271,25 +241,16 @@ pub fn main() {
 
     let work_queue = BoundedQueue::<Vec<u8>>::with_capacity(BUCKET_SIZE);
 
-    match Protocol::new(&*config.protocol) {
-        Ok(p) => {
-            client_protocol = p;
+    // Let the protocol push some initial data if it wants too
+    match config.protocol_config.protocol.prepare() {
+        Ok(bs) => {
+            for b in bs {
+                work_queue.push(b).unwrap();
+            }
         }
-        Err(_) => {
-            error!("Bad protocol: {}", &*config.protocol);
+        Err(e) => {
+            error!("{}", e);
             return;
-        }
-    }
-
-    if matches.opt_present("flush") {
-        match client_protocol {
-            Protocol::Memcache => {
-                let _ = work_queue.push(request::memcache::flush_all().into_bytes());
-            }
-            Protocol::Redis => {
-                let _ = work_queue.push(request::redis::flushall().into_bytes());
-            }
-            _ => {}
         }
     }
 
@@ -298,7 +259,7 @@ pub fn main() {
     info!("-----");
     info!("Config:");
     for server in matches.opt_strs("server") {
-        info!("Config: Server: {} Protocol: {}", server, config.protocol);
+        info!("Config: Server: {} Protocol: {}", server, config.protocol_config.protocol.name());
     }
     info!("Config: IP: {:?} TCP_NODELAY: {}",
           internet_protocol,
@@ -312,7 +273,7 @@ pub fn main() {
     info!("-----");
     info!("Workload:");
 
-    launch_workloads(config.protocol, config.workloads, work_queue.clone());
+    workload::launch_workloads(config.protocol_config.workloads, work_queue.clone());
 
     let (stats_sender, stats_receiver) = mpsc::channel();
 
@@ -328,7 +289,7 @@ pub fn main() {
             servers: matches.opt_strs("server"),
             connections: config.connections,
             stats_tx: stats_sender.clone(),
-            client_protocol: client_protocol,
+            client_protocol: config.protocol_config.protocol.clone(),
             internet_protocol: internet_protocol,
             work_rx: work_queue.clone(),
             tcp_nodelay: config.tcp_nodelay,

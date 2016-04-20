@@ -10,11 +10,9 @@ matrix:
   include:
     - os: linux
       rust: nightly
-      env: FEATURES="unstable"
-      script: cd lib/request && cargo bench --features $FEATURES && cd ../parser && cargo bench --features $FEATURES
+      script: benches/bench
     - os: osx
       rust: nightly
-      env: FEATURES="unstable"
-      script: cd lib/request && cargo bench --features $FEATURES && cd ../parser && cargo bench --features $FEATURES
+      script: benches/bench
   allow_failures:
     - rust: nightly

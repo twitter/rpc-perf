@@ -1,11 +1,12 @@
 [package]
-name = "rpcperf_request"
-version = "1.1.0"
-authors = ["Brian Martin <bmartin@twitter.com>"]
+name = "rpcperf_thrift"
+version = "0.1.0"
+authors = ["Brian Martin <bmartin@twitter.com>",
+           "Bryce Anderson <bryce.anderson22@gmail.com"]
 
 license = "Apache-2.0"
 
-description = "rpc-perf request builder"
+description = "rpc-perf response parsers"
 
 homepage = "https://github.com/twitter/rpc-perf"
 repository = "https://github.com/twitter/rpc-perf"
@@ -13,19 +14,11 @@ repository = "https://github.com/twitter/rpc-perf"
 readme = "README.md"
 
 [dependencies]
-getopts = "0.2.14"
 log = "0.3.5"
-mpmc = "0.1.2"
-ratelimit = "0.2.4"
-shuteye = "0.1.1"
-time = "0.1.34"
-toml = "0.1.27"
+byteorder = "0.5.1"
+rand = "0.3.14"
 rpcperf_cfgtypes = { path = "../cfgtypes", version = "0.1.0" }
-rpcperf_echo = { path = "../echo", version = "0.1.0" }
-rpcperf_memcache = { path = "../memcache", version = "0.1.0" }
-rpcperf_redis = { path = "../redis", version = "0.1.0" }
-rpcperf_ping = { path = "../ping", version = "0.1.0" }
-rpcperf_thrift = { path = "../thrift", version = "0.1.0" }
+toml = "*"
 
 [profile.dev]
 opt-level = 0
