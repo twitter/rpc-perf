@@ -10,9 +10,9 @@ matrix:
   include:
     - os: linux
       rust: nightly
-      script: benches/bench
+      script: cargo bench --features unstable
     - os: osx
       rust: nightly
-      script: benches/bench
+      script: cargo bench --features unstable
   allow_failures:
     - rust: nightly
