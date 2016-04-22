@@ -78,7 +78,8 @@ pub fn set(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>) -> 
 
 #[test]
 fn test_set() {
-    assert_eq!(set("key", "value", None, None), "set key 0 0 5\r\nvalue\r\n");
+    assert_eq!(set("key", "value", None, None),
+               "set key 0 0 5\r\nvalue\r\n");
 }
 
 #[cfg(feature = "unstable")]
@@ -102,7 +103,8 @@ pub fn cas(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>, cas
 
 #[test]
 fn test_cas() {
-    assert_eq!(cas("key", "value", None, None, 100_u64), "cas key 0 0 5 100\r\nvalue\r\n");
+    assert_eq!(cas("key", "value", None, None, 100_u64),
+               "cas key 0 0 5 100\r\nvalue\r\n");
 }
 
 #[cfg(feature = "unstable")]
@@ -125,7 +127,8 @@ pub fn add(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>) -> 
 
 #[test]
 fn test_add() {
-    assert_eq!(add("key", "value", None, None), "add key 0 0 5\r\nvalue\r\n");
+    assert_eq!(add("key", "value", None, None),
+               "add key 0 0 5\r\nvalue\r\n");
 }
 
 #[cfg(feature = "unstable")]
@@ -148,7 +151,8 @@ pub fn replace(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>)
 
 #[test]
 fn test_replace() {
-    assert_eq!(replace("key", "value", None, None), "replace key 0 0 5\r\nvalue\r\n");
+    assert_eq!(replace("key", "value", None, None),
+               "replace key 0 0 5\r\nvalue\r\n");
 }
 
 #[cfg(feature = "unstable")]
@@ -171,7 +175,8 @@ pub fn append(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>) 
 
 #[test]
 fn test_append() {
-    assert_eq!(append("key", "value", None, None), "append key 0 0 5\r\nvalue\r\n");
+    assert_eq!(append("key", "value", None, None),
+               "append key 0 0 5\r\nvalue\r\n");
 }
 
 #[cfg(feature = "unstable")]
@@ -194,7 +199,8 @@ pub fn prepend(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>)
 
 #[test]
 fn test_prepend() {
-    assert_eq!(prepend("key", "value", None, None), "prepend key 0 0 5\r\nvalue\r\n");
+    assert_eq!(prepend("key", "value", None, None),
+               "prepend key 0 0 5\r\nvalue\r\n");
 }
 
 #[cfg(feature = "unstable")]

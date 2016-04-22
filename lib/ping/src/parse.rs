@@ -71,7 +71,7 @@ mod tests {
     #[cfg(feature = "unstable")]
     #[bench]
     fn parse_ok_benchmark(b: &mut test::Bencher) {
-        let r ="PONG\r\n";
+        let r = "PONG\r\n";
         b.iter(|| parse_response(r));
     }
 }

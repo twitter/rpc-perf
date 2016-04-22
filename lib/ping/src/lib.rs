@@ -41,7 +41,7 @@ impl ProtocolGen for Ping {
     }
 }
 
-impl ProtocolParseFactory  for Ping {
+impl ProtocolParseFactory for Ping {
     fn new(&self) -> Box<ProtocolParse> {
         Box::new(Ping)
     }
@@ -51,7 +51,7 @@ impl ProtocolParseFactory  for Ping {
     }
 }
 
-impl ProtocolParse  for Ping {
+impl ProtocolParse for Ping {
     fn parse(&self, bytes: &[u8]) -> ParsedResponse {
         let s = str::from_utf8(bytes).unwrap();
         parse::parse_response(s)

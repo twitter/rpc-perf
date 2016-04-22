@@ -26,15 +26,15 @@ use cfgtypes::ProtocolGen;
 
 /// Launch each of the workloads in their own thread
 pub fn launch_workloads(workloads: Vec<cfgtypes::BenchmarkWorkload>,
-                    work_queue: mpmc::Queue<Vec<u8>>) {
+                        work_queue: mpmc::Queue<Vec<u8>>) {
 
     for (i, w) in workloads.into_iter().enumerate() {
-        info!("Workload {}: Method: {} Rate: {}", i, w.gen.method(), w.rate);
+        info!("Workload {}: Method: {} Rate: {}",
+              i,
+              w.gen.method(),
+              w.rate);
 
-        let mut workload = Workload::new(w.gen,
-                                         Some(w.rate as u64),
-                                         work_queue.clone())
-                               .unwrap();
+        let mut workload = Workload::new(w.gen, Some(w.rate as u64), work_queue.clone()).unwrap();
 
         thread::spawn(move || {
             loop {
@@ -53,9 +53,9 @@ struct Workload {
 
 impl Workload {
     fn new(protocol: Box<ProtocolGen>,
-               rate: Option<u64>,
-               queue: mpmc::Queue<Vec<u8>>)
-               -> Result<Workload, &'static str> {
+           rate: Option<u64>,
+           queue: mpmc::Queue<Vec<u8>>)
+           -> Result<Workload, &'static str> {
         let r = rate.unwrap_or(0);
         let i = rate_to_interval(r);
         let ratelimit = match Ratelimit::new(BUCKET_SIZE, time::precise_time_ns(), i, 1) {
@@ -68,7 +68,7 @@ impl Workload {
             protocol: protocol,
             rate: rate.unwrap_or(0),
             ratelimit: ratelimit,
-            queue: queue
+            queue: queue,
         })
     }
 

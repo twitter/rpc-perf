@@ -212,7 +212,8 @@ mod tests {
     #[test]
     fn test_parse_error() {
         let r = "ERROR\r\n";
-        assert_eq!(parse_response(r), ParsedResponse::Error("ERROR\r\n".to_owned()));
+        assert_eq!(parse_response(r),
+                   ParsedResponse::Error("ERROR\r\n".to_owned()));
 
         let r = "CLIENT_ERROR some message\r\n";
         assert_eq!(parse_response(r),
@@ -238,7 +239,8 @@ mod tests {
     #[test]
     fn test_parse_version() {
         let r = "VERSION 1.2.3\r\n";
-        assert_eq!(parse_response(r), ParsedResponse::Version("1.2.3".to_owned()));
+        assert_eq!(parse_response(r),
+                   ParsedResponse::Version("1.2.3".to_owned()));
     }
 
     #[cfg(feature = "unstable")]
