@@ -23,12 +23,18 @@ pub struct Buffer {
     buffer: Vec<u8>,
 }
 
-impl Buffer {
-    pub fn new() -> Buffer {
+impl Default for Buffer {
+    fn default() -> Buffer {
         let mut buffer = Vec::<u8>::new();
         buffer.resize(4, 0);
 
         Buffer { buffer: buffer }
+    }
+}
+
+impl Buffer {
+    pub fn new() -> Buffer {
+        Buffer::default()
     }
 
     /// returns the Vec<u8> from the `Buffer`
