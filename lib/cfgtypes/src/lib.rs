@@ -137,10 +137,12 @@ impl<T: Ptype> Parameter<T> {
 }
 
 /// Extract a `Parameter` from the toml tree
-pub fn extract_parameter<T: Ptype>(index: usize, parameter: &BTreeMap<String, Value>) -> CResult<Parameter<T>> {
+pub fn extract_parameter<T: Ptype>(index: usize,
+                                   parameter: &BTreeMap<String, Value>)
+                                   -> CResult<Parameter<T>> {
 
     let style = match parameter.get("style")
-                             .and_then(|k| k.as_str()) {
+                               .and_then(|k| k.as_str()) {
         Some("random") => Style::Random,
         Some("static") => Style::Static,
         None => Style::Static,
@@ -148,18 +150,16 @@ pub fn extract_parameter<T: Ptype>(index: usize, parameter: &BTreeMap<String, Va
     };
 
     let seed = parameter.get("seed")
-                .and_then(|k| k.as_integer())
-                .map(|i| i as usize)
-                .unwrap_or(index);
+                        .and_then(|k| k.as_integer())
+                        .map_or(index, |i| i as usize);
 
     let size = parameter.get("size")
-                .and_then(|k| k.as_integer())
-                .map(|i| i as usize)
-                .unwrap_or(1);
+                        .and_then(|k| k.as_integer())
+                        .map_or(1, |i| i as usize);
 
     let regenerate = parameter.get("regenerate")
-                .and_then(|k| k.as_bool())
-                .unwrap_or(false);
+                              .and_then(|k| k.as_bool())
+                              .unwrap_or(false);
 
     let mut value = try!(T::parse(seed, size, parameter));
 

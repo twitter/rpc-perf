@@ -147,7 +147,8 @@ mod tests {
 
     #[test]
     fn test_ping() {
-        assert_eq!(ping(), [0, 0, 0, 17, 128, 1, 0, 1, 0, 0, 0, 4, 112, 105, 110, 103, 0, 0, 0, 0, 0]);
+        assert_eq!(ping(),
+                   [0, 0, 0, 17, 128, 1, 0, 1, 0, 0, 0, 4, 112, 105, 110, 103, 0, 0, 0, 0, 0]);
     }
 
     #[test]
@@ -165,12 +166,9 @@ mod tests {
     #[cfg(feature = "unstable")]
     #[bench]
     fn add_benchmark(b: &mut test::Bencher) {
-        let mut ps = vec![tests::mk_param(1, Tvalue::Int32(1)), tests::mk_param(2, Tvalue::Int32(1))];
-        b.iter(|| {
-            generic("add",
-                    0, &mut ps
-                    )
-        });
+        let mut ps = vec![tests::mk_param(1, Tvalue::Int32(1)),
+                          tests::mk_param(2, Tvalue::Int32(1))];
+        b.iter(|| generic("add", 0, &mut ps));
     }
 
 }

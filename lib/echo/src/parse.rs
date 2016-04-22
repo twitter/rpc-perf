@@ -15,7 +15,7 @@
 
 extern crate crc;
 
-pub use cfgtypes::{ParsedResponse};
+pub use cfgtypes::ParsedResponse;
 
 pub use crc::crc32;
 
@@ -79,7 +79,8 @@ mod tests {
     #[test]
     fn test_parse_error() {
         let r = "3421780262\r\n".as_bytes();
-        assert_eq!(parse_response(&r), ParsedResponse::Error("bad crc".to_owned()));
+        assert_eq!(parse_response(&r),
+                   ParsedResponse::Error("bad crc".to_owned()));
     }
 
     #[cfg(feature = "unstable")]

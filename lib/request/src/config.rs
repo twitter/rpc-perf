@@ -91,18 +91,18 @@ pub fn load_config(matches: &Matches) -> Result<BenchmarkConfig, String> {
 }
 
 fn load_config_table(table: BTreeMap<String, Value>,
-                         matches: &Matches)
-                         -> Result<BenchmarkConfig, String> {
+                     matches: &Matches)
+                     -> Result<BenchmarkConfig, String> {
 
     let protocol: String = matches.opt_str("protocol")
-                        .or_else(|| {
-                            table.get("general")
-                              .and_then(|k| k.as_table())
-                              .and_then(|k| k.get("protocol"))
-                              .and_then(|k| k.as_str())
-                              .map(|k| k.to_owned())
-                        })
-                        .unwrap_or_else(|| "memcache".to_owned());
+                                  .or_else(|| {
+                                      table.get("general")
+                                           .and_then(|k| k.as_table())
+                                           .and_then(|k| k.get("protocol"))
+                                           .and_then(|k| k.as_str())
+                                           .map(|k| k.to_owned())
+                                  })
+                                  .unwrap_or_else(|| "memcache".to_owned());
 
     // Pick a protocol
     let proto = match protocol.as_str() {

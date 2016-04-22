@@ -55,7 +55,7 @@ impl Ptype for EchoData {
     }
 
     fn parse(seed: usize, size: usize, _: &BTreeMap<String, Value>) -> CResult<Self> {
-        let bts = (seed..(seed+size)).map(|i| i as u8).collect();
+        let bts = (seed..(seed + size)).map(|i| i as u8).collect();
         Ok(EchoData {
             size: size,
             bytes: bts,
@@ -139,9 +139,7 @@ fn extract_workload(workload: &BTreeMap<String, Value>) -> CResult<BenchmarkWork
             }
         };
 
-        let gen = Box::new(EchoGen {
-            value: param,
-        });
+        let gen = Box::new(EchoGen { value: param });
 
         Ok(BenchmarkWorkload::new(name, rate as usize, gen))
     } else {

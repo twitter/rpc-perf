@@ -259,7 +259,9 @@ pub fn main() {
     info!("-----");
     info!("Config:");
     for server in matches.opt_strs("server") {
-        info!("Config: Server: {} Protocol: {}", server, config.protocol_config.protocol.name());
+        info!("Config: Server: {} Protocol: {}",
+              server,
+              config.protocol_config.protocol.name());
     }
     info!("Config: IP: {:?} TCP_NODELAY: {}",
           internet_protocol,

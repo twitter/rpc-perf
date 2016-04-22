@@ -73,13 +73,11 @@ impl ProtocolParseFactory for MemcacheParserFactory {
     }
 
     fn prepare(&self) -> CResult<Vec<Vec<u8>>> {
-        Ok(
-            if self.flush {
-                vec![gen::flush_all().into_bytes()]
-            } else {
-                Vec::new()
-            }
-        )
+        Ok(if self.flush {
+            vec![gen::flush_all().into_bytes()]
+        } else {
+            Vec::new()
+        })
     }
 
     fn name(&self) -> &str {
@@ -101,9 +99,10 @@ impl ProtocolGen for MemcacheCommand {
                 key.regen();
                 val.regen();
                 gen::set(key.value.string.as_str(),
-                    val.value.string.as_str(),
-                    None,
-                    None).into_bytes()
+                         val.value.string.as_str(),
+                         None,
+                         None)
+                    .into_bytes()
             }
             MemcacheCommand::Get(ref mut key) => {
                 key.regen();
@@ -116,7 +115,11 @@ impl ProtocolGen for MemcacheCommand {
             MemcacheCommand::Add(ref mut key, ref mut val) => {
                 key.regen();
                 val.regen();
-                gen::add(key.value.string.as_str(), val.value.string.as_str(), None, None).into_bytes()
+                gen::add(key.value.string.as_str(),
+                         val.value.string.as_str(),
+                         None,
+                         None)
+                    .into_bytes()
             }
         }
     }
@@ -146,9 +149,7 @@ pub fn load_config(table: &BTreeMap<String, Value>, matches: &Matches) -> CResul
             }
         }
 
-        let protocol = Arc::new(MemcacheParserFactory {
-            flush: matches.opt_present("flush"),
-        });
+        let protocol = Arc::new(MemcacheParserFactory { flush: matches.opt_present("flush") });
 
         Ok(ProtocolConfig {
             protocol: protocol,
