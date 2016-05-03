@@ -216,6 +216,11 @@ impl Connection {
             Err(e) => {
                 // got some write error, abandon
                 debug!("got an error trying to write; err={:?}", e);
+                let _ = self.stats_tx.send(Stat {
+                    start: self.last_write,
+                    stop: time::precise_time_ns(),
+                    status: Status::Closed,
+                });
                 self.state = State::Closed
             }
         }
