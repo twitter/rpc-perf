@@ -20,6 +20,7 @@ extern crate bytes;
 extern crate getopts;
 extern crate heatmap;
 extern crate histogram;
+extern crate tiny_http;
 extern crate time;
 extern crate mio;
 extern crate mpmc;
@@ -132,6 +133,7 @@ pub fn opts() -> Options {
     opts.optopt("w", "windows", "number of windows in test", "INTEGER");
     opts.optopt("p", "protocol", "client protocol", "STRING");
     opts.optopt("", "config", "TOML config file", "FILE");
+    opts.optopt("", "listen", "listen address for stats", "HOST:PORT");
     opts.optopt("", "trace", "write histogram data to file", "FILE");
     opts.optopt("", "waterfall", "output waterfall PNG", "FILE");
     opts.optflag("", "tcp-nodelay", "enable tcp nodelay");
@@ -221,6 +223,8 @@ pub fn main() {
     let waterfall = matches.opt_str("waterfall");
     let trace = matches.opt_str("trace");
 
+    let listen = matches.opt_str("listen");
+
     // Load workload configuration
     let config = match config::load_config(&matches) {
         Ok(cfg) => cfg,
@@ -303,5 +307,10 @@ pub fn main() {
         });
     }
 
-    receiver.run(config.duration, config.windows, trace, waterfall);
+    receiver.run(config.duration,
+                 config.windows,
+                 trace,
+                 waterfall,
+                 (config.threads * config.connections * matches.opt_count("server")),
+                 listen);
 }
