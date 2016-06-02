@@ -19,6 +19,7 @@ extern crate time;
 use bytes::{Buf, ByteBuf, MutByteBuf};
 use mio::{TryRead, TryWrite};
 use mio::tcp::TcpStream;
+use mio::Timeout;
 use std::sync::mpsc;
 
 use client::Client;
@@ -33,15 +34,18 @@ pub struct Connection {
     pub socket: TcpStream,
     pub token: mio::Token,
     pub state: State,
+    pub server: String,
     buf: Option<ByteBuf>,
     mut_buf: Option<MutByteBuf>,
-    last_write: u64,
-    stats_tx: mpsc::Sender<Stat>,
+    pub last_write: u64,
+    pub stats_tx: mpsc::Sender<Stat>,
     protocol: Box<ProtocolParse>,
+    pub timeout: Option<Timeout>,
 }
 
 impl Connection {
     pub fn new(socket: TcpStream,
+               server: String,
                token: mio::Token,
                stats_tx: mpsc::Sender<Stat>,
                protocol: Box<ProtocolParse>,
@@ -52,6 +56,7 @@ impl Connection {
 
         Connection {
             socket: socket,
+            server: server,
             token: token,
             state: State::Writing,
             buf: Some(ByteBuf::none()),
@@ -59,6 +64,7 @@ impl Connection {
             last_write: time::precise_time_ns(),
             stats_tx: stats_tx,
             protocol: protocol,
+            timeout: None,
         }
     }
 
@@ -113,6 +119,12 @@ impl Connection {
                             status: Status::Error,
                         });
                         debug!("unexpected response: {:?}", response);
+                    }
+                }
+                if response != ParsedResponse::Incomplete {
+                    if let Some(timeout) = self.timeout {
+                        event_loop.clear_timeout(timeout);
+                        self.timeout = None;
                     }
                 }
             }
@@ -175,6 +187,7 @@ impl Connection {
                     }
                     _ => {
                         trace!("read() Complete");
+
                         self.state = State::Writing;
                         self.mut_buf = Some(buf.flip());
                     }

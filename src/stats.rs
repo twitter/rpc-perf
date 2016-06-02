@@ -42,6 +42,8 @@ pub enum Counter {
     Hit,
     Miss,
     Closed,
+    Timeout,
+    Failure,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -60,6 +62,7 @@ pub enum Status {
     Miss,
     Ok,
     Closed,
+    Timeout,
 }
 
 pub struct Counters {
@@ -89,6 +92,7 @@ impl fmt::Display for Status {
             Status::Hit => write!(f, "hit"),
             Status::Miss => write!(f, "miss"),
             Status::Closed => write!(f, "closed"),
+            Status::Timeout => write!(f, "timeout"),
         }
     }
 }
@@ -114,6 +118,8 @@ impl fmt::Display for Counter {
             Counter::Hit => write!(f, "hit"),
             Counter::Miss => write!(f, "miss"),
             Counter::Closed => write!(f, "closed"),
+            Counter::Timeout => write!(f, "timeout"),
+            Counter::Failure => write!(f, "failure"),
         }
     }
 }
@@ -161,9 +167,15 @@ impl Gauges {
     }
 }
 
+fn request_stats(counters: &Counters) {
+    info!("Requests: Total: {} Timeout: {}",
+        counters.get(Counter::Total),
+        counters.get(Counter::Timeout),
+        );
+}
+
 fn response_stats(counters: &Counters) {
-    info!("Responses: {} Ok: {} Error: {} Closed: {} Hit: {} Miss: {} ",
-                          counters.get(Counter::Total),
+    info!("Responses: Ok: {} Error: {} Closed: {} Hit: {} Miss: {}",
                           counters.get(Counter::Ok),
                           counters.get(Counter::Error),
                           counters.get(Counter::Closed),
@@ -215,11 +227,14 @@ fn start_listener(listen: Option<String>) -> Option<Server> {
     None
 }
 
-fn try_handle_http(server: &Option<Server>, mut histogram: &mut Histogram, gauges: &Gauges, counters: &Counters) {
+fn try_handle_http(server: &Option<Server>,
+                   mut histogram: &mut Histogram,
+                   gauges: &Gauges,
+                   counters: &Counters) {
     if let Some(ref s) = *server {
         if let Ok(Some(request)) = s.try_recv() {
             debug!("stats: handle http request");
-            handle_http(request, &mut histogram, &gauges, &counters);
+            handle_http(request, &mut histogram, gauges, counters);
         }
     }
 }
@@ -312,15 +327,25 @@ impl Receiver {
                         }
                         Status::Error => {
                             window_counters.increment(Counter::Error);
+                            window_counters.increment(Counter::Failure);
                         }
                         Status::Closed => {
                             closed += 1;
                             window_counters.increment(Counter::Closed);
                         }
+                        Status::Timeout => {
+                            window_counters.increment(Counter::Timeout);
+                            window_counters.increment(Counter::Failure);
+                        }
                     }
                     window_counters.increment(Counter::Total);
-                    let _ = histogram.increment(result.stop - result.start);
-                    let _ = heatmap.increment(result.start, result.stop - result.start);
+                    match result.status {
+                        Status::Ok | Status::Hit | Status::Miss => {
+                            let _ = histogram.increment(result.stop - result.start);
+                            let _ = heatmap.increment(result.start, result.stop - result.start);
+                        }
+                        _ => {}
+                    }
                 }
                 Err(_) => {
                     shuteye::sleep(shuteye::Timespec::from_nano(ONE_MILISECOND).unwrap());
@@ -346,10 +371,11 @@ impl Receiver {
                     let rate = counter_rate(&window_counters, (now - printed_at), Counter::Total);
                     let success_rate = counter_percent(&window_counters,
                                                        Counter::Ok,
-                                                       Counter::Error);
+                                                       Counter::Failure);
                     let hit_rate = counter_percent(&window_counters, Counter::Hit, Counter::Miss);
                     info!("-----");
                     info!("Window: {}", window);
+                    request_stats(&window_counters);
                     response_stats(&window_counters);
                     info!("Rate: {:.*} rps Success: {:.*} % Hitrate: {:.*} %",
                           2,
@@ -380,7 +406,8 @@ impl Receiver {
                           Counter::Error,
                           Counter::Hit,
                           Counter::Miss,
-                          Counter::Closed]
+                          Counter::Closed,
+                          Counter::Timeout]
                              .into_iter() {
                     global_counters.add(c.clone(), window_counters.get(c.clone()));
                 }

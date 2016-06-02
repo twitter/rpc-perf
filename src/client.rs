@@ -15,33 +15,114 @@
 
 extern crate mio;
 extern crate mpmc;
+extern crate time;
 
+use std::net::ToSocketAddrs;
+use std::process;
+use std::sync::Arc;
+use std::sync::mpsc;
+
+use mio::tcp::TcpStream;
 use mio::util::Slab;
 use mpmc::Queue as BoundedQueue;
 
+use cfgtypes;
 use connection::Connection;
+use net::InternetProtocol;
+use net;
+use stats::{Stat, Status};
 use state::State;
 
 const MAX_CONNECTIONS: usize = 1024;
 
+#[derive(Clone)]
+pub struct ClientConfig {
+    pub servers: Vec<String>,
+    pub connections: usize,
+    pub stats_tx: mpsc::Sender<Stat>,
+    pub client_protocol: Arc<cfgtypes::ProtocolParseFactory>,
+    pub internet_protocol: InternetProtocol,
+    pub work_rx: BoundedQueue<Vec<u8>>,
+    pub tcp_nodelay: bool,
+    pub mio_config: mio::EventLoopConfig,
+    pub timeout: Option<u64>,
+}
+
 pub struct Client {
     pub connections: Slab<Connection>,
+    config: ClientConfig,
     work_rx: BoundedQueue<Vec<u8>>,
 }
 
 impl Client {
-    pub fn new(work_rx: BoundedQueue<Vec<u8>>) -> Client {
+    pub fn new(config: ClientConfig) -> Client {
         let connections = Slab::new_starting_at(mio::Token(0), MAX_CONNECTIONS);
 
         Client {
+            config: config.clone(),
             connections: connections,
-            work_rx: work_rx,
+            work_rx: config.work_rx.clone(),
+        }
+    }
+
+    pub fn run(&mut self) {
+        let mut event_loop = mio::EventLoop::configured(self.config.mio_config.clone()).unwrap();
+
+        let mut failures = 0;
+        let mut connects = 0;
+
+        for server in &self.config.servers {
+            for _ in 0..self.config.connections {
+                let stats_tx = self.config.stats_tx.clone();
+                let client_protocol = self.config.client_protocol.new();
+                let tcp_nodelay = self.config.tcp_nodelay;
+                if let Ok(stream) = connect(server.clone(), self.config.internet_protocol) {
+                    match self.connections.insert_with(|token| {
+                        Connection::new(stream,
+                                        server.clone(),
+                                        token,
+                                        stats_tx,
+                                        client_protocol,
+                                        tcp_nodelay)
+                    }) {
+                        Some(token) => {
+                            event_loop.register(&self.connections[token].socket,
+                                                token,
+                                                mio::EventSet::writable(),
+                                                mio::PollOpt::edge() | mio::PollOpt::oneshot())
+                                      .unwrap();
+                            connects += 1;
+                        }
+                        _ => debug!("too many established connections"),
+                    }
+                } else {
+                    failures += 1;
+                }
+            }
+        }
+        info!("Connections: {} Failures: {}", connects, failures);
+        if failures == self.config.connections {
+            error!("All connections have failed");
+            process::exit(1);
+        } else {
+            event_loop.run(self).unwrap();
+        }
+    }
+}
+
+fn connect(server: String, protocol: InternetProtocol) -> Result<TcpStream, &'static str> {
+    let address = &server.to_socket_addrs().unwrap().next().unwrap();
+    match net::to_mio_tcp_stream(address, protocol) {
+        Ok(stream) => Ok(stream),
+        Err(e) => {
+            debug!("connect error: {}", e);
+            Err("error connecting")
         }
     }
 }
 
 impl mio::Handler for Client {
-    type Timeout = (); // timeouts not used
+    type Timeout = mio::Token; // timeouts not used
     type Message = (); // cross-thread notifications not used
 
     fn ready(&mut self,
@@ -52,22 +133,92 @@ impl mio::Handler for Client {
 
         match self.connections[token].state {
             State::Closed => {
-                let _ = self.connections.remove(token);
+                trace!("reconnecting closed connection");
+                let connection = self.connections.remove(token).unwrap();
+                let _ = connection.stats_tx.send(Stat {
+                    start: connection.last_write,
+                    stop: time::precise_time_ns(),
+                    status: Status::Closed,
+                });
+                let server = connection.server;
+
+                let stats_tx = self.config.stats_tx.clone();
+                let client_protocol = self.config.client_protocol.new();
+                let tcp_nodelay = self.config.tcp_nodelay;
+                if let Ok(stream) = connect(server.clone(), self.config.internet_protocol) {
+                    match self.connections.insert_with(|token| {
+                        Connection::new(stream,
+                                        server.clone(),
+                                        token,
+                                        stats_tx,
+                                        client_protocol,
+                                        tcp_nodelay)
+                    }) {
+                        Some(token) => {
+                            event_loop.register(&self.connections[token].socket,
+                                                token,
+                                                mio::EventSet::writable(),
+                                                mio::PollOpt::edge() | mio::PollOpt::oneshot())
+                                      .unwrap();
+                        }
+                        _ => debug!("too many established connections"),
+                    }
+                }
             }
             State::Reading => {
                 self.connections[token].ready(event_loop, events, None);
-                self.connections[token].reregister(event_loop);
             }
             State::Writing => {
                 match self.work_rx.pop() {
                     Some(work) => {
                         trace!("sending: {:?}", work);
+                        if let Some(timeout) = self.config.timeout {
+                            self.connections[token].timeout = Some(event_loop.timeout_ms(token,
+                                                                                         timeout)
+                                                                             .unwrap());
+                        }
                         self.connections[token].ready(event_loop, events, Some(work));
                     }
                     None => {
                         trace!("work queue depleted: token: {:?}", token);
                         self.connections[token].reregister(event_loop)
                     }
+                }
+            }
+        }
+    }
+
+    fn timeout(&mut self, event_loop: &mut mio::EventLoop<Client>, token: mio::Token) {
+        if self.connections[token].state == State::Reading {
+            trace!("handle timeout: token: {:?}", token);
+            let connection = self.connections.remove(token).unwrap();
+            let _ = connection.stats_tx.send(Stat {
+                start: connection.last_write,
+                stop: time::precise_time_ns(),
+                status: Status::Timeout,
+            });
+            let server = connection.server;
+
+            let stats_tx = self.config.stats_tx.clone();
+            let client_protocol = self.config.client_protocol.new();
+            let tcp_nodelay = self.config.tcp_nodelay;
+            if let Ok(stream) = connect(server.clone(), self.config.internet_protocol) {
+                match self.connections.insert_with(|token| {
+                    Connection::new(stream,
+                                    server.clone(),
+                                    token,
+                                    stats_tx,
+                                    client_protocol,
+                                    tcp_nodelay)
+                }) {
+                    Some(token) => {
+                        event_loop.register(&self.connections[token].socket,
+                                            token,
+                                            mio::EventSet::writable(),
+                                            mio::PollOpt::edge() | mio::PollOpt::oneshot())
+                                  .unwrap();
+                    }
+                    _ => debug!("too many established connections"),
                 }
             }
         }
