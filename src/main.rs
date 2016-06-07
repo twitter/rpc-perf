@@ -75,7 +75,7 @@ pub fn opts() -> Options {
     opts.optopt("", "listen", "listen address for stats", "HOST:PORT");
     opts.optopt("", "trace", "write histogram data to file", "FILE");
     opts.optopt("", "waterfall", "output waterfall PNG", "FILE");
-    opts.optopt("","evtick", "mio tick interval milliseconds", "INTEGER");
+    opts.optopt("", "evtick", "mio tick interval milliseconds", "INTEGER");
     opts.optflag("", "tcp-nodelay", "enable tcp nodelay");
     opts.optflag("", "flush", "flush cache prior to test");
     opts.optflag("", "ipv4", "force IPv4 only");

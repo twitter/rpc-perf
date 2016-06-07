@@ -60,7 +60,7 @@ pub enum ParsedResponse {
 }
 
 /// Factory of protocol message buffers
-pub trait ProtocolGen : Send {
+pub trait ProtocolGen: Send {
     /// Generate the next buffer to send to the server
     fn generate_message(&mut self) -> Vec<u8>;
 
@@ -69,7 +69,7 @@ pub trait ProtocolGen : Send {
 }
 
 /// Factory for `ProtocolParse` instances
-pub trait ProtocolParseFactory : Send + Sync {
+pub trait ProtocolParseFactory: Send + Sync {
     /// Create a new protocol parser
     fn new(&self) -> Box<ProtocolParse>;
 
@@ -142,7 +142,7 @@ pub fn extract_parameter<T: Ptype>(index: usize,
                                    -> CResult<Parameter<T>> {
 
     let style = match parameter.get("style")
-                               .and_then(|k| k.as_str()) {
+        .and_then(|k| k.as_str()) {
         Some("random") => Style::Random,
         Some("static") => Style::Static,
         None => Style::Static,
@@ -150,16 +150,16 @@ pub fn extract_parameter<T: Ptype>(index: usize,
     };
 
     let seed = parameter.get("seed")
-                        .and_then(|k| k.as_integer())
-                        .map_or(index, |i| i as usize);
+        .and_then(|k| k.as_integer())
+        .map_or(index, |i| i as usize);
 
     let size = parameter.get("size")
-                        .and_then(|k| k.as_integer())
-                        .map_or(1, |i| i as usize);
+        .and_then(|k| k.as_integer())
+        .map_or(1, |i| i as usize);
 
     let regenerate = parameter.get("regenerate")
-                              .and_then(|k| k.as_bool())
-                              .unwrap_or(false);
+        .and_then(|k| k.as_bool())
+        .unwrap_or(false);
 
     let mut value = try!(T::parse(seed, size, parameter));
 

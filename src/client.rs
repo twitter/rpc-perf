@@ -87,10 +87,10 @@ impl Client {
                     }) {
                         Some(token) => {
                             event_loop.register(&self.connections[token].socket,
-                                                token,
-                                                mio::EventSet::writable(),
-                                                mio::PollOpt::edge() | mio::PollOpt::oneshot())
-                                      .unwrap();
+                                          token,
+                                          mio::EventSet::writable(),
+                                          mio::PollOpt::edge() | mio::PollOpt::oneshot())
+                                .unwrap();
                             connects += 1;
                         }
                         _ => debug!("too many established connections"),
@@ -156,10 +156,10 @@ impl mio::Handler for Client {
                     }) {
                         Some(token) => {
                             event_loop.register(&self.connections[token].socket,
-                                                token,
-                                                mio::EventSet::writable(),
-                                                mio::PollOpt::edge() | mio::PollOpt::oneshot())
-                                      .unwrap();
+                                          token,
+                                          mio::EventSet::writable(),
+                                          mio::PollOpt::edge() | mio::PollOpt::oneshot())
+                                .unwrap();
                         }
                         _ => debug!("too many established connections"),
                     }
@@ -173,9 +173,9 @@ impl mio::Handler for Client {
                     Some(work) => {
                         trace!("sending: {:?}", work);
                         if let Some(timeout) = self.config.timeout {
-                            self.connections[token].timeout = Some(event_loop.timeout_ms(token,
-                                                                                         timeout)
-                                                                             .unwrap());
+                            self.connections[token].timeout =
+                                Some(event_loop.timeout_ms(token, timeout)
+                                    .unwrap());
                         }
                         self.connections[token].ready(event_loop, events, Some(work));
                     }
@@ -213,10 +213,10 @@ impl mio::Handler for Client {
                 }) {
                     Some(token) => {
                         event_loop.register(&self.connections[token].socket,
-                                            token,
-                                            mio::EventSet::writable(),
-                                            mio::PollOpt::edge() | mio::PollOpt::oneshot())
-                                  .unwrap();
+                                      token,
+                                      mio::EventSet::writable(),
+                                      mio::PollOpt::edge() | mio::PollOpt::oneshot())
+                            .unwrap();
                     }
                     _ => debug!("too many established connections"),
                 }

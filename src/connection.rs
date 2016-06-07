@@ -242,10 +242,10 @@ impl Connection {
 
     pub fn reregister(&self, event_loop: &mut mio::EventLoop<Client>) {
         event_loop.reregister(&self.socket,
-                              self.token,
-                              event_set(self.state.clone()),
-                              mio::PollOpt::edge())
-                  .unwrap();
+                        self.token,
+                        event_set(self.state.clone()),
+                        mio::PollOpt::edge())
+            .unwrap();
     }
 }
 
