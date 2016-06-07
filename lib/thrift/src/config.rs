@@ -92,13 +92,13 @@ fn extract_workload(workload: &BTreeMap<String, Value>) -> CResult<BenchmarkWork
     };
 
     let rate = workload.get("rate")
-                       .and_then(|k| k.as_integer())
-                       .unwrap_or(0);
+        .and_then(|k| k.as_integer())
+        .unwrap_or(0);
 
     let name = workload.get("name")
-                       .and_then(|k| k.as_str())
-                       .unwrap_or(method)
-                       .to_owned();
+        .and_then(|k| k.as_str())
+        .unwrap_or(method)
+        .to_owned();
 
     let mut ps = Vec::new();
 
@@ -128,11 +128,11 @@ fn extract_workload(workload: &BTreeMap<String, Value>) -> CResult<BenchmarkWork
 fn extract_parameter(i: usize, parameter: &BTreeMap<String, Value>) -> CResult<Parameter> {
 
     let id = parameter.get("id")
-                      .and_then(|k| k.as_integer())
-                      .map(|k| k as i16);
+        .and_then(|k| k.as_integer())
+        .map(|k| k as i16);
 
     let style = match parameter.get("style")
-                               .and_then(|k| k.as_str()) {
+        .and_then(|k| k.as_str()) {
         Some("random") => Style::Random,
         Some("static") => Style::Static,
         None => Style::Static,
@@ -140,25 +140,25 @@ fn extract_parameter(i: usize, parameter: &BTreeMap<String, Value>) -> CResult<P
     };
 
     let seed = match parameter.get("seed")
-                              .and_then(|k| k.as_integer()) {
+        .and_then(|k| k.as_integer()) {
         Some(s) => s as usize,
         None => i,
     };
 
     let size = match parameter.get("size")
-                              .and_then(|k| k.as_integer()) {
+        .and_then(|k| k.as_integer()) {
         Some(s) => s as usize,
         None => 1,
     };
 
     let regenerate = match parameter.get("regenerate")
-                                    .and_then(|k| k.as_bool()) {
+        .and_then(|k| k.as_bool()) {
         Some(s) => s,
         None => false,
     };
 
     let mut value = match parameter.get("type")
-                                   .and_then(|k| k.as_str()) {
+        .and_then(|k| k.as_str()) {
         Some("stop") => Tvalue::Stop,
         Some("void") => Tvalue::Void,
         Some("bool") => Tvalue::Bool(true),
@@ -173,9 +173,9 @@ fn extract_parameter(i: usize, parameter: &BTreeMap<String, Value>) -> CResult<P
         Some("set") => Tvalue::Set,
         Some("list") => {
             Tvalue::List(parameter.get("contains")
-                                  .and_then(|k| k.as_str())
-                                  .unwrap()
-                                  .to_owned(),
+                             .and_then(|k| k.as_str())
+                             .unwrap()
+                             .to_owned(),
                          size as i32)
         }
         Some(unknown) => return Err(format!("unknown parameter type: {}", unknown)),

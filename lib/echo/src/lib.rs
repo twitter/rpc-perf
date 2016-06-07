@@ -116,13 +116,13 @@ pub fn load_config(table: &BTreeMap<String, Value>) -> CResult<ProtocolConfig> {
 
 fn extract_workload(workload: &BTreeMap<String, Value>) -> CResult<BenchmarkWorkload> {
     let rate = workload.get("rate")
-                       .and_then(|k| k.as_integer())
-                       .unwrap_or(0);
+        .and_then(|k| k.as_integer())
+        .unwrap_or(0);
 
     let name = workload.get("name")
-                       .and_then(|k| k.as_str())
-                       .unwrap_or("echo")
-                       .to_owned();
+        .and_then(|k| k.as_str())
+        .unwrap_or("echo")
+        .to_owned();
 
     if let Some(&Value::Array(ref params)) = workload.get("parameter") {
         let param = match params.len() {

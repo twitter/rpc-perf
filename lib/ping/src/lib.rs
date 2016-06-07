@@ -84,8 +84,8 @@ pub fn load_config(table: &BTreeMap<String, Value>) -> CResult<ProtocolConfig> {
 fn extract_workload(workload: &BTreeMap<String, Value>) -> CResult<BenchmarkWorkload> {
 
     let rate = workload.get("rate")
-                       .and_then(|k| k.as_integer())
-                       .unwrap_or(0);
+        .and_then(|k| k.as_integer())
+        .unwrap_or(0);
 
     if let Some(v) = workload.get("method").and_then(|s| s.as_str()) {
         if v != "ping" {
@@ -94,9 +94,9 @@ fn extract_workload(workload: &BTreeMap<String, Value>) -> CResult<BenchmarkWork
     }
 
     let name = workload.get("name")
-                       .and_then(|k| k.as_str())
-                       .unwrap_or("ping")
-                       .to_owned();
+        .and_then(|k| k.as_str())
+        .unwrap_or("ping")
+        .to_owned();
 
     Ok(BenchmarkWorkload::new(name, rate as usize, Box::new(Ping)))
 }

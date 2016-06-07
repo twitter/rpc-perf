@@ -79,7 +79,10 @@ impl Command {
                 p1.regen();
                 p2.regen();
                 p3.regen();
-                gen::hset(p1.value.string.as_str(), p2.value.string.as_str(), p3.value.string.as_str()).into_bytes()
+                gen::hset(p1.value.string.as_str(),
+                          p2.value.string.as_str(),
+                          p3.value.string.as_str())
+                    .into_bytes()
             }
         }
     }
@@ -88,7 +91,7 @@ impl Command {
 struct RedisParse;
 
 struct RedisParseFactory {
-    flush: bool
+    flush: bool,
 }
 
 impl ProtocolGen for Command {
@@ -99,9 +102,9 @@ impl ProtocolGen for Command {
     fn method(&self) -> &str {
         match *self {
             Command::Get(_) => "get",
-            Command::Set(_,_) => "set",
-            Command::Hget(_,_) => "hget",
-            Command::Hset(_,_,_) => "hset",
+            Command::Set(_, _) => "set",
+            Command::Hget(_, _) => "hget",
+            Command::Hset(_, _, _) => "hset",
         }
     }
 }
@@ -112,13 +115,11 @@ impl ProtocolParseFactory for RedisParseFactory {
     }
 
     fn prepare(&self) -> CResult<Vec<Vec<u8>>> {
-        Ok(
-            if self.flush {
-                vec![gen::flushall().into_bytes()]
-            } else {
-                Vec::new()
-            }
-        )
+        Ok(if self.flush {
+            vec![gen::flushall().into_bytes()]
+        } else {
+            Vec::new()
+        })
     }
 
     fn name(&self) -> &str {
@@ -134,9 +135,7 @@ impl ProtocolParse for RedisParse {
 }
 
 /// Load the redis benchmark configuration from the config toml and command line arguments
-pub fn load_config(table: &BTreeMap<String, Value>,
-                   matches: &Matches)
-                   -> CResult<ProtocolConfig> {
+pub fn load_config(table: &BTreeMap<String, Value>, matches: &Matches) -> CResult<ProtocolConfig> {
 
     let mut ws = Vec::new();
 
@@ -149,9 +148,7 @@ pub fn load_config(table: &BTreeMap<String, Value>,
             }
         }
 
-        let proto = Arc::new(RedisParseFactory {
-            flush: matches.opt_present("flush"),
-        });
+        let proto = Arc::new(RedisParseFactory { flush: matches.opt_present("flush") });
 
         Ok(ProtocolConfig {
             protocol: proto,
@@ -164,18 +161,18 @@ pub fn load_config(table: &BTreeMap<String, Value>,
 
 fn extract_workload(workload: &BTreeMap<String, Value>) -> CResult<BenchmarkWorkload> {
     let rate = workload.get("rate")
-                       .and_then(|k| k.as_integer())
-                       .unwrap_or(0);
+        .and_then(|k| k.as_integer())
+        .unwrap_or(0);
 
     let method = workload.get("method")
-                         .and_then(|k| k.as_str())
-                         .unwrap_or("get")
-                         .to_owned();
+        .and_then(|k| k.as_str())
+        .unwrap_or("get")
+        .to_owned();
 
     let name = workload.get("name")
-                       .and_then(|k| k.as_str())
-                       .unwrap_or(method.as_str())
-                       .to_owned();
+        .and_then(|k| k.as_str())
+        .unwrap_or(method.as_str())
+        .to_owned();
 
     if let Some(&Value::Array(ref params)) = workload.get("parameter") {
         let mut ps = Vec::new();

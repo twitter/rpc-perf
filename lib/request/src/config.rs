@@ -92,14 +92,14 @@ fn load_config_table(table: BTreeMap<String, Value>,
                      -> Result<BenchmarkConfig, String> {
 
     let protocol: String = matches.opt_str("protocol")
-                                  .or_else(|| {
-                                      table.get("general")
-                                           .and_then(|k| k.as_table())
-                                           .and_then(|k| k.get("protocol"))
-                                           .and_then(|k| k.as_str())
-                                           .map(|k| k.to_owned())
-                                  })
-                                  .unwrap_or_else(|| "memcache".to_owned());
+        .or_else(|| {
+            table.get("general")
+                .and_then(|k| k.as_table())
+                .and_then(|k| k.get("protocol"))
+                .and_then(|k| k.as_str())
+                .map(|k| k.to_owned())
+        })
+        .unwrap_or_else(|| "memcache".to_owned());
 
     // Pick a protocol
     let proto = match protocol.as_str() {
@@ -119,21 +119,21 @@ fn load_config_table(table: BTreeMap<String, Value>,
 
     if let Some(&Table(ref general)) = table.get("general") {
         if let Some(connections) = general.get("connections")
-                                          .and_then(|k| k.as_integer()) {
+            .and_then(|k| k.as_integer()) {
             config.connections = connections as usize;
         }
         if let Some(threads) = general.get("threads").and_then(|k| k.as_integer()) {
             config.threads = threads as usize;
         }
         if let Some(duration) = general.get("duration")
-                                       .and_then(|k| k.as_integer()) {
+            .and_then(|k| k.as_integer()) {
             config.duration = duration as usize;
         }
         if let Some(windows) = general.get("windows").and_then(|k| k.as_integer()) {
             config.windows = windows as usize;
         }
         if let Some(tcp_nodelay) = general.get("tcp-nodelay")
-                                          .and_then(|k| k.as_bool()) {
+            .and_then(|k| k.as_bool()) {
             config.tcp_nodelay = tcp_nodelay;
         }
         if let Some(ipv4) = general.get("ipv4").and_then(|k| k.as_bool()) {

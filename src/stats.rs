@@ -369,9 +369,8 @@ impl Receiver {
                     let _ = heatmap.clear();
                 } else {
                     let rate = counter_rate(&window_counters, (now - printed_at), Counter::Total);
-                    let success_rate = counter_percent(&window_counters,
-                                                       Counter::Ok,
-                                                       Counter::Failure);
+                    let success_rate =
+                        counter_percent(&window_counters, Counter::Ok, Counter::Failure);
                     let hit_rate = counter_percent(&window_counters, Counter::Hit, Counter::Miss);
                     info!("-----");
                     info!("Window: {}", window);
@@ -408,7 +407,7 @@ impl Receiver {
                           Counter::Miss,
                           Counter::Closed,
                           Counter::Timeout]
-                             .into_iter() {
+                    .into_iter() {
                     global_counters.add(c.clone(), window_counters.get(c.clone()));
                 }
 

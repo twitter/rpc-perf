@@ -163,18 +163,18 @@ pub fn load_config(table: &BTreeMap<String, Value>, matches: &Matches) -> CResul
 fn extract_workload(i: usize, workload: &BTreeMap<String, Value>) -> CResult<BenchmarkWorkload> {
 
     let rate = workload.get("rate")
-                       .and_then(|k| k.as_integer())
-                       .unwrap_or(0);
+        .and_then(|k| k.as_integer())
+        .unwrap_or(0);
 
     let method = workload.get("method")
-                         .and_then(|k| k.as_str())
-                         .unwrap_or("get")
-                         .to_owned();
+        .and_then(|k| k.as_str())
+        .unwrap_or("get")
+        .to_owned();
 
     let name = workload.get("name")
-                       .and_then(|k| k.as_str())
-                       .unwrap_or(method.as_str())
-                       .to_owned();
+        .and_then(|k| k.as_str())
+        .unwrap_or(method.as_str())
+        .to_owned();
 
     if let Some(&Value::Array(ref params)) = workload.get("parameter") {
         let mut ps = Vec::new();
