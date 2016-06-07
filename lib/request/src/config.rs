@@ -13,8 +13,6 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-
-
 use getopts::Matches;
 use std::collections::BTreeMap;
 use std::fmt::Display;
@@ -32,7 +30,6 @@ use ping;
 use thrift;
 use cfgtypes::{ProtocolParse, ProtocolParseFactory};
 use super::BenchmarkConfig;
-
 
 /// Helper for extracting non-string values from the `Matches`
 fn parse_opt<F>(name: &str, matches: &Matches) -> Result<Option<F>, String>
@@ -124,7 +121,7 @@ fn load_config_table(table: BTreeMap<String, Value>,
         if let Some(connections) = general.get("connections")
                                           .and_then(|k| k.as_integer()) {
             config.connections = connections as usize;
-        };
+        }
         if let Some(threads) = general.get("threads").and_then(|k| k.as_integer()) {
             config.threads = threads as usize;
         }
@@ -145,6 +142,12 @@ fn load_config_table(table: BTreeMap<String, Value>,
         if let Some(ipv6) = general.get("ipv6").and_then(|k| k.as_bool()) {
             config.ipv6 = ipv6;
         }
+        if let Some(timeout) = general.get("timeout").and_then(|k| k.as_integer()) {
+            config.timeout = Some(timeout as u64);
+        }
+        if let Some(evtick) = general.get("evtick").and_then(|k| k.as_integer()) {
+            config.evtick = evtick as u64;
+        }
     }
 
     // get any overrides from the command line
@@ -156,7 +159,6 @@ fn load_config_table(table: BTreeMap<String, Value>,
 /// Override parameters using command line arguments
 fn config_overrides(config: &mut BenchmarkConfig, matches: &Matches) -> Result<(), String> {
     // override config with commandline options
-
 
     if let Some(threads) = try!(parse_opt("threads", matches)) {
         config.threads = threads;
@@ -172,6 +174,14 @@ fn config_overrides(config: &mut BenchmarkConfig, matches: &Matches) -> Result<(
 
     if let Some(duration) = try!(parse_opt("duration", matches)) {
         config.duration = duration;
+    }
+
+    if let Some(timeout) = try!(parse_opt("timeout", matches)) {
+        config.timeout = Some(timeout);
+    }
+
+    if let Some(evtick) = try!(parse_opt("evtick", matches)) {
+        config.evtick = evtick;
     }
 
     if matches.opt_present("tcp-nodelay") {

@@ -24,6 +24,7 @@ extern crate tiny_http;
 extern crate time;
 extern crate mio;
 extern crate mpmc;
+extern crate pad;
 extern crate regex;
 extern crate rpcperf_request as request;
 extern crate rpcperf_cfgtypes as cfgtypes;
@@ -43,80 +44,17 @@ use log::LogLevelFilter;
 use mpmc::Queue as BoundedQueue;
 use request::config;
 use std::env;
-use std::net::ToSocketAddrs;
 use std::thread;
-use std::sync::Arc;
 use std::sync::mpsc;
-use std::process;
 
-
-use client::Client;
-use connection::Connection;
+use client::{Client, ClientConfig};
 use logger::SimpleLogger;
 use net::InternetProtocol;
-use stats::Stat;
 use request::workload;
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
 const BUCKET_SIZE: usize = 10_000;
-
-struct ClientConfig {
-    servers: Vec<String>,
-    connections: usize,
-    stats_tx: mpsc::Sender<Stat>,
-    client_protocol: Arc<cfgtypes::ProtocolParseFactory>,
-    internet_protocol: InternetProtocol,
-    work_rx: BoundedQueue<Vec<u8>>,
-    tcp_nodelay: bool,
-    mio_config: mio::EventLoopConfig,
-}
-
-fn start(config: ClientConfig) {
-    let mut event_loop = mio::EventLoop::configured(config.mio_config.clone()).unwrap();
-    let mut client = Client::new(config.work_rx.clone());
-
-    let mut failures = 0;
-    let mut connects = 0;
-
-    for server in &config.servers {
-        let address = &server.to_socket_addrs().unwrap().next().unwrap();
-        for _ in 0..config.connections {
-            match net::to_mio_tcp_stream(address, config.internet_protocol) {
-                Ok(stream) => {
-                    match client.connections.insert_with(|token| {
-                        Connection::new(stream,
-                                        token,
-                                        config.stats_tx.clone(),
-                                        config.client_protocol.new(),
-                                        config.tcp_nodelay)
-                    }) {
-                        Some(token) => {
-                            event_loop.register(&client.connections[token].socket,
-                                                token,
-                                                mio::EventSet::writable(),
-                                                mio::PollOpt::edge() | mio::PollOpt::oneshot())
-                                      .unwrap();
-                            connects += 1;
-                        }
-                        _ => debug!("too many established connections"),
-                    }
-                }
-                Err(e) => {
-                    failures += 1;
-                    debug!("connect error: {}", e);
-                }
-            }
-        }
-    }
-    info!("Connections: {} Failures: {}", connects, failures);
-    if failures == config.connections {
-        error!("All connections have failed");
-        process::exit(1);
-    } else {
-        event_loop.run(&mut client).unwrap();
-    }
-}
 
 fn print_usage(program: &str, opts: Options) {
     let brief = format!("Usage: {} [options]", program);
@@ -131,11 +69,13 @@ pub fn opts() -> Options {
     opts.optopt("c", "connections", "connections per thread", "INTEGER");
     opts.optopt("d", "duration", "number of seconds per window", "INTEGER");
     opts.optopt("w", "windows", "number of windows in test", "INTEGER");
+    opts.optopt("", "timeout", "request timeout in milliseconds", "INTEGER");
     opts.optopt("p", "protocol", "client protocol", "STRING");
     opts.optopt("", "config", "TOML config file", "FILE");
     opts.optopt("", "listen", "listen address for stats", "HOST:PORT");
     opts.optopt("", "trace", "write histogram data to file", "FILE");
     opts.optopt("", "waterfall", "output waterfall PNG", "FILE");
+    opts.optopt("","evtick", "mio tick interval milliseconds", "INTEGER");
     opts.optflag("", "tcp-nodelay", "enable tcp nodelay");
     opts.optflag("", "flush", "flush cache prior to test");
     opts.optflag("", "ipv4", "force IPv4 only");
@@ -182,8 +122,6 @@ fn choose_layer_3(ipv4: bool, ipv6: bool) -> Result<InternetProtocol, String> {
     Err("No InternetProtocols remaining! Bad config/options".to_owned())
 }
 
-
-
 pub fn main() {
     let args: Vec<String> = env::args().collect();
 
@@ -200,7 +138,7 @@ pub fn main() {
     };
 
     if matches.opt_present("help") {
-        print_usage(&program, opts);
+        print_usage(program, opts);
         return;
     }
 
@@ -216,7 +154,7 @@ pub fn main() {
 
     if matches.opt_count("server") < 1 {
         error!("require server parameter");
-        print_usage(&program, opts);
+        print_usage(program, opts);
         return;
     };
 
@@ -258,7 +196,8 @@ pub fn main() {
         }
     }
 
-    let evconfig = mio::EventLoopConfig::default();
+    let mut evconfig = mio::EventLoopConfig::default();
+    evconfig.timer_tick_ms(config.evtick);
 
     info!("-----");
     info!("Config:");
@@ -276,6 +215,16 @@ pub fn main() {
     info!("Config: Windows: {} Duration: {}",
           config.windows,
           config.duration);
+    match config.timeout {
+        Some(timeout) => {
+            info!("Config: Timeout: {} ms", timeout);
+        }
+        None => {
+            info!("Config: Timeout: None");
+        }
+    }
+    info!("Config: Event Loop: Timer Tick: {} ms", config.evtick);
+
     info!("-----");
     info!("Workload:");
 
@@ -297,13 +246,15 @@ pub fn main() {
             stats_tx: stats_sender.clone(),
             client_protocol: config.protocol_config.protocol.clone(),
             internet_protocol: internet_protocol,
+            timeout: config.timeout,
             work_rx: work_queue.clone(),
             tcp_nodelay: config.tcp_nodelay,
             mio_config: evconfig.clone(),
         };
 
         thread::spawn(move || {
-            start(client_config);
+            let mut client = Client::new(client_config);
+            client.run();
         });
     }
 

@@ -14,7 +14,7 @@
 //  limitations under the License.
 
 // The current state of the client connection
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,PartialEq)]
 pub enum State {
     Reading,
     Writing,
