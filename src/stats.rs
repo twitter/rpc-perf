@@ -46,6 +46,7 @@ pub enum Counter {
     Failure,
 }
 
+#[allow(enum_variant_names)]
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum Gauge {
     Percentile50,
@@ -124,9 +125,15 @@ impl fmt::Display for Counter {
     }
 }
 
+impl Default for Counters {
+    fn default() -> Counters {
+        Counters { counts: HashMap::new() }
+    }
+}
+
 impl Counters {
     pub fn new() -> Counters {
-        Counters { counts: HashMap::new() }
+        Default::default()
     }
 
     pub fn increment(&mut self, counter: Counter) {
@@ -153,9 +160,15 @@ impl Counters {
     }
 }
 
+impl Default for Gauges {
+    fn default() -> Gauges {
+        Gauges { gauges: HashMap::new() }
+    }
+}
+
 impl Gauges {
     pub fn new() -> Gauges {
-        Gauges { gauges: HashMap::new() }
+        Default::default()
     }
 
     pub fn set(&mut self, gauge: Gauge, value: u64) {
