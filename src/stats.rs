@@ -26,8 +26,8 @@ use std::net::ToSocketAddrs;
 use std::process;
 use std::sync::mpsc;
 
-use heatmap::{Heatmap, HeatmapConfig};
-use histogram::{Histogram, HistogramConfig};
+use heatmap::Heatmap;
+use histogram::Histogram;
 use tiny_http::{Server, Response, Request};
 use waterfall::Waterfall;
 
@@ -46,7 +46,7 @@ pub enum Counter {
     Failure,
 }
 
-#[allow(enum_variant_names)]
+#[allow(unknown_lints, enum_variant_names)]
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum Gauge {
     Percentile50,
@@ -241,18 +241,18 @@ fn start_listener(listen: Option<String>) -> Option<Server> {
 }
 
 fn try_handle_http(server: &Option<Server>,
-                   mut histogram: &mut Histogram,
+                   histogram: &Histogram,
                    gauges: &Gauges,
                    counters: &Counters) {
     if let Some(ref s) = *server {
         if let Ok(Some(request)) = s.try_recv() {
             debug!("stats: handle http request");
-            handle_http(request, &mut histogram, gauges, counters);
+            handle_http(request, histogram, gauges, counters);
         }
     }
 }
 
-fn handle_http(request: Request, histogram: &mut Histogram, gauges: &Gauges, counters: &Counters) {
+fn handle_http(request: Request, histogram: &Histogram, gauges: &Gauges, counters: &Counters) {
     let mut output = "".to_owned();
 
     match request.url() {
@@ -302,15 +302,20 @@ impl Receiver {
                listen: Option<String>) {
 
         debug!("stats: initialize datastructures");
-        let mut histogram_config = HistogramConfig::new();
-        histogram_config.precision(4).max_value(60 as u64 * ONE_SECOND);
-        let mut histogram = Histogram::configured(histogram_config).unwrap();
+        let mut histogram = Histogram::configure()
+            .precision(4)
+            .max_value(60 as u64 * ONE_SECOND)
+            .build()
+            .unwrap();
         let mut http_histogram = histogram.clone();
 
-        let mut heatmap_config = HeatmapConfig::new();
-        heatmap_config.precision(2).max_value(ONE_SECOND);
-        heatmap_config.slice_duration(ONE_SECOND as u64).num_slices((duration * windows));
-        let mut heatmap = Heatmap::configured(heatmap_config).unwrap();
+        let mut heatmap = Heatmap::configure()
+            .precision(2)
+            .max_value(ONE_SECOND)
+            .slice_duration(ONE_SECOND)
+            .num_slices((duration * windows))
+            .build()
+            .unwrap();
 
         let mut printed_at = time::precise_time_ns();
         let mut window_counters = Counters::new();
@@ -365,7 +370,7 @@ impl Receiver {
                 }
             }
 
-            try_handle_http(&server, &mut http_histogram, &gauges, &global_counters);
+            try_handle_http(&server, &http_histogram, &gauges, &global_counters);
 
             if closed == max_closed {
                 error!("all connections have closed!");
@@ -427,7 +432,7 @@ impl Receiver {
                 http_histogram = histogram.clone();
 
                 // clear the window stats
-                let _ = histogram.clear();
+                histogram.clear();
                 window_counters.clear();
 
                 window += 1;
