@@ -122,7 +122,7 @@ fn choose_layer_3(ipv4: bool, ipv6: bool) -> Result<InternetProtocol, String> {
     Err("No InternetProtocols remaining! Bad config/options".to_owned())
 }
 
-#[allow(cyclomatic_complexity)]
+#[allow(unknown_lints, cyclomatic_complexity)]
 pub fn main() {
     let args: Vec<String> = env::args().collect();
 
