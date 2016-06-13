@@ -4,8 +4,8 @@ version = "1.0.0-beta.1"
 dependencies = [
  "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "getopts 0.2.14 (registry+https://github.com/rust-lang/crates.io-index)",
- "heatmap 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "histogram 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "heatmap 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "histogram 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "mio 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "mpmc 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -18,7 +18,7 @@ dependencies = [
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny_http 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "toml 0.1.30 (registry+https://github.com/rust-lang/crates.io-index)",
- "waterfall 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "waterfall 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -159,16 +159,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "heatmap"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "histogram 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "histogram 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "histogram"
-version = "0.6.0"
+version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -560,10 +560,10 @@ dependencies = [
 
 [[package]]
 name = "waterfall"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "heatmap 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "heatmap 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "hsl 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "lodepng 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "rusttype 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
