@@ -13,14 +13,12 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-const ONE_SECOND: u64 = 1_000_000_000;
 pub const BUCKET_SIZE: usize = 10_000;
 
 use cfgtypes;
 use mpmc;
 use ratelimit::Ratelimit;
 use std::thread;
-use time;
 
 use cfgtypes::ProtocolGen;
 
@@ -46,8 +44,7 @@ pub fn launch_workloads(workloads: Vec<cfgtypes::BenchmarkWorkload>,
 
 struct Workload {
     protocol: Box<ProtocolGen>,
-    rate: u64,
-    ratelimit: Ratelimit,
+    ratelimit: Option<Ratelimit>,
     queue: mpmc::Queue<Vec<u8>>,
 }
 
@@ -56,17 +53,17 @@ impl Workload {
            rate: Option<u64>,
            queue: mpmc::Queue<Vec<u8>>)
            -> Result<Workload, &'static str> {
-        let r = rate.unwrap_or(0);
-        let i = rate_to_interval(r);
-        let ratelimit = match Ratelimit::new(BUCKET_SIZE, time::precise_time_ns(), i, 1) {
-            Some(r) => r,
-            None => {
-                return Err("Ratelimit initialization failed!");
+        let mut ratelimit = None;
+        if let Some(r) = rate {
+            if r != 0 {
+                ratelimit = Some(Ratelimit::configure()
+                    .frequency(r as u32)
+                    .capacity(10000)
+                    .build());
             }
-        };
+        }
         Ok(Workload {
             protocol: protocol,
-            rate: rate.unwrap_or(0),
             ratelimit: ratelimit,
             queue: queue,
         })
@@ -74,23 +71,12 @@ impl Workload {
 
     fn run(&mut self) {
         loop {
-            if self.rate != 0 {
-                self.ratelimit.block(1);
+            if let Some(ref mut ratelimit) = self.ratelimit {
+                ratelimit.block(1);
             }
 
             let query = self.protocol.generate_message();
             let _ = self.queue.push(query);
         }
     }
-}
-
-fn rate_to_interval(rate: u64) -> u64 {
-    if rate == 0 {
-        return 0;
-    }
-    let interval = ONE_SECOND / rate;
-    if interval < 1 {
-        return 0;
-    }
-    interval
 }
