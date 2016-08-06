@@ -25,14 +25,16 @@ use std::fmt;
 use std::net::ToSocketAddrs;
 use std::process;
 use std::sync::mpsc;
+use std::time::Duration;
 
 use heatmap::Heatmap;
 use histogram::Histogram;
 use tiny_http::{Server, Response, Request};
 use waterfall::Waterfall;
 
-const ONE_MILISECOND: i64 = 1_000_000;
-const ONE_SECOND: u64 = 1_000_000_000;
+const ONE_MICROSECOND: u32 = 1000;
+const ONE_MILISECOND: u32 = 1000 * ONE_MICROSECOND;
+const ONE_SECOND: u64 = 1000 * ONE_MILISECOND as u64;
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum Counter {
@@ -366,7 +368,7 @@ impl Receiver {
                     }
                 }
                 Err(_) => {
-                    shuteye::sleep(shuteye::Timespec::from_nano(ONE_MILISECOND).unwrap());
+                    shuteye::sleep(Duration::new(0, ONE_MILISECOND));
                 }
             }
 

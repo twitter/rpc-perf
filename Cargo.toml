@@ -1,6 +1,6 @@
 [package]
 name = "rpc-perf"
-version = "1.0.0-nightly.20160613"
+version = "1.0.0-nightly.20160806"
 authors = ["Brian Martin <bmartin@twitter.com>"]
 
 license = "Apache-2.0"
@@ -50,7 +50,7 @@ pad = "0.1.4"
 regex = "0.1.41"
 rpcperf_request = { path = "./lib/request", version = "1.1.0" }
 rpcperf_cfgtypes = { path = "./lib/cfgtypes", version = "0.1.0" }
-shuteye = "0.1.1"
+shuteye = "0.2.0"
 simple_logger = "0.4.0"
 tiny_http = "0.5.1"
 time = "0.1.34"

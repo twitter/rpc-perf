@@ -28,7 +28,6 @@ use memcache;
 use redis;
 use ping;
 use thrift;
-use cfgtypes::{ProtocolParse, ProtocolParseFactory};
 use super::BenchmarkConfig;
 
 /// Helper for extracting non-string values from the `Matches`

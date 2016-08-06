@@ -23,7 +23,6 @@ extern crate toml;
 extern crate mpmc;
 extern crate ratelimit;
 extern crate shuteye;
-extern crate time;
 
 extern crate rpcperf_cfgtypes as cfgtypes;
 extern crate rpcperf_echo as echo;
