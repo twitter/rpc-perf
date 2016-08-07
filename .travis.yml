@@ -6,6 +6,11 @@ rust:
 os:
   - linux
   - osx
+script:
+- cargo build --verbose
+- cargo build --release --verbose
+- cargo test --verbose
+- cargo test --release --verbose
 matrix:
   include:
     - os: linux
