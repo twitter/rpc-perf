@@ -15,13 +15,13 @@
 
 extern crate mio;
 extern crate mpmc;
-extern crate time;
+extern crate tic;
 
 use std::net::ToSocketAddrs;
 use std::process;
 use std::sync::Arc;
-use std::sync::mpsc;
 
+use tic::{Clocksource, Sample};
 use mio::tcp::TcpStream;
 use mio::util::Slab;
 use mpmc::Queue as BoundedQueue;
@@ -30,7 +30,7 @@ use cfgtypes;
 use connection::Connection;
 use net::InternetProtocol;
 use net;
-use stats::{Stat, Status};
+use stats::Status;
 use state::State;
 
 const MAX_CONNECTIONS: usize = 1024;
@@ -39,7 +39,8 @@ const MAX_CONNECTIONS: usize = 1024;
 pub struct ClientConfig {
     pub servers: Vec<String>,
     pub connections: usize,
-    pub stats_tx: mpsc::Sender<Stat>,
+    pub stats: tic::Sender<Status>,
+    pub clocksource: Clocksource,
     pub client_protocol: Arc<cfgtypes::ProtocolParseFactory>,
     pub internet_protocol: InternetProtocol,
     pub work_rx: BoundedQueue<Vec<u8>>,
@@ -73,7 +74,8 @@ impl Client {
 
         for server in &self.config.servers {
             for _ in 0..self.config.connections {
-                let stats_tx = self.config.stats_tx.clone();
+                let stats = self.config.stats.clone();
+                let clocksource = self.config.clocksource.clone();
                 let client_protocol = self.config.client_protocol.new();
                 let tcp_nodelay = self.config.tcp_nodelay;
                 if let Ok(stream) = connect(server.clone(), self.config.internet_protocol) {
@@ -81,7 +83,8 @@ impl Client {
                         Connection::new(stream,
                                         server.clone(),
                                         token,
-                                        stats_tx,
+                                        stats,
+                                        clocksource,
                                         client_protocol,
                                         tcp_nodelay)
                     }) {
@@ -134,15 +137,14 @@ impl mio::Handler for Client {
         match self.connections[token].state {
             State::Closed => {
                 trace!("reconnecting closed connection");
+                let t1 = self.config.clocksource.counter();
                 let connection = self.connections.remove(token).unwrap();
-                let _ = connection.stats_tx.send(Stat {
-                    start: connection.last_write,
-                    stop: time::precise_time_ns(),
-                    status: Status::Closed,
-                });
+                let _ = connection.stats
+                    .send(Sample::new(connection.t0, t1, Status::Closed));
                 let server = connection.server;
 
-                let stats_tx = self.config.stats_tx.clone();
+                let stats = self.config.stats.clone();
+                let clocksource = self.config.clocksource.clone();
                 let client_protocol = self.config.client_protocol.new();
                 let tcp_nodelay = self.config.tcp_nodelay;
                 if let Ok(stream) = connect(server.clone(), self.config.internet_protocol) {
@@ -150,7 +152,8 @@ impl mio::Handler for Client {
                         Connection::new(stream,
                                         server.clone(),
                                         token,
-                                        stats_tx,
+                                        stats,
+                                        clocksource,
                                         client_protocol,
                                         tcp_nodelay)
                     }) {
@@ -192,14 +195,13 @@ impl mio::Handler for Client {
         if self.connections[token].state == State::Reading {
             trace!("handle timeout: token: {:?}", token);
             let connection = self.connections.remove(token).unwrap();
-            let _ = connection.stats_tx.send(Stat {
-                start: connection.last_write,
-                stop: time::precise_time_ns(),
-                status: Status::Timeout,
-            });
+            let t1 = self.config.clocksource.counter();
+            let _ = connection.stats
+                .send(Sample::new(connection.t0, t1, Status::Timeout));
             let server = connection.server;
 
-            let stats_tx = self.config.stats_tx.clone();
+            let stats = self.config.stats.clone();
+            let clocksource = self.config.clocksource.clone();
             let client_protocol = self.config.client_protocol.new();
             let tcp_nodelay = self.config.tcp_nodelay;
             if let Ok(stream) = connect(server.clone(), self.config.internet_protocol) {
@@ -207,7 +209,8 @@ impl mio::Handler for Client {
                     Connection::new(stream,
                                     server.clone(),
                                     token,
-                                    stats_tx,
+                                    stats,
+                                    clocksource,
                                     client_protocol,
                                     tcp_nodelay)
                 }) {
