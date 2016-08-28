@@ -30,6 +30,14 @@ cd rpc-perf
 cargo build --release
 ```
 
+If you want to use the x86_64 TSC for timing, using nightly rust:
+
+```shell
+git clone https://github.com/twitter/rpc-perf.git
+cd rpc-perf
+cargo build --release --features asm
+```
+
 This will produce a binary at `./target/release/rpc-perf` which can be run in-place or copied to a more convenient location on your system.
 
 ## Configuration

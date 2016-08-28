@@ -18,8 +18,6 @@ extern crate log;
 
 extern crate bytes;
 extern crate getopts;
-extern crate heatmap;
-extern crate histogram;
 extern crate tiny_http;
 extern crate time;
 extern crate mio;
@@ -30,7 +28,7 @@ extern crate rpcperf_request as request;
 extern crate rpcperf_cfgtypes as cfgtypes;
 extern crate shuteye;
 extern crate toml;
-extern crate waterfall;
+extern crate tic;
 
 mod client;
 mod connection;
@@ -45,7 +43,6 @@ use mpmc::Queue as BoundedQueue;
 use request::config;
 use std::env;
 use std::thread;
-use std::sync::mpsc;
 
 use client::{Client, ClientConfig};
 use logger::SimpleLogger;
@@ -152,6 +149,11 @@ pub fn main() {
     set_log_level(matches.opt_count("verbose"));
 
     info!("rpc-perf {} initializing...", VERSION);
+    if cfg!(feature = "asm") {
+        info!("feature: asm: enabled");
+    } else {
+        info!("feature: asm: disabled");
+    }
 
     if matches.opt_count("server") < 1 {
         error!("require server parameter");
@@ -231,9 +233,31 @@ pub fn main() {
 
     workload::launch_workloads(config.protocol_config.workloads, work_queue.clone());
 
-    let (stats_sender, stats_receiver) = mpsc::channel();
+    let mut stats_config = tic::Receiver::<stats::Status>::configure()
+        .capacity(1_000_000)
+        .duration(config.duration)
+        .windows(config.windows);
 
-    let receiver = stats::Receiver::new(stats_receiver);
+    if let Some(addr) = listen {
+        stats_config = stats_config.http_listen(addr);
+    }
+
+    if let Some(w) = waterfall {
+        stats_config = stats_config.waterfall_file(w);
+    }
+
+    if let Some(t) = trace {
+        stats_config = stats_config.trace_file(t);
+    }
+
+    let mut stats_receiver = stats_config.build();
+
+    stats_receiver.add_interest(tic::Interest::Count(stats::Status::Ok));
+    stats_receiver.add_interest(tic::Interest::Count(stats::Status::Hit));
+    stats_receiver.add_interest(tic::Interest::Count(stats::Status::Miss));
+    stats_receiver.add_interest(tic::Interest::Count(stats::Status::Error));
+    stats_receiver.add_interest(tic::Interest::Count(stats::Status::Closed));
+    stats_receiver.add_interest(tic::Interest::Count(stats::Status::Timeout));
 
     info!("-----");
     info!("Connecting...");
@@ -244,7 +268,8 @@ pub fn main() {
         let client_config = ClientConfig {
             servers: matches.opt_strs("server"),
             connections: config.connections,
-            stats_tx: stats_sender.clone(),
+            stats: stats_receiver.get_sender().clone(),
+            clocksource: stats_receiver.get_clocksource().clone(),
             client_protocol: config.protocol_config.protocol.clone(),
             internet_protocol: internet_protocol,
             timeout: config.timeout,
@@ -259,10 +284,5 @@ pub fn main() {
         });
     }
 
-    receiver.run(config.duration,
-                 config.windows,
-                 trace,
-                 waterfall,
-                 (config.threads * config.connections * matches.opt_count("server")),
-                 listen);
+    stats::run(stats_receiver, config.windows, config.duration);
 }

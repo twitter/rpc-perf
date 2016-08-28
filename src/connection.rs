@@ -14,19 +14,18 @@
 //  limitations under the License.
 
 extern crate mio;
-extern crate time;
+extern crate tic;
 
 use bytes::{Buf, ByteBuf, MutByteBuf};
 use mio::{TryRead, TryWrite};
 use mio::tcp::TcpStream;
 use mio::Timeout;
-use std::sync::mpsc;
+use tic::{Clocksource, Sample};
 
 use client::Client;
 use state::State;
-use stats::{Stat, Status};
+use stats::Status;
 use cfgtypes::{ParsedResponse, ProtocolParse};
-
 
 const MEGABYTE: usize = 1024 * 1024;
 
@@ -37,8 +36,9 @@ pub struct Connection {
     pub server: String,
     buf: Option<ByteBuf>,
     mut_buf: Option<MutByteBuf>,
-    pub last_write: u64,
-    pub stats_tx: mpsc::Sender<Stat>,
+    pub t0: u64,
+    pub stats: tic::Sender<Status>,
+    clocksource: Clocksource,
     protocol: Box<ProtocolParse>,
     pub timeout: Option<Timeout>,
 }
@@ -47,7 +47,8 @@ impl Connection {
     pub fn new(socket: TcpStream,
                server: String,
                token: mio::Token,
-               stats_tx: mpsc::Sender<Stat>,
+               stats: tic::Sender<Status>,
+               clocksource: Clocksource,
                protocol: Box<ProtocolParse>,
                tcp_nodelay: bool)
                -> Connection {
@@ -61,8 +62,9 @@ impl Connection {
             state: State::Writing,
             buf: Some(ByteBuf::none()),
             mut_buf: Some(ByteBuf::mut_with_capacity(4 * MEGABYTE)),
-            last_write: time::precise_time_ns(),
-            stats_tx: stats_tx,
+            t0: clocksource.counter(),
+            stats: stats,
+            clocksource: clocksource,
             protocol: protocol,
             timeout: None,
         }
@@ -80,44 +82,24 @@ impl Connection {
                 assert!(events.is_readable(),
                         "unexpected events; events={:?}",
                         events);
-                let now = time::precise_time_ns();
+                let now = self.clocksource.counter();
                 let response = self.read(event_loop);
                 match response {
                     ParsedResponse::Hit => {
-                        let _ = self.stats_tx.send(Stat {
-                            start: self.last_write,
-                            stop: now,
-                            status: Status::Hit,
-                        });
+                        let _ = self.stats.send(Sample::new(self.t0, now, Status::Hit));
                     }
                     ParsedResponse::Ok => {
-                        let _ = self.stats_tx.send(Stat {
-                            start: self.last_write,
-                            stop: now,
-                            status: Status::Ok,
-                        });
+                        let _ = self.stats.send(Sample::new(self.t0, now, Status::Ok));
                     }
                     ParsedResponse::Miss => {
-                        let _ = self.stats_tx.send(Stat {
-                            start: self.last_write,
-                            stop: now,
-                            status: Status::Miss,
-                        });
+                        let _ = self.stats.send(Sample::new(self.t0, now, Status::Miss));
                     }
                     ParsedResponse::Incomplete => {}
                     ParsedResponse::Unknown => {
-                        let _ = self.stats_tx.send(Stat {
-                            start: self.last_write,
-                            stop: now,
-                            status: Status::Closed,
-                        });
+                        let _ = self.stats.send(Sample::new(self.t0, now, Status::Closed));
                     }
                     _ => {
-                        let _ = self.stats_tx.send(Stat {
-                            start: self.last_write,
-                            stop: now,
-                            status: Status::Error,
-                        });
+                        let _ = self.stats.send(Sample::new(self.t0, now, Status::Error));
                         debug!("unexpected response: {:?}", response);
                     }
                 }
@@ -211,7 +193,7 @@ impl Connection {
     pub fn write(&mut self, event_loop: &mut mio::EventLoop<Client>) {
         trace!("write()");
         self.state = State::Writing;
-        self.last_write = time::precise_time_ns(); // mark time of write
+        self.t0 = self.clocksource.counter();
         let mut buf = self.buf.take().unwrap();
         match self.socket.try_write_buf(&mut buf) {
             Ok(Some(_)) => {
@@ -229,11 +211,8 @@ impl Connection {
             Err(e) => {
                 // got some write error, abandon
                 debug!("got an error trying to write; err={:?}", e);
-                let _ = self.stats_tx.send(Stat {
-                    start: self.last_write,
-                    stop: time::precise_time_ns(),
-                    status: Status::Closed,
-                });
+                let t1 = self.clocksource.counter();
+                let _ = self.stats.send(Sample::new(self.t0, t1, Status::Closed));
                 self.state = State::Closed
             }
         }
