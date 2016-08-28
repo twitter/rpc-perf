@@ -19,5 +19,9 @@ matrix:
     - os: osx
       rust: nightly
       script: cargo bench --features unstable
-  allow_failures:
-    - rust: nightly
+    - os: linux
+      rust: nightly
+      script: cargo build --features asm
+    - os: osx
+      rust: nightly
+      script: cargo build --features asm
