@@ -16,10 +16,12 @@
 extern crate mio;
 extern crate tic;
 
-use bytes::{Buf, ByteBuf, MutByteBuf};
-use mio::{TryRead, TryWrite};
+use std::io::{self, Read, Write};
+
+use bytes::{Buf, MutBuf, ByteBuf, MutByteBuf};
+use mio::deprecated::EventLoop;
 use mio::tcp::TcpStream;
-use mio::Timeout;
+use mio::timer::Timeout;
 use tic::{Clocksource, Sample};
 
 use client::Client;
@@ -31,7 +33,7 @@ const MEGABYTE: usize = 1024 * 1024;
 
 pub struct Connection {
     pub socket: TcpStream,
-    pub token: mio::Token,
+    pub token: Option<mio::Token>,
     pub state: State,
     pub server: String,
     buf: Option<ByteBuf>,
@@ -46,7 +48,7 @@ pub struct Connection {
 impl Connection {
     pub fn new(socket: TcpStream,
                server: String,
-               token: mio::Token,
+               token: Option<mio::Token>,
                stats: tic::Sender<Status>,
                clocksource: Clocksource,
                protocol: Box<ProtocolParse>,
@@ -71,8 +73,8 @@ impl Connection {
     }
 
     pub fn ready(&mut self,
-                 event_loop: &mut mio::EventLoop<Client>,
-                 events: mio::EventSet,
+                 event_loop: &mut EventLoop<Client>,
+                 events: mio::Ready,
                  work: Option<Vec<u8>>) {
 
         trace!("    connection-state={:?}", self.state);
@@ -104,8 +106,8 @@ impl Connection {
                     }
                 }
                 if response != ParsedResponse::Incomplete {
-                    if let Some(timeout) = self.timeout {
-                        event_loop.clear_timeout(timeout);
+                    if let Some(timeout) = self.timeout.clone() {
+                        event_loop.clear_timeout(&timeout);
                         self.timeout = None;
                     }
                 }
@@ -133,7 +135,7 @@ impl Connection {
         }
     }
 
-    pub fn read(&mut self, event_loop: &mut mio::EventLoop<Client>) -> ParsedResponse {
+    pub fn read(&mut self, event_loop: &mut EventLoop<Client>) -> ParsedResponse {
 
         trace!("read()");
 
@@ -153,13 +155,20 @@ impl Connection {
                 self.state = State::Closed;
             }
             Ok(Some(n)) => {
+                unsafe {
+                    buf.advance(n);
+                }
+
                 // read bytes from connection
                 trace!("read() bytes {}", n);
 
-                let buf = buf.flip();
+                let mut buf = buf.flip();
 
                 // protocol dependant parsing
-                resp = self.protocol.parse(buf.bytes());
+                let mut response = Vec::<u8>::new();
+                let _ = buf.by_ref().take(n as u64).read_to_end(&mut response);
+                trace!("read: {:?}", response);
+                resp = self.protocol.parse(&response);
 
                 // if incomplete replace the buffer contents, otherwise transition
                 match resp {
@@ -190,7 +199,7 @@ impl Connection {
         resp
     }
 
-    pub fn write(&mut self, event_loop: &mut mio::EventLoop<Client>) {
+    pub fn write(&mut self, event_loop: &mut EventLoop<Client>) {
         trace!("write()");
         self.state = State::Writing;
         self.t0 = self.clocksource.counter();
@@ -219,9 +228,9 @@ impl Connection {
         self.mut_buf = Some(buf.flip());
     }
 
-    pub fn reregister(&self, event_loop: &mut mio::EventLoop<Client>) {
+    pub fn reregister(&self, event_loop: &mut EventLoop<Client>) {
         event_loop.reregister(&self.socket,
-                        self.token,
+                        self.token.unwrap(),
                         event_set(self.state.clone()),
                         mio::PollOpt::edge())
             .unwrap();
@@ -229,10 +238,85 @@ impl Connection {
 }
 
 // State to mio EventSet mapping
-fn event_set(state: State) -> mio::EventSet {
+fn event_set(state: State) -> mio::Ready {
     match state {
-        State::Reading => mio::EventSet::readable(),
-        State::Writing => mio::EventSet::writable(),
-        _ => mio::EventSet::none(),
+        State::Reading => mio::Ready::readable(),
+        State::Writing => mio::Ready::writable(),
+        _ => mio::Ready::none(),
+    }
+}
+
+pub trait TryRead {
+    fn try_read_buf<B: MutBuf>(&mut self, buf: &mut B) -> io::Result<Option<usize>>
+        where Self: Sized
+    {
+        // Reads the length of the slice supplied by buf.mut_bytes into the buffer
+        // This is not guaranteed to consume an entire datagram or segment.
+        // If your protocol is msg based (instead of continuous stream) you should
+        // ensure that your buffer is large enough to hold an entire segment
+        // (1532 bytes if not jumbo frames)
+        let res = self.try_read(unsafe { buf.mut_bytes() });
+
+        if let Ok(Some(cnt)) = res {
+            unsafe {
+                buf.advance(cnt);
+            }
+        }
+
+        res
+    }
+
+    fn try_read(&mut self, buf: &mut [u8]) -> io::Result<Option<usize>>;
+}
+
+pub trait TryWrite {
+    fn try_write_buf<B: Buf>(&mut self, buf: &mut B) -> io::Result<Option<usize>>
+        where Self: Sized
+    {
+        let res = self.try_write(buf.bytes());
+
+        if let Ok(Some(cnt)) = res {
+            buf.advance(cnt);
+        }
+
+        res
+    }
+
+    fn try_write(&mut self, buf: &[u8]) -> io::Result<Option<usize>>;
+}
+
+impl<T: Read> TryRead for T {
+    fn try_read(&mut self, dst: &mut [u8]) -> io::Result<Option<usize>> {
+        self.read(dst).map_non_block()
+    }
+}
+
+impl<T: Write> TryWrite for T {
+    fn try_write(&mut self, src: &[u8]) -> io::Result<Option<usize>> {
+        self.write(src).map_non_block()
+    }
+}
+
+/// A helper trait to provide the `map_non_block` function on Results.
+trait MapNonBlock<T> {
+    /// Maps a `Result<T>` to a `Result<Option<T>>` by converting
+    /// operation-would-block errors into `Ok(None)`.
+    fn map_non_block(self) -> io::Result<Option<T>>;
+}
+
+impl<T> MapNonBlock<T> for io::Result<T> {
+    fn map_non_block(self) -> io::Result<Option<T>> {
+        use std::io::ErrorKind::WouldBlock;
+
+        match self {
+            Ok(value) => Ok(Some(value)),
+            Err(err) => {
+                if let WouldBlock = err.kind() {
+                    Ok(None)
+                } else {
+                    Err(err)
+                }
+            }
+        }
     }
 }
