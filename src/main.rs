@@ -26,6 +26,7 @@ extern crate pad;
 extern crate regex;
 extern crate rpcperf_request as request;
 extern crate rpcperf_cfgtypes as cfgtypes;
+extern crate slab;
 extern crate shuteye;
 extern crate toml;
 extern crate tic;
@@ -39,10 +40,12 @@ mod stats;
 
 use getopts::Options;
 use log::LogLevelFilter;
+use mio::deprecated::EventLoopBuilder;
 use mpmc::Queue as BoundedQueue;
 use request::config;
 use std::env;
 use std::thread;
+use std::time::Duration;
 
 use client::{Client, ClientConfig};
 use logger::SimpleLogger;
@@ -72,7 +75,6 @@ pub fn opts() -> Options {
     opts.optopt("", "listen", "listen address for stats", "HOST:PORT");
     opts.optopt("", "trace", "write histogram data to file", "FILE");
     opts.optopt("", "waterfall", "output waterfall PNG", "FILE");
-    opts.optopt("", "evtick", "mio tick interval milliseconds", "INTEGER");
     opts.optflag("", "tcp-nodelay", "enable tcp nodelay");
     opts.optflag("", "flush", "flush cache prior to test");
     opts.optflag("", "ipv4", "force IPv4 only");
@@ -199,8 +201,9 @@ pub fn main() {
         }
     }
 
-    let mut evconfig = mio::EventLoopConfig::default();
-    evconfig.timer_tick_ms(config.evtick);
+    let mut evconfig = EventLoopBuilder::new();
+    evconfig.timer_tick(Duration::from_millis(1));
+    evconfig.timer_wheel_size(1024);
 
     info!("-----");
     info!("Config:");
@@ -226,7 +229,6 @@ pub fn main() {
             info!("Config: Timeout: None");
         }
     }
-    info!("Config: Event Loop: Timer Tick: {} ms", config.evtick);
 
     info!("-----");
     info!("Workload:");

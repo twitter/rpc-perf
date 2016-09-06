@@ -15,16 +15,18 @@
 
 extern crate mio;
 extern crate mpmc;
+extern crate slab;
 extern crate tic;
 
 use std::net::ToSocketAddrs;
 use std::process;
 use std::sync::Arc;
+use std::time::Duration;
 
-use tic::{Clocksource, Sample};
+use mio::deprecated::{EventLoop, EventLoopBuilder, Handler};
 use mio::tcp::TcpStream;
-use mio::util::Slab;
 use mpmc::Queue as BoundedQueue;
+use tic::{Clocksource, Sample};
 
 use cfgtypes;
 use connection::Connection;
@@ -34,6 +36,8 @@ use stats::Status;
 use state::State;
 
 const MAX_CONNECTIONS: usize = 1024;
+
+type Slab<T> = slab::Slab<T, mio::Token>;
 
 #[derive(Clone)]
 pub struct ClientConfig {
@@ -45,19 +49,19 @@ pub struct ClientConfig {
     pub internet_protocol: InternetProtocol,
     pub work_rx: BoundedQueue<Vec<u8>>,
     pub tcp_nodelay: bool,
-    pub mio_config: mio::EventLoopConfig,
+    pub mio_config: EventLoopBuilder,
     pub timeout: Option<u64>,
 }
 
 pub struct Client {
-    pub connections: Slab<Connection>,
+    connections: Slab<Connection>,
     config: ClientConfig,
     work_rx: BoundedQueue<Vec<u8>>,
 }
 
 impl Client {
     pub fn new(config: ClientConfig) -> Client {
-        let connections = Slab::new_starting_at(mio::Token(0), MAX_CONNECTIONS);
+        let connections = Slab::with_capacity(MAX_CONNECTIONS);
 
         Client {
             config: config.clone(),
@@ -67,7 +71,7 @@ impl Client {
     }
 
     pub fn run(&mut self) {
-        let mut event_loop = mio::EventLoop::configured(self.config.mio_config.clone()).unwrap();
+        let mut event_loop = self.config.mio_config.clone().build().unwrap();
 
         let mut failures = 0;
         let mut connects = 0;
@@ -79,19 +83,18 @@ impl Client {
                 let client_protocol = self.config.client_protocol.new();
                 let tcp_nodelay = self.config.tcp_nodelay;
                 if let Ok(stream) = connect(server.clone(), self.config.internet_protocol) {
-                    match self.connections.insert_with(|token| {
-                        Connection::new(stream,
-                                        server.clone(),
-                                        token,
-                                        stats,
-                                        clocksource,
-                                        client_protocol,
-                                        tcp_nodelay)
-                    }) {
-                        Some(token) => {
+                    match self.connections.insert(Connection::new(stream,
+                                                                  server.clone(),
+                                                                  None,
+                                                                  stats,
+                                                                  clocksource,
+                                                                  client_protocol,
+                                                                  tcp_nodelay)) {
+                        Ok(token) => {
+                            self.connections[token].token = Some(token);
                             event_loop.register(&self.connections[token].socket,
                                           token,
-                                          mio::EventSet::writable(),
+                                          mio::Ready::writable(),
                                           mio::PollOpt::edge() | mio::PollOpt::oneshot())
                                 .unwrap();
                             connects += 1;
@@ -124,14 +127,14 @@ fn connect(server: String, protocol: InternetProtocol) -> Result<TcpStream, &'st
     }
 }
 
-impl mio::Handler for Client {
+impl Handler for Client {
     type Timeout = mio::Token; // timeouts not used
     type Message = (); // cross-thread notifications not used
 
     fn ready(&mut self,
-             event_loop: &mut mio::EventLoop<Client>,
+             event_loop: &mut EventLoop<Client>,
              token: mio::Token,
-             events: mio::EventSet) {
+             events: mio::Ready) {
         trace!("socket ready: token={:?} events={:?}", token, events);
 
         match self.connections[token].state {
@@ -148,19 +151,18 @@ impl mio::Handler for Client {
                 let client_protocol = self.config.client_protocol.new();
                 let tcp_nodelay = self.config.tcp_nodelay;
                 if let Ok(stream) = connect(server.clone(), self.config.internet_protocol) {
-                    match self.connections.insert_with(|token| {
-                        Connection::new(stream,
-                                        server.clone(),
-                                        token,
-                                        stats,
-                                        clocksource,
-                                        client_protocol,
-                                        tcp_nodelay)
-                    }) {
-                        Some(token) => {
+                    match self.connections.insert(Connection::new(stream,
+                                                                  server.clone(),
+                                                                  None,
+                                                                  stats,
+                                                                  clocksource,
+                                                                  client_protocol,
+                                                                  tcp_nodelay)) {
+                        Ok(token) => {
+                            self.connections[token].token = Some(token);
                             event_loop.register(&self.connections[token].socket,
                                           token,
-                                          mio::EventSet::writable(),
+                                          mio::Ready::writable(),
                                           mio::PollOpt::edge() | mio::PollOpt::oneshot())
                                 .unwrap();
                         }
@@ -177,7 +179,7 @@ impl mio::Handler for Client {
                         trace!("sending: {:?}", work);
                         if let Some(timeout) = self.config.timeout {
                             self.connections[token].timeout =
-                                Some(event_loop.timeout_ms(token, timeout)
+                                Some(event_loop.timeout(token, Duration::from_millis(timeout))
                                     .unwrap());
                         }
                         self.connections[token].ready(event_loop, events, Some(work));
@@ -191,7 +193,7 @@ impl mio::Handler for Client {
         }
     }
 
-    fn timeout(&mut self, event_loop: &mut mio::EventLoop<Client>, token: mio::Token) {
+    fn timeout(&mut self, event_loop: &mut EventLoop<Client>, token: mio::Token) {
         if self.connections[token].state == State::Reading {
             trace!("handle timeout: token: {:?}", token);
             let connection = self.connections.remove(token).unwrap();
@@ -205,19 +207,20 @@ impl mio::Handler for Client {
             let client_protocol = self.config.client_protocol.new();
             let tcp_nodelay = self.config.tcp_nodelay;
             if let Ok(stream) = connect(server.clone(), self.config.internet_protocol) {
-                match self.connections.insert_with(|token| {
+                match self.connections.insert({
                     Connection::new(stream,
                                     server.clone(),
-                                    token,
+                                    None,
                                     stats,
                                     clocksource,
                                     client_protocol,
                                     tcp_nodelay)
                 }) {
-                    Some(token) => {
+                    Ok(token) => {
+                        self.connections[token].token = Some(token);
                         event_loop.register(&self.connections[token].socket,
                                       token,
-                                      mio::EventSet::writable(),
+                                      mio::Ready::writable(),
                                       mio::PollOpt::edge() | mio::PollOpt::oneshot())
                             .unwrap();
                     }
