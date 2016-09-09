@@ -144,9 +144,6 @@ fn load_config_table(table: BTreeMap<String, Value>,
         if let Some(timeout) = general.get("timeout").and_then(|k| k.as_integer()) {
             config.timeout = Some(timeout as u64);
         }
-        if let Some(evtick) = general.get("evtick").and_then(|k| k.as_integer()) {
-            config.evtick = evtick as u64;
-        }
     }
 
     // get any overrides from the command line
@@ -177,10 +174,6 @@ fn config_overrides(config: &mut BenchmarkConfig, matches: &Matches) -> Result<(
 
     if let Some(timeout) = try!(parse_opt("timeout", matches)) {
         config.timeout = Some(timeout);
-    }
-
-    if let Some(evtick) = try!(parse_opt("evtick", matches)) {
-        config.evtick = evtick;
     }
 
     if matches.opt_present("tcp-nodelay") {

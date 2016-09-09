@@ -45,7 +45,6 @@ pub struct BenchmarkConfig {
     pub ipv4: bool,
     pub ipv6: bool,
     pub timeout: Option<u64>,
-    pub evtick: u64,
     pub protocol_config: ProtocolConfig,
 }
 
@@ -60,7 +59,6 @@ impl BenchmarkConfig {
             ipv4: true,
             ipv6: true,
             timeout: None,
-            evtick: 100,
             protocol_config: protocol,
         }
     }
