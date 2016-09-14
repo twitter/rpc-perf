@@ -14,7 +14,7 @@ dependencies = [
  "shuteye 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "simple_logger 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "slab 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "tic 0.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tic 0.0.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny_http 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "toml 0.1.30 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -527,7 +527,7 @@ dependencies = [
 
 [[package]]
 name = "tic"
-version = "0.0.9"
+version = "0.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "clocksource 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -537,7 +537,7 @@ dependencies = [
  "mpmc 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "shuteye 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny_http 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "waterfall 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "waterfall 0.6.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -607,7 +607,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "waterfall"
-version = "0.6.2"
+version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "heatmap 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -694,7 +694,7 @@ dependencies = [
 "checksum stb_truetype 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "fcf3270840fc9de208d63e836eb3fdebb85379e7532f42f1b2cbd505fb6fda08"
 "checksum thread-id 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "a9539db560102d1cef46b8b78ce737ff0bb64e7e18d35b2a5688f7d097d0ff03"
 "checksum thread_local 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)" = "55dd963dbaeadc08aa7266bf7f91c3154a7805e32bb94b820b769d2ef3b4744d"
-"checksum tic 0.0.9 (registry+https://github.com/rust-lang/crates.io-index)" = "2c8a8ca1634f311fe73d1d03b3cade3b2a5a788dc54fb838f1cb62ea857ab902"
+"checksum tic 0.0.10 (registry+https://github.com/rust-lang/crates.io-index)" = "37f1172e3e61b225467728c6eaab6e9c279d0e3e271e6766e9852f5a717ec4ef"
 "checksum time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)" = "3c7ec6d62a20df54e07ab3b78b9a3932972f4b7981de295563686849eb3989af"
 "checksum tiny_http 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)" = "cfd84e5f7192eb957cc22f1d7b615666013e3b1d0baa810a7cb5661c2ce991d5"
 "checksum toml 0.1.30 (registry+https://github.com/rust-lang/crates.io-index)" = "0590d72182e50e879c4da3b11c6488dae18fccb1ae0c7a3eda18e16795844796"
@@ -703,7 +703,7 @@ dependencies = [
 "checksum utf8-ranges 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "a1ca13c08c41c9c3e04224ed9ff80461d97e121589ff27c753a16cb10830ae0f"
 "checksum uuid 0.1.18 (registry+https://github.com/rust-lang/crates.io-index)" = "78c590b5bd79ed10aad8fb75f078a59d8db445af6c743e55c4a53227fc01c13f"
 "checksum void 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
-"checksum waterfall 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)" = "78eb9747f805d077376df8e1a8c1696f7e3e884891139821f4b3025e5849379d"
+"checksum waterfall 0.6.3 (registry+https://github.com/rust-lang/crates.io-index)" = "88cddf7c6380e13e56f3d3d68f5d3d8e64e214fb1e922d6cb0e110d71a8e559e"
 "checksum winapi 0.2.7 (registry+https://github.com/rust-lang/crates.io-index)" = "3969e500d618a5e974917ddefd0ba152e4bcaae5eb5d9b8c1fbc008e9e28c24e"
 "checksum winapi-build 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "2d315eee3b34aca4797b2da6b13ed88266e6d612562a0c46390af8299fc699bc"
 "checksum ws2_32-sys 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "d59cefebd0c892fa2dd6de581e937301d8552cb44489cdff035c6187cb63fa5e"
