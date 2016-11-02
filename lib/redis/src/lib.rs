@@ -117,9 +117,9 @@ impl ProtocolParseFactory for RedisParseFactory {
 
     fn prepare(&self) -> CResult<Vec<Vec<u8>>> {
         Ok(if self.flush {
-            vec![gen::flushall().into_bytes(), gen::select_(&self.database).into_bytes()]
+            vec![gen::flushall().into_bytes(), gen::select(&self.database).into_bytes()]
         } else {
-            vec![gen::select_(&self.database).into_bytes()]
+            vec![gen::select(&self.database).into_bytes()]
         }
         )
     }
@@ -152,7 +152,7 @@ pub fn load_config(table: &BTreeMap<String, Value>, matches: &Matches) -> CResul
 
         let proto = Arc::new(RedisParseFactory {
             flush: matches.opt_present("flush"),
-            database: matches.opt_str("database").unwrap_or("0".to_string())
+            database: matches.opt_str("database").unwrap_or("0".to_owned())
         });
 
         Ok(ProtocolConfig {
