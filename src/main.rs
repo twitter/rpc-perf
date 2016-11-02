@@ -71,6 +71,7 @@ pub fn opts() -> Options {
     opts.optopt("w", "windows", "number of windows in test", "INTEGER");
     opts.optopt("", "timeout", "request timeout in milliseconds", "INTEGER");
     opts.optopt("p", "protocol", "client protocol", "STRING");
+    opts.optopt("a", "database", "Redis database", "STRING");
     opts.optopt("", "config", "TOML config file", "FILE");
     opts.optopt("", "listen", "listen address for stats", "HOST:PORT");
     opts.optopt("", "trace", "write histogram data to file", "FILE");

@@ -92,6 +92,7 @@ struct RedisParse;
 
 struct RedisParseFactory {
     flush: bool,
+    database: String,
 }
 
 impl ProtocolGen for Command {
@@ -116,10 +117,11 @@ impl ProtocolParseFactory for RedisParseFactory {
 
     fn prepare(&self) -> CResult<Vec<Vec<u8>>> {
         Ok(if self.flush {
-            vec![gen::flushall().into_bytes()]
+            vec![gen::flushall().into_bytes(), gen::select_(&self.database).into_bytes()]
         } else {
-            Vec::new()
-        })
+            vec![gen::select_(&self.database).into_bytes()]
+        }
+        )
     }
 
     fn name(&self) -> &str {
@@ -148,7 +150,10 @@ pub fn load_config(table: &BTreeMap<String, Value>, matches: &Matches) -> CResul
             }
         }
 
-        let proto = Arc::new(RedisParseFactory { flush: matches.opt_present("flush") });
+        let proto = Arc::new(RedisParseFactory {
+            flush: matches.opt_present("flush"),
+            database: matches.opt_str("database").unwrap_or("0".to_string())
+        });
 
         Ok(ProtocolConfig {
             protocol: proto,
