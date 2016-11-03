@@ -92,7 +92,7 @@ struct RedisParse;
 
 struct RedisParseFactory {
     flush: bool,
-    database: String,
+    database: i64,
 }
 
 impl ProtocolGen for Command {
@@ -141,6 +141,13 @@ pub fn load_config(table: &BTreeMap<String, Value>, matches: &Matches) -> CResul
 
     let mut ws = Vec::new();
 
+    let database =
+            table.get("general")
+                .and_then(|k| k.as_table())
+                .and_then(|k| k.get("database"))
+                .and_then(|k| k.as_integer())
+        .unwrap_or(0);
+
     if let Some(&Value::Array(ref workloads)) = table.get("workload") {
         for workload in workloads.iter() {
             if let Value::Table(ref workload) = *workload {
@@ -152,7 +159,7 @@ pub fn load_config(table: &BTreeMap<String, Value>, matches: &Matches) -> CResul
 
         let proto = Arc::new(RedisParseFactory {
             flush: matches.opt_present("flush"),
-            database: matches.opt_str("database").unwrap_or("0".to_owned())
+            database: database,
         });
 
         Ok(ProtocolConfig {

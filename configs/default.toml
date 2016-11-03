@@ -12,6 +12,7 @@ protocol = "memcache"
 tcp-nodelay = false
 ipv4 = true
 ipv6 = true
+database = 0
 
 [[workload]]
 name = "get"
