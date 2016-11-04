@@ -141,7 +141,7 @@ impl Handler for Client {
             State::Closed => {
                 trace!("reconnecting closed connection");
                 let t1 = self.config.clocksource.counter();
-                let connection = self.connections.remove(token).unwrap();
+                let mut connection = self.connections.remove(token).unwrap();
                 let _ = connection.stats
                     .send(Sample::new(connection.t0, t1, Status::Closed));
                 let server = connection.server;
@@ -196,7 +196,7 @@ impl Handler for Client {
     fn timeout(&mut self, event_loop: &mut EventLoop<Client>, token: mio::Token) {
         if self.connections[token].state == State::Reading {
             trace!("handle timeout: token: {:?}", token);
-            let connection = self.connections.remove(token).unwrap();
+            let mut connection = self.connections.remove(token).unwrap();
             let t1 = self.config.clocksource.counter();
             let _ = connection.stats
                 .send(Sample::new(connection.t0, t1, Status::Timeout));

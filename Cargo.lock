@@ -14,7 +14,7 @@ dependencies = [
  "shuteye 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "simple_logger 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "slab 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "tic 0.0.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tic 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny_http 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "toml 0.1.30 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -527,14 +527,15 @@ dependencies = [
 
 [[package]]
 name = "tic"
-version = "0.0.10"
+version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
+ "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "clocksource 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "heatmap 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "histogram 0.6.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "mpmc 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mio 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "shuteye 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny_http 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "waterfall 0.6.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -694,7 +695,7 @@ dependencies = [
 "checksum stb_truetype 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "fcf3270840fc9de208d63e836eb3fdebb85379e7532f42f1b2cbd505fb6fda08"
 "checksum thread-id 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "a9539db560102d1cef46b8b78ce737ff0bb64e7e18d35b2a5688f7d097d0ff03"
 "checksum thread_local 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)" = "55dd963dbaeadc08aa7266bf7f91c3154a7805e32bb94b820b769d2ef3b4744d"
-"checksum tic 0.0.10 (registry+https://github.com/rust-lang/crates.io-index)" = "37f1172e3e61b225467728c6eaab6e9c279d0e3e271e6766e9852f5a717ec4ef"
+"checksum tic 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "483c265561b82917552c32821a74f28a7a70e442bbcd1d282d3b83b16624f666"
 "checksum time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)" = "3c7ec6d62a20df54e07ab3b78b9a3932972f4b7981de295563686849eb3989af"
 "checksum tiny_http 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)" = "cfd84e5f7192eb957cc22f1d7b615666013e3b1d0baa810a7cb5661c2ce991d5"
 "checksum toml 0.1.30 (registry+https://github.com/rust-lang/crates.io-index)" = "0590d72182e50e879c4da3b11c6488dae18fccb1ae0c7a3eda18e16795844796"
