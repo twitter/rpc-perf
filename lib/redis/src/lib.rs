@@ -92,6 +92,7 @@ struct RedisParse;
 
 struct RedisParseFactory {
     flush: bool,
+    database: u32,
 }
 
 impl ProtocolGen for Command {
@@ -116,10 +117,11 @@ impl ProtocolParseFactory for RedisParseFactory {
 
     fn prepare(&self) -> CResult<Vec<Vec<u8>>> {
         Ok(if self.flush {
-            vec![gen::flushall().into_bytes()]
+            vec![gen::flushall().into_bytes(), gen::select(&self.database).into_bytes()]
         } else {
-            Vec::new()
-        })
+            vec![gen::select(&self.database).into_bytes()]
+        }
+        )
     }
 
     fn name(&self) -> &str {
@@ -139,6 +141,13 @@ pub fn load_config(table: &BTreeMap<String, Value>, matches: &Matches) -> CResul
 
     let mut ws = Vec::new();
 
+    let database =
+            table.get("general")
+                .and_then(|k| k.as_table())
+                .and_then(|k| k.get("database"))
+                .and_then(|k| k.as_integer())
+        .unwrap_or(0) as u32;
+
     if let Some(&Value::Array(ref workloads)) = table.get("workload") {
         for workload in workloads.iter() {
             if let Value::Table(ref workload) = *workload {
@@ -148,7 +157,10 @@ pub fn load_config(table: &BTreeMap<String, Value>, matches: &Matches) -> CResul
             }
         }
 
-        let proto = Arc::new(RedisParseFactory { flush: matches.opt_present("flush") });
+        let proto = Arc::new(RedisParseFactory {
+            flush: matches.opt_present("flush"),
+            database: database,
+        });
 
         Ok(ProtocolConfig {
             protocol: proto,

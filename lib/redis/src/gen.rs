@@ -21,6 +21,11 @@ pub fn flushall() -> String {
     "flushall\r\n".to_owned()
 }
 
+/// SELECT request
+pub fn select(database: &u32) -> String {
+    format!("select {}\r\n", database)
+}
+
 #[test]
 fn test_flushall() {
     assert_eq!(flushall(), "flushall\r\n");
