@@ -22,7 +22,7 @@ pub fn flushall() -> String {
 }
 
 /// SELECT request
-pub fn select(database: &i64) -> String {
+pub fn select(database: &u32) -> String {
     format!("select {}\r\n", database)
 }
 

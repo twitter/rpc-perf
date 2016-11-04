@@ -92,7 +92,7 @@ struct RedisParse;
 
 struct RedisParseFactory {
     flush: bool,
-    database: i64,
+    database: u32,
 }
 
 impl ProtocolGen for Command {
@@ -146,7 +146,7 @@ pub fn load_config(table: &BTreeMap<String, Value>, matches: &Matches) -> CResul
                 .and_then(|k| k.as_table())
                 .and_then(|k| k.get("database"))
                 .and_then(|k| k.as_integer())
-        .unwrap_or(0);
+        .unwrap_or(0) as u32;
 
     if let Some(&Value::Array(ref workloads)) = table.get("workload") {
         for workload in workloads.iter() {
