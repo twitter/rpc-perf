@@ -14,7 +14,6 @@
 //  limitations under the License.
 
 extern crate mio;
-extern crate mpmc;
 extern crate slab;
 extern crate tic;
 
@@ -25,7 +24,7 @@ use std::time::Duration;
 
 use mio::deprecated::{EventLoop, EventLoopBuilder, Handler};
 use mio::tcp::TcpStream;
-use mpmc::Queue as BoundedQueue;
+use common::Queue as BoundedQueue;
 use tic::{Clocksource, Sample};
 
 use cfgtypes;

@@ -17,14 +17,9 @@
 
 #[macro_use]
 extern crate log;
-extern crate getopts;
-extern crate toml;
-
-extern crate mpmc;
-extern crate ratelimit;
-extern crate shuteye;
 
 extern crate rpcperf_cfgtypes as cfgtypes;
+extern crate rpcperf_common as common;
 extern crate rpcperf_echo as echo;
 extern crate rpcperf_redis as redis;
 extern crate rpcperf_memcache as memcache;

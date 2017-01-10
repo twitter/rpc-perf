@@ -1,6 +1,6 @@
 [package]
 name = "rpcperf_cfgtypes"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Brian Martin <bmartin@twitter.com>"]
 
 license = "Apache-2.0"
@@ -13,9 +13,8 @@ repository = "https://github.com/twitter/rpc-perf"
 readme = "README.md"
 
 [dependencies]
-pad = "0.1.4"
-rand = "0.3.14"
-toml = "0.1.27"
+log = "=0.3.6"
+rpcperf_common = { path = "../common", version = "0.1.0" }
 
 [profile.dev]
 opt-level = 0

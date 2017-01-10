@@ -13,11 +13,10 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-extern crate pad;
 extern crate time;
 extern crate log;
 
-use pad::{PadStr, Alignment};
+use common::padding::{PadStr, Alignment};
 use log::{LogLevel, LogMetadata, LogRecord};
 
 pub struct SimpleLogger;

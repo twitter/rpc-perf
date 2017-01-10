@@ -16,12 +16,12 @@
 #[cfg(feature = "unstable")]
 extern crate test;
 
-use crc::crc32;
+use common::checksum;
 use std::mem::transmute;
 
 /// create an echo request with given value
 pub fn echo(value: &[u8]) -> Vec<u8> {
-    let crc = crc32::checksum_ieee(value);
+    let crc = checksum::crc32::checksum_ieee(value);
     let mut msg: Vec<u8> = Vec::new();
     msg.extend(value.iter().cloned());
     let bytes: [u8; 4] = unsafe { transmute(crc.to_be()) };

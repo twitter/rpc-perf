@@ -1,5 +1,5 @@
 //  rpc-perf - RPC Performance Testing
-//  Copyright 2015 Twitter, Inc
+//  Copyright 2017 Twitter, Inc
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -13,19 +13,35 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use common::padding::{PadStr, Alignment};
-use common::random::{thread_rng, Rng};
+extern crate byteorder;
+extern crate crc;
+extern crate getopts;
+extern crate mpmc;
+extern crate pad;
+extern crate ratelimit;
+extern crate toml;
+extern crate rand;
 
-
-pub fn random_string(size: usize) -> String {
-    thread_rng().gen_ascii_chars().take(size).collect()
+pub mod random {
+    pub use rand::*;
+}
+pub mod checksum {
+    pub use crc::*;
+}
+pub mod padding {
+    pub use pad::*;
+}
+pub mod bytes {
+    pub use byteorder::*;
+}
+pub mod options {
+    pub use getopts::*;
+}
+pub mod limits {
+    pub use ratelimit::*;
+}
+pub mod config {
+    pub use toml::*;
 }
 
-pub fn random_bytes(size: usize) -> Vec<u8> {
-    random_string(size).into_bytes()
-}
-
-pub fn seeded_string(size: usize, seed: usize) -> String {
-    let s = format!("{}", seed);
-    s.pad(size, '0', Alignment::Right, true)
-}
+pub use mpmc::Queue as Queue;

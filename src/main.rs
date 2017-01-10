@@ -17,18 +17,15 @@
 extern crate log;
 
 extern crate bytes;
-extern crate getopts;
 extern crate tiny_http;
 extern crate time;
 extern crate mio;
-extern crate mpmc;
-extern crate pad;
 extern crate regex;
 extern crate rpcperf_request as request;
 extern crate rpcperf_cfgtypes as cfgtypes;
+extern crate rpcperf_common as common;
 extern crate slab;
 extern crate shuteye;
-extern crate toml;
 extern crate tic;
 
 mod client;
@@ -38,10 +35,10 @@ mod net;
 mod state;
 mod stats;
 
-use getopts::Options;
+use common::options::Options;
+use common::Queue as BoundedQueue;
 use log::LogLevelFilter;
 use mio::deprecated::EventLoopBuilder;
-use mpmc::Queue as BoundedQueue;
 use request::config;
 use std::env;
 use std::thread;

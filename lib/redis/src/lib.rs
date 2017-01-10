@@ -15,20 +15,17 @@
 
 #![cfg_attr(feature = "unstable", feature(test))]
 
-extern crate getopts;
-extern crate toml;
-
 extern crate rpcperf_cfgtypes as cfgtypes;
+extern crate rpcperf_common as common;
 
 mod gen;
 mod parse;
 
 use cfgtypes::*;
-use getopts::Matches;
+use common::options::Matches;
 use std::collections::BTreeMap;
 use std::str;
 use std::sync::Arc;
-use toml::Value;
 
 type Param = Parameter<RedisData>;
 
@@ -56,6 +53,12 @@ enum Command {
     Hget(Param, Param),
     Set(Param, Param),
     Hset(Param, Param, Param),
+    Del(Param),
+    Expire(Param, Param),
+    Incr(Param),
+    Decr(Param),
+    Append(Param, Param),
+    Prepend(Param, Param),
 }
 
 impl Command {
@@ -84,6 +87,30 @@ impl Command {
                           p3.value.string.as_str())
                     .into_bytes()
             }
+            Command::Del(ref mut p1) => {
+                p1.regen();
+                gen::del(p1.value.string.as_str()).into_bytes()
+            }
+            Command::Expire(ref mut p1, ref mut p2) => {
+                p1.regen();
+                gen::expire(p1.value.string.as_str(), p2.value.string.as_str().parse().unwrap()).into_bytes()
+            }
+            Command::Incr(ref mut p1) => {
+                p1.regen();
+                gen::incr(p1.value.string.as_str()).into_bytes()
+            }
+            Command::Decr(ref mut p1) => {
+                p1.regen();
+                gen::decr(p1.value.string.as_str()).into_bytes()
+            }
+            Command::Append(ref mut p1, ref mut p2) => {
+                p1.regen();
+                gen::append(p1.value.string.as_str(), p2.value.string.as_str()).into_bytes()
+            }
+            Command::Prepend(ref mut p1, ref mut p2) => {
+                p1.regen();
+                gen::prepend(p1.value.string.as_str(), p2.value.string.as_str()).into_bytes()
+            }
         }
     }
 }
@@ -106,6 +133,12 @@ impl ProtocolGen for Command {
             Command::Set(_, _) => "set",
             Command::Hget(_, _) => "hget",
             Command::Hset(_, _, _) => "hset",
+            Command::Del(_) => "del",
+            Command::Expire(_, _) => "expire",
+            Command::Incr(_) => "incr",
+            Command::Decr(_) => "decr",
+            Command::Append(_, _) => "append",
+            Command::Prepend(_, _) => "prepend",
         }
     }
 }
@@ -205,7 +238,13 @@ fn extract_workload(workload: &BTreeMap<String, Value>) -> CResult<BenchmarkWork
             "hget" if ps.len() == 2 => Command::Hget(ps[0].clone(), ps[1].clone()),
             "set" if ps.len() == 2 => Command::Set(ps[0].clone(), ps[1].clone()),
             "hset" if ps.len() == 3 => Command::Hset(ps[0].clone(), ps[1].clone(), ps[2].clone()),
-            "get" | "set" | "hset" | "hget" => {
+            "del" if ps.len() == 1 => Command::Del(ps[0].clone()),
+            "expire" if ps.len() == 2 => Command::Expire(ps[0].clone(), ps[1].clone()),
+            "incr" if ps.len() == 1 => Command::Incr(ps[0].clone()),
+            "decr" if ps.len() == 1 => Command::Decr(ps[0].clone()),
+            "append" if ps.len() == 2 => Command::Append(ps[0].clone(), ps[1].clone()),
+            "prepend" if ps.len() == 1 => Command::Prepend(ps[0].clone(), ps[1].clone()),
+            "get" | "set" | "hset" | "hget" | "del" | "expire" | "incr" | "decr" | "append" | "prepend" => {
                 return Err(format!("invalid number of params ({}) for method {}",
                                    ps.len(),
                                    method));

@@ -142,7 +142,9 @@ mod tests {
     extern crate test;
 
     use super::*;
+    #[allow(unused_imports)]
     use super::super::*;
+    #[allow(unused_imports)]
     use tests;
 
     #[test]

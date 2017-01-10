@@ -1,6 +1,6 @@
 [package]
 name = "rpc-perf"
-version = "1.0.0-nightly.20161104"
+version = "1.0.0-nightly.20170109"
 authors = ["Brian Martin <bmartin@twitter.com>"]
 
 license = "Apache-2.0"
@@ -39,28 +39,28 @@ debug-assertions = false
 codegen-units = 1
 
 [dependencies]
-bytes = "0.3.0"
-getopts = "0.2.14"
-log = "0.3.5"
-mio = "0.6.0"
-mpmc = "0.1.2"
-pad = "0.1.4"
-regex = "0.1.41"
-slab = "0.3.0"
-shuteye = "0.2.0"
-simple_logger = "0.4.0"
-tiny_http = "0.5.2"
-tic = "0.1.0"
-time = "0.1.35"
-toml = "0.1.27"
+bytes = "=0.3.0"
+log = "=0.3.6"
+mio = "=0.6.2"
+regex = "=0.2.1"
+slab = "=0.3.0"
+shuteye = "=0.2.0"
+simple_logger = "=0.4.0"
+tiny_http = "=0.5.7"
+tic = "=0.1.0"
+time = "=0.1.35"
 
 [dependencies.rpcperf_request]
 path = "./lib/request"
-version = "1.1.0"
+version = "=1.3.1"
 
 [dependencies.rpcperf_cfgtypes]
 path = "./lib/cfgtypes"
-version = "0.1.0"
+version = "=0.1.1"
+
+[dependencies.rpcperf_common]
+path = "./lib/common"
+version = "=0.1.0"
 
 [features]
 asm = [ "tic/asm" ]

@@ -13,14 +13,10 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-extern crate crc;
-
-pub use cfgtypes::ParsedResponse;
-
-pub use crc::crc32;
+use cfgtypes::ParsedResponse;
+pub use common::checksum::crc32;
 
 use std::mem::transmute;
-
 
 pub fn parse_response(response: &[u8]) -> ParsedResponse {
 
@@ -40,7 +36,7 @@ pub fn parse_response(response: &[u8]) -> ParsedResponse {
         return ParsedResponse::Unknown;
     }
 
-    let crc_calc = crc::crc32::checksum_ieee(value);
+    let crc_calc = crc32::checksum_ieee(value);
     let crc_bytes: [u8; 4] = unsafe { transmute(crc_calc.to_be()) };
     if crc == crc_bytes {
         return ParsedResponse::Ok;

@@ -1,6 +1,6 @@
 [package]
 name = "rpcperf_thrift"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Brian Martin <bmartin@twitter.com>",
            "Bryce Anderson <bryce.anderson22@gmail.com"]
 
@@ -14,11 +14,8 @@ repository = "https://github.com/twitter/rpc-perf"
 readme = "README.md"
 
 [dependencies]
-log = "0.3.5"
-byteorder = "0.5.1"
-rand = "0.3.14"
-rpcperf_cfgtypes = { path = "../cfgtypes", version = "0.1.0" }
-toml = "*"
+rpcperf_cfgtypes = { path = "../cfgtypes", version = "0.1.1" }
+rpcperf_common = { path = "../common", version = "0.1.0" }
 
 [profile.dev]
 opt-level = 0
