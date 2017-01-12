@@ -17,9 +17,8 @@
 
 #[macro_use]
 extern crate log;
-extern crate crc;
 extern crate rpcperf_cfgtypes as cfgtypes;
-extern crate toml;
+extern crate rpcperf_common as common;
 
 mod gen;
 mod parse;
@@ -27,7 +26,6 @@ mod parse;
 use cfgtypes::*;
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use toml::Value;
 
 struct EchoParser;
 

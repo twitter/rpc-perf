@@ -13,15 +13,15 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use getopts::Matches;
+use common::options::Matches;
 use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::fs::File;
 use std::io::Read;
 use std::str::FromStr;
-use toml::Parser;
-use toml::Value;
-use toml::Value::Table;
+use cfgtypes::Parser;
+use cfgtypes::Value;
+use cfgtypes::Value::Table;
 
 use echo;
 use memcache;

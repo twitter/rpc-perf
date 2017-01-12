@@ -14,7 +14,7 @@
 //  limitations under the License.
 
 
-use byteorder::{ByteOrder, BigEndian, WriteBytesExt};
+use common::bytes::{ByteOrder, BigEndian, WriteBytesExt};
 
 use consts;
 

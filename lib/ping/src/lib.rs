@@ -16,20 +16,17 @@
 #![cfg_attr(feature = "unstable", feature(test))]
 
 extern crate rpcperf_cfgtypes as cfgtypes;
-extern crate toml;
 
 mod gen;
 mod parse;
 
 use cfgtypes::{BenchmarkWorkload, CResult, ParsedResponse, ProtocolConfig, ProtocolGen,
-               ProtocolParse, ProtocolParseFactory};
+               ProtocolParse, ProtocolParseFactory, Value};
 use std::collections::BTreeMap;
 use std::str;
 use std::sync::Arc;
-use toml::Value;
 
 struct Ping;
-
 
 impl ProtocolGen for Ping {
     fn generate_message(&mut self) -> Vec<u8> {

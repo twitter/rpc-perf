@@ -16,15 +16,15 @@
 pub const BUCKET_SIZE: usize = 10_000;
 
 use cfgtypes;
-use mpmc;
-use ratelimit::Ratelimit;
+use common::Queue;
+use common::limits::Ratelimit;
 use std::thread;
 
 use cfgtypes::ProtocolGen;
 
 /// Launch each of the workloads in their own thread
 pub fn launch_workloads(workloads: Vec<cfgtypes::BenchmarkWorkload>,
-                        work_queue: mpmc::Queue<Vec<u8>>) {
+                        work_queue: Queue<Vec<u8>>) {
 
     for (i, w) in workloads.into_iter().enumerate() {
         info!("Workload {}: Method: {} Rate: {}",
@@ -45,13 +45,13 @@ pub fn launch_workloads(workloads: Vec<cfgtypes::BenchmarkWorkload>,
 struct Workload {
     protocol: Box<ProtocolGen>,
     ratelimit: Option<Ratelimit>,
-    queue: mpmc::Queue<Vec<u8>>,
+    queue: Queue<Vec<u8>>,
 }
 
 impl Workload {
     fn new(protocol: Box<ProtocolGen>,
            rate: Option<u64>,
-           queue: mpmc::Queue<Vec<u8>>)
+           queue: Queue<Vec<u8>>)
            -> Result<Workload, &'static str> {
         let mut ratelimit = None;
         if let Some(r) = rate {

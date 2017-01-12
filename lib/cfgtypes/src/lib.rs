@@ -13,13 +13,12 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-extern crate pad;
-extern crate rand;
-extern crate toml;
+extern crate rpcperf_common as common;
+
+pub use common::config::{Value, Parser};
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use toml::Value;
 
 pub mod tools;
 

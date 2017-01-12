@@ -22,7 +22,7 @@ use super::{Parameter, Tvalue};
 
 use gen;
 use parse;
-use toml::Value;
+use cfgtypes::Value;
 
 struct ThriftParse;
 struct ThriftParseFactory;
@@ -198,7 +198,7 @@ fn extract_parameter(i: usize, parameter: &BTreeMap<String, Value>) -> CResult<P
 
 #[test]
 fn test_load_config() {
-    use toml::Parser;
+    use cfgtypes::Parser;
 
     let table = {
         let config_str = include_str!("../../../configs/thrift_calc.toml");

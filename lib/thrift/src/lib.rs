@@ -15,10 +15,8 @@
 
 #![cfg_attr(feature = "unstable", feature(test))]
 
-extern crate byteorder;
-extern crate rand;
 extern crate rpcperf_cfgtypes as cfgtypes;
-extern crate toml;
+extern crate rpcperf_common as common;
 
 #[cfg(test)]
 mod tests;
@@ -29,6 +27,7 @@ mod gen;
 mod parse;
 
 use cfgtypes::{Style, tools};
+use common::random::random;
 
 pub use config::load_config;
 
@@ -70,12 +69,12 @@ pub enum Tvalue {
 impl Tvalue {
     fn regen(&mut self, size: usize) {
         match *self {
-            Tvalue::Bool(ref mut v) => *v = rand::random::<bool>(),
-            Tvalue::Byte(ref mut v) => *v = rand::random::<u8>(),
-            Tvalue::Double(ref mut v) => *v = rand::random::<f64>(),
-            Tvalue::Int16(ref mut v) => *v = rand::random::<i16>(),
-            Tvalue::Int32(ref mut v) => *v = rand::random::<i32>(),
-            Tvalue::Int64(ref mut v) => *v = rand::random::<i64>(),
+            Tvalue::Bool(ref mut v) => *v = random::<bool>(),
+            Tvalue::Byte(ref mut v) => *v = random::<u8>(),
+            Tvalue::Double(ref mut v) => *v = random::<f64>(),
+            Tvalue::Int16(ref mut v) => *v = random::<i16>(),
+            Tvalue::Int32(ref mut v) => *v = random::<i32>(),
+            Tvalue::Int64(ref mut v) => *v = random::<i64>(),
             Tvalue::String(ref mut v) => *v = tools::random_string(size),
             _ => {}
         }
