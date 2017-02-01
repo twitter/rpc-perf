@@ -1,248 +1,291 @@
-//  rpc-perf - RPC Performance Testing
-//  Copyright 2015 Twitter, Inc
-//
-//  Licensed under the Apache License, Version 2.0 (the "License");
-//  you may not use this file except in compliance with the License.
-//  You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-//  Unless required by applicable law or agreed to in writing, software
-//  distributed under the License is distributed on an "AS IS" BASIS,
-//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//  See the License for the specific language governing permissions and
-//  limitations under the License.
+// Connection
 
 extern crate mio;
-extern crate tic;
 
+use std::net::{SocketAddr, ToSocketAddrs};
+
+use net::InternetProtocol;
 use std::io::{self, Read, Write};
-
 use bytes::{Buf, MutBuf, ByteBuf, MutByteBuf};
-use mio::deprecated::EventLoop;
-use mio::tcp::TcpStream;
 use mio::timer::Timeout;
-use tic::{Clocksource, Sample};
+use mio::tcp::TcpStream;
+use std::process::exit;
 
-use client::Client;
-use state::State;
-use stats::Status;
-use cfgtypes::{ParsedResponse, ProtocolParse};
+#[derive(Clone, Debug, PartialEq)]
+pub enum State {
+    Closed,
+    Reading,
+    Writing,
+}
 
-const MEGABYTE: usize = 1024 * 1024;
+#[derive(Debug)]
+struct Buffer {
+    rx: Option<MutByteBuf>,
+    tx: Option<MutByteBuf>,
+}
 
+impl Buffer {
+    pub fn new() -> Buffer {
+        Buffer {
+            rx: Some(ByteBuf::mut_with_capacity(4 * 1024)),
+            tx: Some(ByteBuf::mut_with_capacity(4 * 1024)),
+        }
+    }
+
+    pub fn clear(&mut self) {
+        let mut rx = self.rx.take().unwrap_or_else(|| ByteBuf::mut_with_capacity(4 * 1024));
+        rx.clear();
+        self.rx = Some(rx);
+
+        let mut tx = self.tx.take().unwrap_or_else(|| ByteBuf::mut_with_capacity(4 * 1024));
+        tx.clear();
+        self.tx = Some(tx);
+    }
+}
+
+#[derive(Debug)]
 pub struct Connection {
-    pub socket: TcpStream,
-    pub token: Option<mio::Token>,
-    pub state: State,
-    pub server: String,
-    buf: Option<ByteBuf>,
-    mut_buf: Option<MutByteBuf>,
-    pub t0: u64,
-    pub stats: tic::Sender<Status>,
-    clocksource: Clocksource,
-    protocol: Box<ProtocolParse>,
-    pub timeout: Option<Timeout>,
+    server: String,
+    stream: Option<TcpStream>,
+    state: State,
+    buffer: Buffer,
+    timeout: Option<Timeout>,
+}
+
+fn connect(server: &str, protocol: InternetProtocol) -> Result<TcpStream, &'static str> {
+    if let Ok(mut a) = server.to_socket_addrs() {
+        if let Ok(s) = to_mio_tcp_stream(a.next().unwrap(), protocol) {
+            return Ok(s);
+        }
+        return Err("error connecting");
+    }
+    Err("error resolving")
+}
+
+fn to_mio_tcp_stream<T: ToSocketAddrs>(addr: T,
+                                       proto: InternetProtocol)
+                                       -> Result<TcpStream, &'static str> {
+    match addr.to_socket_addrs() {
+        Ok(r) => {
+            for a in r {
+                match a {
+                    SocketAddr::V4(_) => {
+                        if proto == InternetProtocol::Any || proto == InternetProtocol::IpV4 {
+                            match TcpStream::connect(&a) {
+                                Ok(s) => {
+                                    return Ok(s);
+                                }
+                                Err(e) => {
+                                    println!("some error: {}", e);
+                                }
+                            }
+                        }
+                    }
+                    SocketAddr::V6(_) => {
+                        if proto == InternetProtocol::Any || proto == InternetProtocol::IpV6 {
+                            match TcpStream::connect(&a) {
+                                Ok(s) => {
+                                    return Ok(s);
+                                }
+                                Err(e) => {
+                                    println!("some error: {}", e);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Err("Could not connect")
+        }
+        Err(_) => Err("Could not resolve"),
+    }
 }
 
 impl Connection {
-    pub fn new(socket: TcpStream,
-               server: String,
-               token: Option<mio::Token>,
-               stats: tic::Sender<Status>,
-               clocksource: Clocksource,
-               protocol: Box<ProtocolParse>,
-               tcp_nodelay: bool)
-               -> Connection {
-
-        let _ = socket.set_nodelay(tcp_nodelay);
-
-        Connection {
-            socket: socket,
-            server: server,
-            token: token,
-            state: State::Writing,
-            buf: Some(ByteBuf::none()),
-            mut_buf: Some(ByteBuf::mut_with_capacity(4 * MEGABYTE)),
-            t0: clocksource.counter(),
-            stats: stats,
-            clocksource: clocksource,
-            protocol: protocol,
-            timeout: None,
+    /// create connection
+    pub fn new(server: String) -> Connection {
+        if let Ok(c) = connect(&server, InternetProtocol::Any) {
+            Connection {
+                server: server,
+                stream: Some(c),
+                state: State::Writing,
+                buffer: Buffer::new(),
+                timeout: None,
+            }
+        } else {
+            Connection {
+                server: server,
+                stream: None,
+                state: State::Closed,
+                buffer: Buffer::new(),
+                timeout: None,
+            }
         }
     }
 
-    pub fn ready(&mut self,
-                 event_loop: &mut EventLoop<Client>,
-                 events: mio::Ready,
-                 work: Option<Vec<u8>>) {
+    pub fn get_timeout(&mut self) -> Option<Timeout> {
+        self.timeout.take()
+    }
 
-        trace!("    connection-state={:?}", self.state);
+    pub fn set_timeout(&mut self, timeout: Timeout) {
+        self.timeout = Some(timeout);
+    }
 
-        match self.state {
-            State::Reading => {
-                assert!(events.is_readable(),
-                        "unexpected events; events={:?}",
-                        events);
-                let now = self.clocksource.counter();
-                let response = self.read(event_loop);
-                match response {
-                    ParsedResponse::Hit => {
-                        let _ = self.stats.send(Sample::new(self.t0, now, Status::Hit));
-                    }
-                    ParsedResponse::Ok => {
-                        let _ = self.stats.send(Sample::new(self.t0, now, Status::Ok));
-                    }
-                    ParsedResponse::Miss => {
-                        let _ = self.stats.send(Sample::new(self.t0, now, Status::Miss));
-                    }
-                    ParsedResponse::Incomplete => {}
-                    ParsedResponse::Unknown => {
-                        let _ = self.stats.send(Sample::new(self.t0, now, Status::Closed));
-                    }
-                    _ => {
-                        let _ = self.stats.send(Sample::new(self.t0, now, Status::Error));
-                        debug!("unexpected response: {:?}", response);
-                    }
-                }
-                if response != ParsedResponse::Incomplete {
-                    if let Some(timeout) = self.timeout.clone() {
-                        event_loop.clear_timeout(&timeout);
-                        self.timeout = None;
-                    }
-                }
-            }
-            State::Writing => {
-                assert!(events.is_writable(),
-                        "unexpected events; events={:?}",
-                        events);
-                if let Some(w) = work {
-                    let mut buf = match self.mut_buf.take() {
-                        Some(b) => b,
-                        None => {
-                            panic!("no mut_buf to take");
-                        }
-                    };
-                    buf.clear();
-                    buf.write_slice(&*w);
-                    self.buf = Some(buf.flip());
-                    self.write(event_loop)
-                } else {
-                    panic!("no work");
-                }
-            }
-            _ => unimplemented!(),
+    /// reconnect the connection in write mode
+    pub fn reconnect(&mut self) {
+        let _ = self.close();
+        if let Ok(s) = connect(&self.server, InternetProtocol::Any) {
+            self.stream = Some(s);
+            self.state = State::Writing;
+        } else {
+            error!("failed to reconnect");
         }
     }
 
-    pub fn read(&mut self, event_loop: &mut EventLoop<Client>) -> ParsedResponse {
+    pub fn close(&mut self) -> Option<TcpStream> {
+        self.state = State::Closed;
+        self.buffer.clear();
+        self.stream.take()
+    }
+
+    pub fn stream(&self) -> Option<&TcpStream> {
+        if let Some(ref s) = self.stream {
+            Some(s)
+        } else {
+            None
+        }
+    }
+
+    /// flush the buffer
+    pub fn flush(&mut self) -> Result<(), ()> {
+        if self.state != State::Writing {
+            error!("flush() {:?} connection", self.state);
+            exit(1);
+        }
+        let b = self.buffer.tx.take();
+        if let Some(buffer) = b {
+            let mut buffer = buffer.flip();
+
+            let mut s = self.stream.take().unwrap();
+
+            match s.try_write_buf(&mut buffer) {
+                Ok(Some(_)) => {
+                    // successful write
+                    if !buffer.has_remaining() {
+                        self.set_readable();
+                    } else {
+                        debug!("incomplete write to skbuff")
+                    }
+                    self.stream = Some(s);
+                }
+                Ok(None) => {
+                    // socket wasn't ready
+                    self.stream = Some(s);
+                    debug!("spurious read");
+                }
+                Err(e) => {
+                    // got some write error, abandon
+                    debug!("write error: {:?}", e);
+                    return Err(());
+                }
+            }
+            self.buffer.tx = Some(buffer.flip());
+            Ok(())
+        } else {
+            error!("read() no buffer");
+            Err(())
+        }
+    }
+
+    pub fn write(&mut self, bytes: Vec<u8>) -> Result<(), ()> {
+        if !self.is_writable() {
+            error!("write() {:?} connection", self.state);
+            exit(1);
+        }
+        trace!("write(): {:?}", bytes);
+        let b = self.buffer.tx.take();
+        if let Some(mut buffer) = b {
+            buffer.clear();
+            buffer.write_slice(&bytes);
+            self.buffer.tx = Some(buffer);
+        } else {
+            error!("buffer error");
+            exit(1);
+        }
+        self.flush()
+    }
+
+    pub fn set_writable(&mut self) {
+        trace!("connection switch to writable");
+        self.state = State::Writing;
+    }
+
+    pub fn set_readable(&mut self) {
+        trace!("connection switch to readable");
+        self.state = State::Reading;
+    }
+
+    pub fn is_readable(&self) -> bool {
+        self.state == State::Reading
+    }
+
+    pub fn is_writable(&self) -> bool {
+        self.state == State::Writing
+    }
+
+    pub fn read(&mut self) -> Result<Vec<u8>, ()> {
+        if !self.is_readable() {
+            error!("read() {:?} connection", self.state);
+            exit(1);
+        }
 
         trace!("read()");
 
-        // response unknown until parsed
-        let mut resp = ParsedResponse::Unknown;
+        let mut response = Vec::<u8>::new();
 
-        let mut buf = match self.mut_buf.take() {
-            Some(b) => b,
-            None => {
-                panic!("read() no mut_buf");
-            }
-        };
-
-        match self.socket.try_read_buf(&mut buf) {
-            Ok(Some(0)) => {
-                trace!("read() closed");
-                self.state = State::Closed;
-            }
-            Ok(Some(n)) => {
-                unsafe {
-                    buf.advance(n);
+        if let Some(mut buffer) = self.buffer.rx.take() {
+            let mut s = self.stream.take().unwrap();
+            match s.try_read_buf(&mut buffer) {
+                Ok(Some(0)) => {
+                    error!("read() closed");
+                    return Err(());
                 }
-
-                // read bytes from connection
-                trace!("read() bytes {}", n);
-
-                let mut buf = buf.flip();
-
-                // protocol dependant parsing
-                let mut response = Vec::<u8>::new();
-                let _ = buf.by_ref().take(n as u64).read_to_end(&mut response);
-                trace!("read: {:?}", response);
-                resp = self.protocol.parse(&response);
-
-                // if incomplete replace the buffer contents, otherwise transition
-                match resp {
-                    ParsedResponse::Incomplete => {
-                        trace!("read() Incomplete");
-                        self.mut_buf = Some(buf.resume());
+                Ok(Some(n)) => {
+                    unsafe {
+                        buffer.advance(n);
                     }
-                    _ => {
-                        trace!("read() Complete");
 
-                        self.state = State::Writing;
-                        self.mut_buf = Some(buf.flip());
-                    }
+                    // read bytes from connection
+                    trace!("read() bytes {}", n);
+                    let mut buffer = buffer.flip();
+                    let _ = buffer.by_ref().take(n as u64).read_to_end(&mut response);
+                    trace!("read: {:?}", response);
+                    self.buffer.rx = Some(buffer.flip());
+                    self.stream = Some(s);
                 }
-
-                self.reregister(event_loop);
-            }
-            Ok(None) => {
-                trace!("read() spurious wake-up");
-                self.mut_buf = Some(buf);
-                self.reregister(event_loop);
-            }
-            Err(e) => {
-                debug!("server has terminated: {}", e);
-                self.state = State::Closed;
-            }
-        }
-        resp
-    }
-
-    pub fn write(&mut self, event_loop: &mut EventLoop<Client>) {
-        trace!("write()");
-        self.state = State::Writing;
-        self.t0 = self.clocksource.counter();
-        let mut buf = self.buf.take().unwrap();
-        match self.socket.try_write_buf(&mut buf) {
-            Ok(Some(_)) => {
-                // successful write
-                if !buf.has_remaining() {
-                    self.state = State::Reading;
-                    trace!("switch to read()");
+                Ok(None) => {
+                    error!("read() spurious wake-up");
+                    self.buffer.rx = Some(buffer);
+                    self.stream = Some(s);
                 }
-                self.reregister(event_loop);
+                Err(e) => {
+                    error!("read() server has terminated: {}", e);
+                    return Err(());
+                }
             }
-            Ok(None) => {
-                // socket wasn't ready
-                self.reregister(event_loop);
-            }
-            Err(e) => {
-                // got some write error, abandon
-                debug!("got an error trying to write; err={:?}", e);
-                let t1 = self.clocksource.counter();
-                let _ = self.stats.send(Sample::new(self.t0, t1, Status::Closed));
-                self.state = State::Closed
-            }
+        } else {
+            error!("read() buffer issue");
+            exit(1);
         }
-        self.mut_buf = Some(buf.flip());
+        Ok(response)
     }
 
-    pub fn reregister(&self, event_loop: &mut EventLoop<Client>) {
-        event_loop.reregister(&self.socket,
-                        self.token.unwrap(),
-                        event_set(self.state.clone()),
-                        mio::PollOpt::edge())
-            .unwrap();
-    }
-}
-
-// State to mio EventSet mapping
-fn event_set(state: State) -> mio::Ready {
-    match state {
-        State::Reading => mio::Ready::readable(),
-        State::Writing => mio::Ready::writable(),
-        _ => mio::Ready::none(),
+    pub fn event_set(&self) -> mio::Ready {
+        match self.state {
+            State::Reading => mio::Ready::readable(),
+            State::Writing => mio::Ready::writable(),
+            _ => mio::Ready::none() | mio::Ready::hup(),
+        }
     }
 }
 

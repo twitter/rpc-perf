@@ -15,8 +15,6 @@
 
 #![cfg_attr(feature = "unstable", feature(test))]
 
-#[macro_use]
-extern crate log;
 extern crate rpcperf_cfgtypes as cfgtypes;
 extern crate rpcperf_common as common;
 

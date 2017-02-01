@@ -1,9 +1,10 @@
 [root]
 name = "rpc-perf"
-version = "1.0.0-nightly.20170109"
+version = "1.0.0-nightly.20170126"
 dependencies = [
  "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log-panics 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "mio 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "regex 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rpcperf_cfgtypes 0.1.1",
@@ -217,6 +218,14 @@ dependencies = [
 name = "log"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "log-panics"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "matches"
@@ -679,6 +688,7 @@ dependencies = [
 "checksum libc 0.2.19 (registry+https://github.com/rust-lang/crates.io-index)" = "9e030dc72013ed68994d1b2cbf36a94dd0e58418ba949c4b0db7eeb70a7a6352"
 "checksum lodepng 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)" = "20fa9f2831022f250ae83b4b6b5f54667a1e966fa1cfff624c2949d81eefbfdd"
 "checksum log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)" = "ab83497bf8bf4ed2a74259c1c802351fcd67a65baa86394b6ba73c36f4838054"
+"checksum log-panics 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "26bbb657dd8a31b920792fba3fc60f2c18e9477931c0e01afed98116aa0056a7"
 "checksum matches 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)" = "efd7622e3022e1a6eaa602c4cea8912254e5582c9c692e9167714182244801b1"
 "checksum memchr 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "1dbccc0e46f1ea47b9f17e6d67c5a96bd27030519c519c9c91327e31275a47b4"
 "checksum mio 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)" = "5b493dc9fd96bd2077f2117f178172b0765db4dfda3ea4d8000401e6d65d3e80"

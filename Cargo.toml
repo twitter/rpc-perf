@@ -1,6 +1,6 @@
 [package]
 name = "rpc-perf"
-version = "1.0.0-nightly.20170109"
+version = "1.0.0-nightly.20170126"
 authors = ["Brian Martin <bmartin@twitter.com>"]
 
 license = "Apache-2.0"
@@ -34,13 +34,14 @@ codegen-units = 1
 opt-level = 3
 debug = false
 rpath = false
-lto = true
+lto = false
 debug-assertions = false
 codegen-units = 1
 
 [dependencies]
 bytes = "=0.3.0"
 log = "=0.3.6"
+log-panics = "=1.1.0"
 mio = "=0.6.2"
 regex = "=0.2.1"
 slab = "=0.3.0"

@@ -3,6 +3,9 @@
 #
 # use-case: benchmark peak throughput for 128b value (hitrate: 100%)
 
+[general]
+timeout = 10
+
 [[workload]]
 name = "get"
 method = "get"

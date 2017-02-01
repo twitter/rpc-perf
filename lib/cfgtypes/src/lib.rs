@@ -82,7 +82,7 @@ pub trait ProtocolParseFactory: Send + Sync {
 }
 
 /// Protocol specific parser
-pub trait ProtocolParse {
+pub trait ProtocolParse: Send {
     /// Parse the response buffer
     fn parse(&self, bytes: &[u8]) -> ParsedResponse;
 }
