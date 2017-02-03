@@ -18,9 +18,10 @@
 #[cfg(feature = "unstable")]
 extern crate test;
 
-use std::process::Command;
+#[allow(unused_imports)]
 use std::process;
 
+use std::process::Command;
 
 #[cfg(feature = "unstable")]
 #[bench]
@@ -34,10 +35,15 @@ fn main(b: &mut test::Bencher) {
     process::exit(0);
 }
 
+#[allow(dead_code)]
 fn bench_subcrate(subcrate: &str) {
     let prefix = "./lib/".to_owned();
     let path = prefix + subcrate;
-    let status = Command::new("cargo").args(&["bench", "--features", "unstable"]).current_dir(&path).status().unwrap();
+    let status = Command::new("cargo")
+        .args(&["bench", "--features", "unstable"])
+        .current_dir(&path)
+        .status()
+        .unwrap();
     assert!(status.success(),
             "test for sub-crate: {} returned: {:?}",
             subcrate,

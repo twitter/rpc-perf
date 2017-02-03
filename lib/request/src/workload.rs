@@ -34,7 +34,7 @@ pub fn launch_workloads(workloads: Vec<cfgtypes::BenchmarkWorkload>,
 
         let mut workload = Workload::new(w.gen, Some(w.rate as u64), work_queue.clone()).unwrap();
 
-        thread::spawn(move || {
+        let _ = thread::Builder::new().name(format!("workload{}", i).to_string()).spawn(move || {
             loop {
                 workload.run();
             }
@@ -49,16 +49,17 @@ struct Workload {
 }
 
 impl Workload {
+    /// Create a new `Workload` based on a protocol, optional rate, and a queue
     fn new(protocol: Box<ProtocolGen>,
            rate: Option<u64>,
            queue: Queue<Vec<u8>>)
            -> Result<Workload, &'static str> {
         let mut ratelimit = None;
         if let Some(r) = rate {
-            if r != 0 {
+            if r > 0 {
                 ratelimit = Some(Ratelimit::configure()
                     .frequency(r as u32)
-                    .capacity(10000)
+                    .capacity(BUCKET_SIZE as u32)
                     .build());
             }
         }
@@ -69,14 +70,14 @@ impl Workload {
         })
     }
 
+    /// Generates work at a fixed rate and pushes to the queue
     fn run(&mut self) {
         loop {
             if let Some(ref mut ratelimit) = self.ratelimit {
                 ratelimit.block(1);
             }
 
-            let query = self.protocol.generate_message();
-            let _ = self.queue.push(query);
+            let _ = self.queue.push(self.protocol.generate_message());
         }
     }
 }

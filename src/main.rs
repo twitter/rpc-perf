@@ -15,6 +15,7 @@
 
 #[macro_use]
 extern crate log;
+extern crate log_panics;
 
 extern crate bytes;
 extern crate tiny_http;
@@ -32,19 +33,16 @@ mod client;
 mod connection;
 mod logger;
 mod net;
-mod state;
 mod stats;
 
 use common::options::Options;
 use common::Queue as BoundedQueue;
 use log::LogLevelFilter;
-use mio::deprecated::EventLoopBuilder;
 use request::config;
 use std::env;
 use std::thread;
-use std::time::Duration;
 
-use client::{Client, ClientConfig};
+use client::Client;
 use logger::SimpleLogger;
 use net::InternetProtocol;
 use request::workload;
@@ -121,9 +119,7 @@ fn choose_layer_3(ipv4: bool, ipv6: bool) -> Result<InternetProtocol, String> {
 #[allow(unknown_lints, cyclomatic_complexity)]
 pub fn main() {
     let args: Vec<String> = env::args().collect();
-
     let program = &args[0];
-
     let opts = opts();
 
     let matches = match opts.parse(&args[1..]) {
@@ -144,8 +140,9 @@ pub fn main() {
         return;
     }
 
-    // defaults
+    // initialize logging
     set_log_level(matches.opt_count("verbose"));
+    log_panics::init();
 
     info!("rpc-perf {} initializing...", VERSION);
     if cfg!(feature = "asm") {
@@ -158,7 +155,7 @@ pub fn main() {
         error!("require server parameter");
         print_usage(program, opts);
         return;
-    };
+    }
 
     let waterfall = matches.opt_str("waterfall");
     let trace = matches.opt_str("trace");
@@ -168,8 +165,8 @@ pub fn main() {
     // Load workload configuration
     let config = match config::load_config(&matches) {
         Ok(cfg) => cfg,
-        Err(reason) => {
-            error!("{}", reason);
+        Err(e) => {
+            error!("{}", e);
             return;
         }
     };
@@ -197,10 +194,6 @@ pub fn main() {
             return;
         }
     }
-
-    let mut evconfig = EventLoopBuilder::new();
-    evconfig.timer_tick(Duration::from_millis(1));
-    evconfig.timer_wheel_size(1024);
 
     info!("-----");
     info!("Config:");
@@ -258,30 +251,43 @@ pub fn main() {
     stats_receiver.add_interest(tic::Interest::Count(stats::Status::Closed));
     stats_receiver.add_interest(tic::Interest::Count(stats::Status::Timeout));
 
+    let mut tx = Vec::new();
+
     info!("-----");
     info!("Connecting...");
-    // spawn client threads
     for i in 0..config.threads {
         info!("Client: {}", i);
 
-        let client_config = ClientConfig {
-            servers: matches.opt_strs("server"),
-            connections: config.connections,
-            stats: stats_receiver.get_sender().clone(),
-            clocksource: stats_receiver.get_clocksource().clone(),
-            client_protocol: config.protocol_config.protocol.clone(),
-            internet_protocol: internet_protocol,
-            timeout: config.timeout,
-            work_rx: work_queue.clone(),
-            tcp_nodelay: config.tcp_nodelay,
-            mio_config: evconfig.clone(),
-        };
+        let mut client_config = Client::configure();
+        client_config.set_pool_size(config.connections);
+        client_config.stats(stats_receiver.get_sender().clone());
+        client_config.set_clocksource(stats_receiver.get_clocksource().clone());
+        client_config.set_protocol(config.protocol_config.protocol.clone());
+        client_config.set_timeout(config.timeout);
+        for server in matches.opt_strs("server") {
+            client_config.add_server(server);
+        }
 
-        thread::spawn(move || {
-            let mut client = Client::new(client_config);
+        let mut client = client_config.build();
+        tx.push(client.tx());
+
+        let _ = thread::Builder::new().name(format!("client{}", i).to_string()).spawn(move || {
             client.run();
         });
     }
+
+    let _ = thread::Builder::new().name("queue0".to_string()).spawn(move || {
+        let mut i = 0;
+        loop {
+            if let Some(w) = work_queue.pop() {
+                i += 1;
+                if i >= tx.len() {
+                    i = 0;
+                }
+                let _ = tx[i].try_send(w);
+            }
+        }
+    });
 
     stats::run(stats_receiver, config.windows, config.duration);
 }

@@ -77,7 +77,7 @@ pub fn run(mut receiver: tic::Receiver<Status>, windows: usize, duration: usize)
 
             let t = (new_total - total) as f64;
             let success_rate = if t > 0.0 {
-                100.0 * (t - (new_error - error) as f64) / t
+                100.0 * (t - ((new_error - error) + (new_timeout - timeout)) as f64) / t
             } else {
                 0.0
             };
