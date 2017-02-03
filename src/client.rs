@@ -175,8 +175,8 @@ impl Client {
             for _ in 0..config.pool_size {
                 match client.connections.insert(Connection::new(server.clone())) {
                     Ok(token) => {
-                        if !client.connections[token].stream().is_none() {
-                            client.ready.push_back(token);
+                        if let Some(s) = client.connections[token].stream() {
+                            client.register(s, token, client.connections[token].event_set());
                         }
                     }
                     Err(_) => {
@@ -201,7 +201,12 @@ impl Client {
         match self.poll.register(io, token, interest, PollOpt::edge() | PollOpt::oneshot()) {
             Ok(_) => {}
             Err(e) => {
-                error!("error registering {:?}: {}", token, e);
+                if !self.poll.deregister(io).is_ok() {
+                    error!("error registering {:?}: {}", token, e);
+                } else {
+                    let _ = self.poll
+                        .register(io, token, interest, PollOpt::edge() | PollOpt::oneshot());
+                }
             }
         }
     }
@@ -223,8 +228,8 @@ impl Client {
             self.deregister(s);
         }
         self.connections[token].reconnect();
-        if self.connections[token].stream().is_some() {
-            self.ready.push_back(token);
+        if let Some(s) = self.connections[token].stream() {
+            self.register(s, token, self.connections[token].event_set())
         } else {
             error!("failure reconnecting");
             exit(1);
@@ -320,7 +325,8 @@ impl Client {
                         let work = self.rx.try_recv().unwrap();
                         self.write(token, work);
                     } else {
-                        error!("internal state error. dispatch to non-writable");
+                        error!("internal state error. dispatch to non-writable {:?}",
+                               self.connections[token].state());
                         exit(1);
                     }
                 }
@@ -328,7 +334,12 @@ impl Client {
                 // we have a readiness for a connection
                 let token = event.token();
                 trace!("connection ready {:?}", token);
-                if event.kind().is_readable() {
+                if self.connections[token].is_connecting() {
+                    trace!("connection established {:?}", token);
+                    self.connections[token].set_writable();
+                    self.deregister(self.connections[token].stream().unwrap());
+                    self.ready.push_back(token);
+                } else if event.kind().is_readable() {
                     trace!("reading event {:?}", token);
                     self.read(token);
                 } else if event.kind().is_writable() {

@@ -1,10 +1,6 @@
-# this example is the default behavior of rpc-perf
-# non-ratelimitied hotkey get suitable for memcache or redis on a 1byte key
+# non-ratelimitied hotkey get suitable for memcache or redis on a 1 byte key
 #
-# use-case: benchmark peak throughput for 128b value (hitrate: 100%)
-
-[general]
-timeout = 10
+# use-case: benchmark peak throughput for 128 byte value (hitrate: 100%)
 
 [[workload]]
 name = "get"

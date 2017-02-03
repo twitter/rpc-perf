@@ -14,6 +14,7 @@ use std::process::exit;
 #[derive(Clone, Debug, PartialEq)]
 pub enum State {
     Closed,
+    Connecting,
     Reading,
     Writing,
 }
@@ -108,7 +109,7 @@ impl Connection {
             Connection {
                 server: server,
                 stream: Some(c),
-                state: State::Writing,
+                state: State::Connecting,
                 buffer: Buffer::new(),
                 timeout: None,
             }
@@ -136,7 +137,7 @@ impl Connection {
         let _ = self.close();
         if let Ok(s) = connect(&self.server, InternetProtocol::Any) {
             self.stream = Some(s);
-            self.state = State::Writing;
+            self.state = State::Connecting;
         } else {
             error!("failed to reconnect");
         }
@@ -154,6 +155,10 @@ impl Connection {
         } else {
             None
         }
+    }
+
+    pub fn state(&self) -> &State {
+        &self.state
     }
 
     /// flush the buffer
@@ -225,6 +230,10 @@ impl Connection {
         self.state = State::Reading;
     }
 
+    pub fn is_connecting(&self) -> bool {
+        self.state == State::Connecting
+    }
+
     pub fn is_readable(&self) -> bool {
         self.state == State::Reading
     }
@@ -282,9 +291,9 @@ impl Connection {
 
     pub fn event_set(&self) -> mio::Ready {
         match self.state {
+            State::Connecting | State::Writing => mio::Ready::writable(),
             State::Reading => mio::Ready::readable(),
-            State::Writing => mio::Ready::writable(),
-            _ => mio::Ready::none() | mio::Ready::hup(),
+            _ => mio::Ready::none(),
         }
     }
 }
