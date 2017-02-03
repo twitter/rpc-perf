@@ -35,7 +35,29 @@ const MAX_CONNECTIONS: usize = 65536;
 const MAX_EVENTS: usize = 1024;
 const MAX_PENDING: usize = 1024;
 const TOKEN_TIMER: Token = Token(MAX_CONNECTIONS + 1);
-const TOKEN_WORK: Token = Token(MAX_CONNECTIONS + 2);
+const TOKEN_QUEUE: Token = Token(MAX_CONNECTIONS + 2);
+
+const TICK_MS: u64 = 1;
+
+fn pollopt_conn() -> PollOpt {
+    PollOpt::edge() | PollOpt::oneshot()
+}
+
+fn pollopt_timer() -> PollOpt {
+    PollOpt::level()
+}
+
+fn pollopt_queue() -> PollOpt {
+    PollOpt::level()
+}
+
+fn ready_timer() -> Ready {
+    Ready::readable()
+}
+
+fn ready_queue() -> Ready {
+    Ready::readable()
+}
 
 type Slab<T> = slab::Slab<T, Token>;
 
@@ -167,7 +189,9 @@ impl Client {
             times: vec![0; MAX_CONNECTIONS],
             clocksource: config.clocksource.unwrap(),
             protocol: config.protocol.unwrap().clone().new(),
-            timer: mio::timer::Builder::default().tick_duration(Duration::from_millis(1)).build(),
+            timer: mio::timer::Builder::default()
+                .tick_duration(Duration::from_millis(TICK_MS))
+                .build(),
             timeout: config.timeout,
         };
 
@@ -177,6 +201,8 @@ impl Client {
                     Ok(token) => {
                         if let Some(s) = client.connections[token].stream() {
                             client.register(s, token, client.connections[token].event_set());
+                        } else {
+                            error!("failure creating connection");
                         }
                     }
                     Err(_) => {
@@ -186,26 +212,25 @@ impl Client {
                 }
             }
         }
-        let _ = client.poll.register(&client.timer,
-                                     TOKEN_TIMER,
-                                     Ready::readable(),
-                                     PollOpt::level());
-        let _ = client.poll.register(&client.rx, TOKEN_WORK, Ready::readable(), PollOpt::level());
+        let _ = client.poll.register(&client.timer, TOKEN_TIMER, ready_timer(), pollopt_timer());
+        let _ = client.poll.register(&client.rx, TOKEN_QUEUE, ready_queue(), pollopt_queue());
 
         client
     }
 
+    /// register with the poller
+    /// - reregister on failure
     fn register<E: ?Sized>(&self, io: &E, token: Token, interest: Ready)
         where E: Evented
     {
-        match self.poll.register(io, token, interest, PollOpt::edge() | PollOpt::oneshot()) {
+        match self.poll.register(io, token, interest, pollopt_conn()) {
             Ok(_) => {}
             Err(e) => {
                 if !self.poll.deregister(io).is_ok() {
                     error!("error registering {:?}: {}", token, e);
                 } else {
                     let _ = self.poll
-                        .register(io, token, interest, PollOpt::edge() | PollOpt::oneshot());
+                        .register(io, token, interest, pollopt_conn());
                 }
             }
         }
@@ -222,6 +247,24 @@ impl Client {
         }
     }
 
+    #[inline]
+    fn event_set(&self, token: Token) -> mio::Ready {
+        self.connections[token].event_set()
+    }
+
+    #[inline]
+    fn state(&self, token: Token) -> &State {
+        self.connections[token].state()
+    }
+
+    #[inline]
+    fn set_writable(&mut self, token: Token) {
+        self.connections[token].set_writable();
+        self.ready.push_back(token);
+    }
+
+
+    /// reconnect helper
     fn reconnect(&mut self, token: Token) {
         debug!("reconnect {:?}", token);
         if let Some(s) = self.connections[token].stream() {
@@ -229,13 +272,16 @@ impl Client {
         }
         self.connections[token].reconnect();
         if let Some(s) = self.connections[token].stream() {
-            self.register(s, token, self.connections[token].event_set())
+            self.register(s, token, self.event_set(token))
         } else {
             error!("failure reconnecting");
             exit(1);
         }
     }
 
+    /// write bytes to connection
+    /// - reconnect on failure
+    /// - transition to Reading if entire buffer written in one call
     fn write(&mut self, token: Token, work: Vec<u8>) {
         trace!("send to {:?}", token);
         self.times[token.0] = self.clocksource.counter();
@@ -246,7 +292,7 @@ impl Client {
                     .unwrap());
             }
             if let Some(s) = self.connections[token].stream() {
-                self.register(s, token, self.connections[token].event_set());
+                self.register(s, token, self.event_set(token));
             }
         } else {
             debug!("couldn't write");
@@ -254,6 +300,9 @@ impl Client {
         }
     }
 
+    /// read and parse response
+    /// - reconnect on failure
+    /// - transition to Writing when response is complete
     fn read(&mut self, token: Token) {
         if let Ok(response) = self.connections[token].read() {
             if !response.is_empty() {
@@ -275,8 +324,7 @@ impl Client {
                     if let Some(timeout) = self.connections[token].get_timeout() {
                         self.timer.cancel_timeout(&timeout);
                     }
-                    self.connections[token].set_writable();
-                    self.ready.push_back(token);
+                    self.set_writable(token);
                 }
             }
         } else {
@@ -285,6 +333,8 @@ impl Client {
         }
     }
 
+    /// timeout handler
+    /// - reconnect always
     fn timeout(&mut self, token: Token) {
         debug!("timeout {:?}", token);
         let t0 = self.times[token.0];
@@ -293,58 +343,76 @@ impl Client {
         self.reconnect(token);
     }
 
+    /// write remaining buffer to underlying stream for token
+    /// - reconnect on failure
+    /// - transition to Reading when write buffer depleated
     fn flush(&mut self, token: Token) {
         trace!("flush {:?}", token);
         self.times[token.0] = self.clocksource.counter();
         if self.connections[token].flush().is_ok() {
             if let Some(s) = self.connections[token].stream() {
-                self.register(s, token, self.connections[token].event_set());
+                self.register(s, token, self.event_set(token));
             }
         } else {
             self.reconnect(token);
         }
     }
 
+    /// write a request from the queue to the given token
+    fn send(&mut self, token: Token) {
+        if self.connections[token].is_writable() {
+            let work = self.rx.try_recv().unwrap();
+            self.write(token, work);
+        } else {
+            error!("internal state error. dispatch to non-writable {:?}",
+                   self.state(token));
+            exit(1);
+        }
+    }
+
+    /// event handler for connections
+    fn connection_ready(&mut self, token: Token, event: mio::Event) {
+        if self.connections[token].is_connecting() {
+            trace!("connection established {:?}", token);
+            self.connections[token].set_writable();
+            self.deregister(self.connections[token].stream().unwrap());
+            self.ready.push_back(token);
+        } else if event.kind().is_readable() {
+            trace!("reading event {:?}", token);
+            self.read(token);
+        } else if event.kind().is_writable() {
+            trace!("writing event {:?}", token);
+            self.flush(token);
+        }
+    }
+
     /// poll for events and handle them
     pub fn poll(&mut self) {
         let mut events = Events::with_capacity(MAX_EVENTS);
-        self.poll.poll(&mut events, Some(Duration::from_millis(1))).unwrap();
+        self.poll.poll(&mut events, Some(Duration::from_millis(TICK_MS))).unwrap();
 
         for event in events.iter() {
-            if event.token() == TOKEN_TIMER {
-                if let Some(token) = self.timer.poll() {
-                    // we have a timeout to handle
-                    trace!("timeout fired for {:?}", token);
-                    self.timeout(token);
-                }
-            } else if event.token() == TOKEN_WORK {
-                if !self.ready.is_empty() {
-                    // we have work to do and a connection to use
-                    let token = self.ready.pop_front().unwrap();
-                    if self.connections[token].is_writable() {
-                        let work = self.rx.try_recv().unwrap();
-                        self.write(token, work);
-                    } else {
-                        error!("internal state error. dispatch to non-writable {:?}",
-                               self.connections[token].state());
+            let token = event.token();
+            if token.0 <= MAX_CONNECTIONS {
+                trace!("connection ready {:?}", token);
+                self.connection_ready(token, event);
+            } else {
+                match token {
+                    TOKEN_TIMER => {
+                        trace!("timeout fired for {:?}", token);
+                        self.timeout(token);
+                    }
+                    TOKEN_QUEUE => {
+                        if !self.ready.is_empty() {
+                            // we have work to do and a connection to use
+                            let token = self.ready.pop_front().unwrap();
+                            self.send(token);
+                        }
+                    }
+                    _ => {
+                        error!("unknown token: {:?}", token);
                         exit(1);
                     }
-                }
-            } else {
-                // we have a readiness for a connection
-                let token = event.token();
-                trace!("connection ready {:?}", token);
-                if self.connections[token].is_connecting() {
-                    trace!("connection established {:?}", token);
-                    self.connections[token].set_writable();
-                    self.deregister(self.connections[token].stream().unwrap());
-                    self.ready.push_back(token);
-                } else if event.kind().is_readable() {
-                    trace!("reading event {:?}", token);
-                    self.read(token);
-                } else if event.kind().is_writable() {
-                    trace!("writing event {:?}", token);
-                    self.flush(token);
                 }
             }
         }
