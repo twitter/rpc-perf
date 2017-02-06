@@ -1,6 +1,6 @@
 [root]
 name = "rpc-perf"
-version = "1.0.0-nightly.20170126"
+version = "1.0.0-nightly.20170203"
 dependencies = [
  "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
