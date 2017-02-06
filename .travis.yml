@@ -5,7 +5,6 @@ rust:
   - nightly
 os:
   - linux
-  - osx
 script:
 - cargo build --verbose
 - cargo build --release --verbose
@@ -16,12 +15,6 @@ matrix:
     - os: linux
       rust: nightly
       script: cargo bench --features unstable
-    - os: osx
-      rust: nightly
-      script: cargo bench --features unstable
     - os: linux
-      rust: nightly
-      script: cargo build --features asm
-    - os: osx
       rust: nightly
       script: cargo build --features asm
