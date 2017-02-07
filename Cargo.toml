@@ -1,6 +1,6 @@
 [package]
 name = "rpc-perf"
-version = "1.0.0-nightly.20170203"
+version = "1.0.0-nightly.20170207"
 authors = ["Brian Martin <bmartin@twitter.com>"]
 
 license = "Apache-2.0"
@@ -48,7 +48,7 @@ slab = "=0.3.0"
 shuteye = "=0.2.0"
 simple_logger = "=0.4.0"
 tiny_http = "=0.5.7"
-tic = "=0.1.0"
+tic = "=0.1.1"
 time = "=0.1.35"
 
 [dependencies.rpcperf_request]
