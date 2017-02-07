@@ -190,8 +190,8 @@ impl Client {
             clocksource: config.clocksource.unwrap(),
             protocol: config.protocol.unwrap().clone().new(),
             timer: mio::timer::Builder::default()
-                .tick_duration(Duration::from_millis(TICK_MS))
-                .build(),
+                       .tick_duration(Duration::from_millis(TICK_MS))
+                       .build(),
             timeout: config.timeout,
         };
 
@@ -199,8 +199,18 @@ impl Client {
             for _ in 0..config.pool_size {
                 match client.connections.insert(Connection::new(server.clone())) {
                     Ok(token) => {
-                        if let Some(s) = client.connections[token].stream() {
-                            client.register(s, token, client.connections[token].event_set());
+
+                        if client.connections[token].stream().is_some() {
+                            client.register(client.connections[token].stream().unwrap(),
+                                            token,
+                                            client.connections[token].event_set());
+                            if let Some(t) = client.timeout {
+                                client.connections[token]
+                                    .set_timeout(client.timer
+                                                       .set_timeout(Duration::from_millis(t),
+                                                                    token)
+                                                       .unwrap());
+                            }
                         } else {
                             error!("failure creating connection");
                         }
@@ -230,12 +240,13 @@ impl Client {
                     error!("error registering {:?}: {}", token, e);
                 } else {
                     let _ = self.poll
-                        .register(io, token, interest, pollopt_conn());
+                                .register(io, token, interest, pollopt_conn());
                 }
             }
         }
     }
 
+    // remove from the poller
     fn deregister<E: ?Sized>(&self, io: &E)
         where E: Evented
     {
@@ -263,7 +274,6 @@ impl Client {
         self.ready.push_back(token);
     }
 
-
     /// reconnect helper
     fn reconnect(&mut self, token: Token) {
         debug!("reconnect {:?}", token);
@@ -288,8 +298,9 @@ impl Client {
         if self.connections[token].write(work).is_ok() {
             if let Some(t) = self.timeout {
                 self.connections[token].set_timeout(self.timer
-                    .set_timeout(Duration::from_millis(t), token)
-                    .unwrap());
+                                                        .set_timeout(Duration::from_millis(t),
+                                                                     token)
+                                                        .unwrap());
             }
             if let Some(s) = self.connections[token].stream() {
                 self.register(s, token, self.event_set(token));

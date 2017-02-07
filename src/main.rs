@@ -226,9 +226,9 @@ pub fn main() {
     workload::launch_workloads(config.protocol_config.workloads, work_queue.clone());
 
     let mut stats_config = tic::Receiver::<stats::Status>::configure()
-        .capacity(1_000_000)
-        .duration(config.duration)
-        .windows(config.windows);
+                               .capacity(1_000_000)
+                               .duration(config.duration)
+                               .windows(config.windows);
 
     if let Some(addr) = listen {
         stats_config = stats_config.http_listen(addr);
