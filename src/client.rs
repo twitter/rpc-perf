@@ -399,8 +399,10 @@ impl Client {
             } else {
                 match token {
                     TOKEN_TIMER => {
-                        trace!("timeout fired for {:?}", token);
-                        self.timeout(token);
+                        if let Some(token) = self.timer.poll() {
+                            trace!("timeout fired for {:?}", token);
+                            self.timeout(token);
+                        }
                     }
                     TOKEN_QUEUE => {
                         if !self.ready.is_empty() {
