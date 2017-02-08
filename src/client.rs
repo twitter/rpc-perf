@@ -14,22 +14,23 @@
 //  limitations under the License.
 
 extern crate slab;
-extern crate mio;
-extern crate tic;
 
 use std::collections::VecDeque;
 use std::process::exit;
 use std::sync::Arc;
 use std::time::Duration;
 
-use mio::{Evented, Events, Poll, PollOpt, Ready, Token};
-use mio::timer::Timer;
-use mio::channel::{Receiver, SyncSender};
-use tic::{Clocksource, Sample, Sender};
+use common::async::{Evented, Events, Poll, PollOpt, Ready, Token};
+use common::async::timer::Timer;
+use common::async::channel::{Receiver, SyncSender};
+
+use net::InternetProtocol;
 
 use cfgtypes::*;
 use connection::*;
-use stats::Status;
+
+use common;
+use common::stats::{Stat, Sample, Sender, Clocksource};
 
 const MAX_CONNECTIONS: usize = 65536;
 const MAX_EVENTS: usize = 1024;
@@ -64,10 +65,12 @@ type Slab<T> = slab::Slab<T, Token>;
 pub struct Config {
     servers: Vec<String>,
     pool_size: usize,
-    stats: Option<Sender<Status>>,
+    stats: Option<Sender<Stat>>,
     clocksource: Option<Clocksource>,
     protocol: Option<Arc<ProtocolParseFactory>>,
-    timeout: Option<u64>,
+    request_timeout: Option<u64>,
+    internet_protocol: InternetProtocol,
+    connect_timeout: Option<u64>,
 }
 
 impl Default for Config {
@@ -78,7 +81,9 @@ impl Default for Config {
             stats: None,
             clocksource: None,
             protocol: None,
-            timeout: None,
+            request_timeout: None,
+            connect_timeout: None,
+            internet_protocol: InternetProtocol::Any,
         }
     }
 }
@@ -108,9 +113,21 @@ impl Config {
         self
     }
 
-    /// give the client a `ProtocolParseFactory` to read the responses
-    pub fn set_timeout(&mut self, timeout: Option<u64>) -> &mut Self {
-        self.timeout = timeout;
+    /// set the InternetProtocol to use for Connections
+    pub fn set_internet_protocol(&mut self, protocol: InternetProtocol) -> &mut Self {
+        self.internet_protocol = protocol;
+        self
+    }
+
+    /// sets the timeout for responses
+    pub fn set_request_timeout(&mut self, milliseconds: Option<u64>) -> &mut Self {
+        self.request_timeout = milliseconds;
+        self
+    }
+
+    /// sets the timeout for connects
+    pub fn set_connect_timeout(&mut self, milliseconds: Option<u64>) -> &mut Self {
+        self.connect_timeout = milliseconds;
         self
     }
 
@@ -121,7 +138,7 @@ impl Config {
     }
 
     /// sgive the client a stats sender
-    pub fn stats(&mut self, stats: Sender<Status>) -> &mut Self {
+    pub fn stats(&mut self, stats: Sender<Stat>) -> &mut Self {
         self.stats = Some(stats);
         self
     }
@@ -139,15 +156,17 @@ impl Config {
 pub struct Client {
     connections: Slab<Connection>,
     poll: Poll,
-    rx: Receiver<Vec<u8>>,
     tx: SyncSender<Vec<u8>>,
+    rx: Receiver<Vec<u8>>,
     ready: VecDeque<Token>,
-    stats: Sender<Status>,
+    stats: Sender<Stat>,
     times: Vec<u64>,
     clocksource: Clocksource,
     protocol: Box<ProtocolParse>,
     timer: Timer<Token>,
-    timeout: Option<u64>,
+    request_timeout: Option<u64>,
+    connect_timeout: Option<u64>,
+    events: Option<Events>,
 }
 
 impl Default for Client {
@@ -177,40 +196,37 @@ impl Client {
             exit(1);
         }
 
-        let (tx, rx) = mio::channel::sync_channel(MAX_PENDING);
+        let (tx, rx) = common::async::channel::sync_channel(MAX_PENDING);
+
+        let clocksource = config.clocksource.unwrap();
 
         let mut client = Client {
             connections: Slab::with_capacity(MAX_CONNECTIONS),
             poll: Poll::new().unwrap(),
-            rx: rx,
             tx: tx,
+            rx: rx,
             ready: VecDeque::new(),
             stats: config.stats.unwrap(),
-            times: vec![0; MAX_CONNECTIONS],
-            clocksource: config.clocksource.unwrap(),
+            times: vec![clocksource.counter(); MAX_CONNECTIONS],
+            clocksource: clocksource,
             protocol: config.protocol.unwrap().clone().new(),
-            timer: mio::timer::Builder::default()
-                       .tick_duration(Duration::from_millis(TICK_MS))
-                       .build(),
-            timeout: config.timeout,
+            timer: common::async::timer::Builder::default()
+                .tick_duration(Duration::from_millis(TICK_MS))
+                .build(),
+            request_timeout: config.request_timeout,
+            connect_timeout: config.connect_timeout,
+            events: Some(Events::with_capacity(MAX_EVENTS)),
         };
 
         for server in config.servers {
             for _ in 0..config.pool_size {
+
                 match client.connections.insert(Connection::new(server.clone())) {
                     Ok(token) => {
-
-                        if client.connections[token].stream().is_some() {
-                            client.register(client.connections[token].stream().unwrap(),
-                                            token,
-                                            client.connections[token].event_set());
-                            if let Some(t) = client.timeout {
-                                client.connections[token]
-                                    .set_timeout(client.timer
-                                                       .set_timeout(Duration::from_millis(t),
-                                                                    token)
-                                                       .unwrap());
-                            }
+                        client.send_stat(token, Stat::SocketCreate);
+                        if client.has_stream(token) {
+                            client.register(client.connections[token].stream().unwrap(), token);
+                            client.set_timeout(token);
                         } else {
                             error!("failure creating connection");
                         }
@@ -224,23 +240,48 @@ impl Client {
         }
         let _ = client.poll.register(&client.timer, TOKEN_TIMER, ready_timer(), pollopt_timer());
         let _ = client.poll.register(&client.rx, TOKEN_QUEUE, ready_queue(), pollopt_queue());
-
         client
+    }
+
+    #[inline]
+    fn has_stream(&self, token: Token) -> bool {
+        self.connections[token].stream().is_some()
+    }
+
+    #[inline]
+    fn is_connection(&self, token: Token) -> bool {
+        token.0 <= MAX_CONNECTIONS
+    }
+
+    fn set_timeout(&mut self, token: Token) {
+        if self.is_connection(token) {
+            if self.connections[token].is_connecting() {
+                if let Some(t) = self.connect_timeout {
+                    self.connections[token].set_timeout(self.timer
+                        .set_timeout(Duration::from_millis(t), token)
+                        .unwrap());
+                }
+            } else if let Some(t) = self.request_timeout {
+                self.connections[token].set_timeout(self.timer
+                    .set_timeout(Duration::from_millis(t), token)
+                    .unwrap());
+            }
+        }
     }
 
     /// register with the poller
     /// - reregister on failure
-    fn register<E: ?Sized>(&self, io: &E, token: Token, interest: Ready)
+    fn register<E: ?Sized>(&self, io: &E, token: Token)
         where E: Evented
     {
-        match self.poll.register(io, token, interest, pollopt_conn()) {
+        match self.poll.register(io, token, self.event_set(token), self.poll_opt(token)) {
             Ok(_) => {}
             Err(e) => {
                 if !self.poll.deregister(io).is_ok() {
-                    error!("error registering {:?}: {}", token, e);
+                    debug!("error registering {:?}: {}", token, e);
                 } else {
                     let _ = self.poll
-                                .register(io, token, interest, pollopt_conn());
+                        .register(io, token, self.event_set(token), self.poll_opt(token));
                 }
             }
         }
@@ -253,14 +294,30 @@ impl Client {
         match self.poll.deregister(io) {
             Ok(_) => {}
             Err(e) => {
-                error!("error deregistering: {}", e);
+                debug!("error deregistering: {}", e);
             }
         }
     }
 
     #[inline]
-    fn event_set(&self, token: Token) -> mio::Ready {
+    fn event_set(&self, token: Token) -> common::async::Ready {
         self.connections[token].event_set()
+    }
+
+    #[inline]
+    fn poll_opt(&self, token: Token) -> common::async::PollOpt {
+        if token.0 <= MAX_CONNECTIONS {
+            pollopt_conn()
+        } else {
+            match token {
+                TOKEN_TIMER => pollopt_timer(),
+                TOKEN_QUEUE => pollopt_queue(),
+                _ => {
+                    error!("poll_opt() unknown token: {:?}", token);
+                    exit(1);
+                }
+            }
+        }
     }
 
     #[inline]
@@ -274,18 +331,29 @@ impl Client {
         self.ready.push_back(token);
     }
 
-    /// reconnect helper
-    fn reconnect(&mut self, token: Token) {
-        debug!("reconnect {:?}", token);
+    fn close(&mut self, token: Token) {
         if let Some(s) = self.connections[token].stream() {
             self.deregister(s);
         }
-        self.connections[token].reconnect();
-        if let Some(s) = self.connections[token].stream() {
-            self.register(s, token, self.event_set(token))
+        self.clear_timer(token);
+        let _ = self.connections[token].close();
+        self.send_stat(token, Stat::SocketClose);
+
+    }
+
+    /// reconnect helper
+    fn reconnect(&mut self, token: Token) {
+        debug!("reconnect {:?}", token);
+        self.close(token);
+        self.connections[token].connect();
+        self.send_stat(token, Stat::SocketCreate);
+        if self.connections[token].stream().is_some() {
+            self.register(self.connections[token].stream().unwrap(), token);
+            self.set_timeout(token);
         } else {
-            error!("failure reconnecting");
-            exit(1);
+            debug!("failure reconnecting");
+            self.send_stat(token, Stat::ConnectError);
+            self.set_timeout(token); // set a delay to reconnect
         }
     }
 
@@ -294,19 +362,19 @@ impl Client {
     /// - transition to Reading if entire buffer written in one call
     fn write(&mut self, token: Token, work: Vec<u8>) {
         trace!("send to {:?}", token);
+        self.send_stat(token, Stat::SocketWrite);
         self.times[token.0] = self.clocksource.counter();
         if self.connections[token].write(work).is_ok() {
-            if let Some(t) = self.timeout {
-                self.connections[token].set_timeout(self.timer
-                                                        .set_timeout(Duration::from_millis(t),
-                                                                     token)
-                                                        .unwrap());
-            }
+            self.set_timeout(token);
             if let Some(s) = self.connections[token].stream() {
-                self.register(s, token, self.event_set(token));
+                self.register(s, token);
+            }
+            if self.connections[token].is_readable() {
+                self.send_stat(token, Stat::RequestSent);
             }
         } else {
             debug!("couldn't write");
+            self.send_stat(token, Stat::ConnectError);
             self.reconnect(token);
         }
     }
@@ -323,23 +391,32 @@ impl Client {
                 let parsed = self.protocol.parse(&response);
 
                 let status = match parsed {
-                    ParsedResponse::Hit => Status::Hit,
-                    ParsedResponse::Ok => Status::Ok,
-                    ParsedResponse::Miss => Status::Miss,
-                    _ => Status::Error,
+                    ParsedResponse::Ok => Stat::ResponseOk,
+                    ParsedResponse::Hit => {
+                        let _ = self.stats.send(Sample::new(t0, t1, Stat::ResponseOk));
+                        Stat::ResponseOkHit
+                    },
+                    ParsedResponse::Miss => {
+                        let _ = self.stats.send(Sample::new(t0, t1, Stat::ResponseOk));
+                        Stat::ResponseOkMiss
+                    },
+                    _ => Stat::ResponseError,
                 };
 
                 if parsed != ParsedResponse::Incomplete {
-                    trace!("switch to writable");
-                    let _ = self.stats.send(Sample::new(t0, t1, status));
-                    if let Some(timeout) = self.connections[token].get_timeout() {
-                        self.timer.cancel_timeout(&timeout);
+                    let _ = self.stats.send(Sample::new(t0, t1, status.clone()));
+                    if status == Stat::ResponseError {
+                        self.reconnect(token);
+                    } else {
+                        trace!("switch to writable");
+                        self.clear_timer(token);
+                        self.set_writable(token);
                     }
-                    self.set_writable(token);
                 }
             }
         } else {
             debug!("read error. reconnect");
+            self.send_stat(token, Stat::ConnectError);
             self.reconnect(token);
         }
     }
@@ -348,10 +425,22 @@ impl Client {
     /// - reconnect always
     fn timeout(&mut self, token: Token) {
         debug!("timeout {:?}", token);
-        let t0 = self.times[token.0];
-        let t1 = self.clocksource.counter();
-        let _ = self.stats.send(Sample::new(t0, t1, Status::Timeout));
-        self.reconnect(token);
+        match *self.connections[token].state() {
+            State::Connecting => {
+                self.send_stat(token, Stat::ConnectTimeout);
+                self.reconnect(token);
+            }
+            State::Closed => {
+                self.reconnect(token);
+            }
+            State::Reading => {
+                self.send_stat(token, Stat::ResponseTimeout);
+                self.reconnect(token);
+            }
+            State::Writing => {
+                debug!("timeout for State::Writing");
+            }
+        }
     }
 
     /// write remaining buffer to underlying stream for token
@@ -362,9 +451,10 @@ impl Client {
         self.times[token.0] = self.clocksource.counter();
         if self.connections[token].flush().is_ok() {
             if let Some(s) = self.connections[token].stream() {
-                self.register(s, token, self.event_set(token));
+                self.register(s, token);
             }
         } else {
+            self.send_stat(token, Stat::ConnectError);
             self.reconnect(token);
         }
     }
@@ -372,8 +462,11 @@ impl Client {
     /// write a request from the queue to the given token
     fn send(&mut self, token: Token) {
         if self.connections[token].is_writable() {
-            let work = self.rx.try_recv().unwrap();
-            self.write(token, work);
+            if let Ok(work) = self.rx.try_recv() {
+                self.write(token, work);
+            } else {
+                self.set_writable(token);
+            }
         } else {
             error!("internal state error. dispatch to non-writable {:?}",
                    self.state(token));
@@ -381,25 +474,51 @@ impl Client {
         }
     }
 
+    fn send_stat(&mut self, token: Token, stat: Stat) {
+        let t0 = self.times[token.0];
+        let t1 = self.clocksource.counter();
+        let _ = self.stats.send(Sample::new(t0, t1, stat));
+    }
+
+    fn clear_timer(&mut self, token: Token) {
+        if let Some(timeout) = self.connections[token].get_timeout() {
+            self.timer.cancel_timeout(&timeout);
+        }
+    }
+
     /// event handler for connections
-    fn connection_ready(&mut self, token: Token, event: mio::Event) {
+    fn connection_ready(&mut self, token: Token, event: common::async::Event) {
         if self.connections[token].is_connecting() {
-            trace!("connection established {:?}", token);
-            self.connections[token].set_writable();
-            self.deregister(self.connections[token].stream().unwrap());
-            self.ready.push_back(token);
+            if event.kind().is_hup() {
+                debug!("hangup on connect {:?}", token);
+                self.send_stat(token, Stat::ConnectError);
+                self.reconnect(token);
+                return;
+            } else {
+                trace!("connection established {:?}", token);
+                self.send_stat(token, Stat::ConnectOk);
+                self.clear_timer(token);
+                self.set_writable(token);
+            }
+        } else if event.kind().is_hup() {
+            debug!("hangup event {:?}", token);
+            self.send_stat(token, Stat::ConnectError);
+            self.reconnect(token);
         } else if event.kind().is_readable() {
             trace!("reading event {:?}", token);
+            self.send_stat(token, Stat::SocketRead);
             self.read(token);
         } else if event.kind().is_writable() {
             trace!("writing event {:?}", token);
+            self.send_stat(token, Stat::SocketFlush);
             self.flush(token);
         }
     }
 
     /// poll for events and handle them
     pub fn poll(&mut self) {
-        let mut events = Events::with_capacity(MAX_EVENTS);
+        let mut events = self.events.take().unwrap_or_else(|| Events::with_capacity(MAX_EVENTS));
+        
         self.poll.poll(&mut events, Some(Duration::from_millis(TICK_MS))).unwrap();
 
         for event in events.iter() {
@@ -416,10 +535,14 @@ impl Client {
                         }
                     }
                     TOKEN_QUEUE => {
-                        if !self.ready.is_empty() {
-                            // we have work to do and a connection to use
-                            let token = self.ready.pop_front().unwrap();
-                            self.send(token);
+                        loop {
+                            if !self.ready.is_empty() {
+                                // we have work to do and a connection to use
+                                let token = self.ready.pop_front().unwrap();
+                                self.send(token);
+                            } else {
+                                break;
+                            }
                         }
                     }
                     _ => {
@@ -429,6 +552,8 @@ impl Client {
                 }
             }
         }
+
+        self.events = Some(events);
     }
 
     /// spins on the poll() function to continuously poll for events
@@ -439,7 +564,7 @@ impl Client {
     }
 
     /// returns a synchronous sender for pushing requests to the connection
-    pub fn tx(&self) -> mio::channel::SyncSender<Vec<u8>> {
+    pub fn tx(&self) -> SyncSender<Vec<u8>> {
         self.tx.clone()
     }
 }

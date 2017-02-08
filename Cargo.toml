@@ -1,6 +1,6 @@
 [package]
 name = "rpc-perf"
-version = "1.0.0-nightly.20170207"
+version = "2.0.0-pre"
 authors = ["Brian Martin <bmartin@twitter.com>"]
 
 license = "Apache-2.0"
@@ -42,28 +42,23 @@ codegen-units = 1
 bytes = "=0.3.0"
 log = "=0.3.6"
 log-panics = "=1.1.0"
-mio = "=0.6.2"
-regex = "=0.2.1"
 slab = "=0.3.0"
-shuteye = "=0.2.0"
 simple_logger = "=0.4.0"
-tiny_http = "=0.5.7"
-tic = "=0.1.1"
-time = "=0.1.35"
+time = "=0.1.36"
 
 [dependencies.rpcperf_request]
 path = "./lib/request"
-version = "=1.3.1"
+version = "=1.4.0"
 
 [dependencies.rpcperf_cfgtypes]
 path = "./lib/cfgtypes"
-version = "=0.1.1"
+version = "=0.1.2"
 
 [dependencies.rpcperf_common]
 path = "./lib/common"
-version = "=0.1.0"
+version = "=0.2.0"
 
 [features]
-asm = [ "tic/asm" ]
+asm = [ "rpcperf_common/asm" ]
 default = []
 unstable = []

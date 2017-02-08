@@ -29,6 +29,8 @@ extern crate rpcperf_thrift as thrift;
 pub mod config;
 pub mod workload;
 
+use common::stats::{Stat, Sender};
+
 use cfgtypes::ProtocolConfig;
 
 pub struct BenchmarkConfig {
@@ -41,6 +43,8 @@ pub struct BenchmarkConfig {
     pub ipv6: bool,
     pub timeout: Option<u64>,
     pub protocol_config: ProtocolConfig,
+    stats: Option<Sender<Stat>>,
+    connect_timeout: Option<u64>,
 }
 
 impl BenchmarkConfig {
@@ -55,6 +59,42 @@ impl BenchmarkConfig {
             ipv6: true,
             timeout: None,
             protocol_config: protocol,
+            stats: None,
+            connect_timeout: None,
         }
+    }
+
+    pub fn set_poolsize(&mut self, connections: usize) -> &Self {
+        self.connections = connections;
+        self
+    }
+
+    pub fn set_threads(&mut self, threads: usize) -> &Self {
+        self.threads = threads;
+        self
+    }
+
+    pub fn set_duration(&mut self, seconds: usize) -> &Self {
+        self.duration = seconds;
+        self
+    }
+
+    pub fn set_windows(&mut self, count: usize) -> &Self {
+        self.windows = count;
+        self
+    }
+
+    pub fn set_tcp_nodelay(&mut self, enabled: bool) -> &Self {
+        self.tcp_nodelay = enabled;
+        self
+    }
+
+    pub fn set_stats(&mut self, sender: Sender<Stat>) -> &Self {
+        self.stats = Some(sender);
+        self
+    }
+
+    pub fn connect_timeout(&self) -> Option<u64> {
+        self.connect_timeout
     }
 }

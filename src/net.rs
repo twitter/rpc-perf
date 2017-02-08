@@ -26,9 +26,9 @@ pub enum InternetProtocol {
 impl fmt::Debug for InternetProtocol {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            InternetProtocol::IpV4 => write!(f, "IP::v4"),
-            InternetProtocol::IpV6 => write!(f, "IP::v6"),
-            InternetProtocol::Any => write!(f, "IP::Any"),
+            InternetProtocol::IpV4 => write!(f, "IPv4"),
+            InternetProtocol::IpV6 => write!(f, "IPv6"),
+            InternetProtocol::Any => write!(f, "IP"),
         }
     }
 }

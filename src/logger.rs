@@ -31,11 +31,16 @@ impl log::Log for SimpleLogger {
             let ms = format!("{:.*}",
                              3,
                              ((time::precise_time_ns() % 1_000_000_000) / 1_000_000));
+            let target = if record.metadata().level() >= LogLevel::Debug {
+                record.target()
+            } else {
+                "rpc-perf"
+            };
             println!("{}.{} {:<5} [{}] {}",
                      time::strftime("%Y-%m-%d %H:%M:%S", &time::now()).unwrap(),
                      ms.pad(3, '0', Alignment::Right, true),
                      record.level().to_string(),
-                     "rpc-perf",
+                     target,
                      record.args());
         }
     }

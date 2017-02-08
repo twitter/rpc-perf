@@ -141,8 +141,11 @@ fn load_config_table(table: BTreeMap<String, Value>,
         if let Some(ipv6) = general.get("ipv6").and_then(|k| k.as_bool()) {
             config.ipv6 = ipv6;
         }
-        if let Some(timeout) = general.get("timeout").and_then(|k| k.as_integer()) {
+        if let Some(timeout) = general.get("request-timeout").and_then(|k| k.as_integer()) {
             config.timeout = Some(timeout as u64);
+        }
+        if let Some(v) = general.get("connect-timeout").and_then(|k| k.as_integer()) {
+            config.connect_timeout = Some(v as u64);
         }
     }
 
@@ -172,8 +175,12 @@ fn config_overrides(config: &mut BenchmarkConfig, matches: &Matches) -> Result<(
         config.duration = duration;
     }
 
-    if let Some(timeout) = try!(parse_opt("timeout", matches)) {
-        config.timeout = Some(timeout);
+    if let Some(t) = try!(parse_opt("request-timeout", matches)) {
+        config.timeout = Some(t);
+    }
+
+    if let Some(t) = try!(parse_opt("connect-timeout", matches)) {
+        config.connect_timeout = Some(t);
     }
 
     if matches.opt_present("tcp-nodelay") {
