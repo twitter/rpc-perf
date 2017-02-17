@@ -93,7 +93,9 @@ impl Command {
             }
             Command::Expire(ref mut p1, ref mut p2) => {
                 p1.regen();
-                gen::expire(p1.value.string.as_str(), p2.value.string.as_str().parse().unwrap()).into_bytes()
+                gen::expire(p1.value.string.as_str(),
+                            p2.value.string.as_str().parse().unwrap())
+                    .into_bytes()
             }
             Command::Incr(ref mut p1) => {
                 p1.regen();
@@ -153,8 +155,7 @@ impl ProtocolParseFactory for RedisParseFactory {
             vec![gen::flushall().into_bytes(), gen::select(&self.database).into_bytes()]
         } else {
             vec![gen::select(&self.database).into_bytes()]
-        }
-        )
+        })
     }
 
     fn name(&self) -> &str {
@@ -174,11 +175,10 @@ pub fn load_config(table: &BTreeMap<String, Value>, matches: &Matches) -> CResul
 
     let mut ws = Vec::new();
 
-    let database =
-            table.get("general")
-                .and_then(|k| k.as_table())
-                .and_then(|k| k.get("database"))
-                .and_then(|k| k.as_integer())
+    let database = table.get("general")
+        .and_then(|k| k.as_table())
+        .and_then(|k| k.get("database"))
+        .and_then(|k| k.as_integer())
         .unwrap_or(0) as u32;
 
     if let Some(&Value::Array(ref workloads)) = table.get("workload") {
@@ -244,7 +244,8 @@ fn extract_workload(workload: &BTreeMap<String, Value>) -> CResult<BenchmarkWork
             "decr" if ps.len() == 1 => Command::Decr(ps[0].clone()),
             "append" if ps.len() == 2 => Command::Append(ps[0].clone(), ps[1].clone()),
             "prepend" if ps.len() == 1 => Command::Prepend(ps[0].clone(), ps[1].clone()),
-            "get" | "set" | "hset" | "hget" | "del" | "expire" | "incr" | "decr" | "append" | "prepend" => {
+            "get" | "set" | "hset" | "hget" | "del" | "expire" | "incr" | "decr" | "append" |
+            "prepend" => {
                 return Err(format!("invalid number of params ({}) for method {}",
                                    ps.len(),
                                    method));

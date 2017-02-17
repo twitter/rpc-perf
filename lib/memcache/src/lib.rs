@@ -131,38 +131,57 @@ impl ProtocolGen for MemcacheCommand {
                 level.regen();
                 gen::verbosity(level.value.string.parse().unwrap_or(0)).into_bytes()
             }
-            MemcacheCommand::Version => {
-                gen::version().into_bytes()
-            }
-            MemcacheCommand::Quit => {
-                gen::quit().into_bytes()
-            }
+            MemcacheCommand::Version => gen::version().into_bytes(),
+            MemcacheCommand::Quit => gen::quit().into_bytes(),
             MemcacheCommand::Touch(ref mut key, ref mut ttl) => {
                 key.regen();
                 ttl.regen();
-                gen::touch(key.value.string.as_str(), Some(ttl.value.string.parse().unwrap_or(0))).into_bytes()
+                gen::touch(key.value.string.as_str(),
+                           Some(ttl.value.string.parse().unwrap_or(0)))
+                    .into_bytes()
             }
             MemcacheCommand::Delete(ref mut key) => {
                 key.regen();
                 gen::delete(key.value.string.as_str()).into_bytes()
             }
             MemcacheCommand::Cas(ref mut key, ref mut value, ref mut cas) => {
-                gen::cas(key.value.string.as_str(), value.value.string.as_str(), None, None, cas.value.string.parse().unwrap_or(0)).into_bytes()
+                gen::cas(key.value.string.as_str(),
+                         value.value.string.as_str(),
+                         None,
+                         None,
+                         cas.value.string.parse().unwrap_or(0))
+                    .into_bytes()
             }
             MemcacheCommand::Replace(ref mut key, ref mut value) => {
-                gen::replace(key.value.string.as_str(), value.value.string.as_str(), None, None).into_bytes()
+                gen::replace(key.value.string.as_str(),
+                             value.value.string.as_str(),
+                             None,
+                             None)
+                    .into_bytes()
             }
             MemcacheCommand::Append(ref mut key, ref mut value) => {
-                gen::append(key.value.string.as_str(), value.value.string.as_str(), None, None).into_bytes()
+                gen::append(key.value.string.as_str(),
+                            value.value.string.as_str(),
+                            None,
+                            None)
+                    .into_bytes()
             }
             MemcacheCommand::Prepend(ref mut key, ref mut value) => {
-                gen::prepend(key.value.string.as_str(), value.value.string.as_str(), None, None).into_bytes()
+                gen::prepend(key.value.string.as_str(),
+                             value.value.string.as_str(),
+                             None,
+                             None)
+                    .into_bytes()
             }
             MemcacheCommand::Incr(ref mut key, ref mut value) => {
-                gen::incr(key.value.string.as_str(), value.value.string.parse().unwrap_or(1)).into_bytes()
+                gen::incr(key.value.string.as_str(),
+                          value.value.string.parse().unwrap_or(1))
+                    .into_bytes()
             }
             MemcacheCommand::Decr(ref mut key, ref mut value) => {
-                gen::decr(key.value.string.as_str(), value.value.string.parse().unwrap_or(1)).into_bytes()
+                gen::decr(key.value.string.as_str(),
+                          value.value.string.parse().unwrap_or(1))
+                    .into_bytes()
             }
         }
     }
@@ -252,7 +271,9 @@ fn extract_workload(i: usize, workload: &BTreeMap<String, Value>) -> CResult<Ben
             "verbosity" if ps.len() == 1 => MemcacheCommand::Verbosity(ps[0].clone()),
             "version" if ps.len() == 0 => MemcacheCommand::Version,
             "quit" if ps.len() == 0 => MemcacheCommand::Quit,
-            "cas" if ps.len() == 3 => MemcacheCommand::Cas(ps[0].clone(), ps[1].clone(), ps[2].clone()),
+            "cas" if ps.len() == 3 => {
+                MemcacheCommand::Cas(ps[0].clone(), ps[1].clone(), ps[2].clone())
+            }
             "replace" if ps.len() == 2 => MemcacheCommand::Replace(ps[0].clone(), ps[1].clone()),
             "append" if ps.len() == 2 => MemcacheCommand::Append(ps[0].clone(), ps[1].clone()),
             "prepend" if ps.len() == 2 => MemcacheCommand::Prepend(ps[0].clone(), ps[1].clone()),
@@ -260,7 +281,8 @@ fn extract_workload(i: usize, workload: &BTreeMap<String, Value>) -> CResult<Ben
             "decr" if ps.len() == 2 => MemcacheCommand::Decr(ps[0].clone(), ps[1].clone()),
             "touch" if ps.len() == 2 => MemcacheCommand::Touch(ps[0].clone(), ps[1].clone()),
             "delete" if ps.len() == 1 => MemcacheCommand::Delete(ps[0].clone()),
-            "get" | "gets" | "set" | "add" | "verbosity" | "version" | "quit" | "cas" | "replace" | "append" | "prepend" | "incr" | "decr" | "touch" | "delete" => {
+            "get" | "gets" | "set" | "add" | "verbosity" | "version" | "quit" | "cas" |
+            "replace" | "append" | "prepend" | "incr" | "decr" | "touch" | "delete" => {
                 return Err(format!("invalid number of params ({}) for method {}",
                                    ps.len(),
                                    method));

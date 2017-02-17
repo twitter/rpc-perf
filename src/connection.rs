@@ -1,15 +1,18 @@
 // Connection
 
-extern crate mio;
-
-use std::net::{SocketAddr, ToSocketAddrs};
-
-use net::InternetProtocol;
 use std::io::{self, Read, Write};
-use bytes::{Buf, MutBuf, ByteBuf, MutByteBuf};
-use mio::timer::Timeout;
-use mio::tcp::TcpStream;
+use std::net::{SocketAddr, ToSocketAddrs};
 use std::process::exit;
+
+use bytes::{Buf, MutBuf, ByteBuf, MutByteBuf};
+
+use common;
+use common::async::timer::Timeout;
+use common::async::tcp::TcpStream;
+use net::InternetProtocol;
+
+const RX_BUFFER: usize = 4 * 1024;
+const TX_BUFFER: usize = 4 * 1024;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum State {
@@ -28,17 +31,17 @@ struct Buffer {
 impl Buffer {
     pub fn new() -> Buffer {
         Buffer {
-            rx: Some(ByteBuf::mut_with_capacity(4 * 1024)),
-            tx: Some(ByteBuf::mut_with_capacity(4 * 1024)),
+            rx: Some(ByteBuf::mut_with_capacity(RX_BUFFER)),
+            tx: Some(ByteBuf::mut_with_capacity(TX_BUFFER)),
         }
     }
 
     pub fn clear(&mut self) {
-        let mut rx = self.rx.take().unwrap_or_else(|| ByteBuf::mut_with_capacity(4 * 1024));
+        let mut rx = self.rx.take().unwrap_or_else(|| ByteBuf::mut_with_capacity(RX_BUFFER));
         rx.clear();
         self.rx = Some(rx);
 
-        let mut tx = self.tx.take().unwrap_or_else(|| ByteBuf::mut_with_capacity(4 * 1024));
+        let mut tx = self.tx.take().unwrap_or_else(|| ByteBuf::mut_with_capacity(TX_BUFFER));
         tx.clear();
         self.tx = Some(tx);
     }
@@ -47,80 +50,71 @@ impl Buffer {
 #[derive(Debug)]
 pub struct Connection {
     server: String,
+    addr: Option<SocketAddr>,
     stream: Option<TcpStream>,
     state: State,
     buffer: Buffer,
     timeout: Option<Timeout>,
-}
-
-fn connect(server: &str, protocol: InternetProtocol) -> Result<TcpStream, &'static str> {
-    if let Ok(mut a) = server.to_socket_addrs() {
-        if let Ok(s) = to_mio_tcp_stream(a.next().unwrap(), protocol) {
-            return Ok(s);
-        }
-        return Err("error connecting");
-    }
-    Err("error resolving")
-}
-
-fn to_mio_tcp_stream<T: ToSocketAddrs>(addr: T,
-                                       proto: InternetProtocol)
-                                       -> Result<TcpStream, &'static str> {
-    match addr.to_socket_addrs() {
-        Ok(r) => {
-            for a in r {
-                match a {
-                    SocketAddr::V4(_) => {
-                        if proto == InternetProtocol::Any || proto == InternetProtocol::IpV4 {
-                            match TcpStream::connect(&a) {
-                                Ok(s) => {
-                                    return Ok(s);
-                                }
-                                Err(e) => {
-                                    println!("some error: {}", e);
-                                }
-                            }
-                        }
-                    }
-                    SocketAddr::V6(_) => {
-                        if proto == InternetProtocol::Any || proto == InternetProtocol::IpV6 {
-                            match TcpStream::connect(&a) {
-                                Ok(s) => {
-                                    return Ok(s);
-                                }
-                                Err(e) => {
-                                    println!("some error: {}", e);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            Err("Could not connect")
-        }
-        Err(_) => Err("Could not resolve"),
-    }
+    protocol: InternetProtocol,
 }
 
 impl Connection {
     /// create connection
     pub fn new(server: String) -> Connection {
-        if let Ok(c) = connect(&server, InternetProtocol::Any) {
-            Connection {
-                server: server,
-                stream: Some(c),
-                state: State::Connecting,
-                buffer: Buffer::new(),
-                timeout: None,
+        let mut c = Connection {
+            server: server,
+            stream: None,
+            state: State::Connecting,
+            buffer: Buffer::new(),
+            timeout: None,
+            protocol: InternetProtocol::Any,
+            addr: None,
+        };
+        c.reconnect();
+        c
+    }
+
+    pub fn resolve_socket_addr(&mut self) {
+        if let Ok(result) = self.server.to_socket_addrs() {
+            for addr in result {
+                match addr {
+                    SocketAddr::V4(_) => {
+                        if self.protocol == InternetProtocol::Any ||
+                           self.protocol == InternetProtocol::IpV4 {
+                            self.addr = Some(addr)
+                        } else {
+                            self.addr = None
+                        }
+                    }
+                    SocketAddr::V6(_) => {
+                        if self.protocol == InternetProtocol::Any ||
+                           self.protocol == InternetProtocol::IpV6 {
+                            self.addr = Some(addr)
+                        } else {
+                            self.addr = None
+                        }
+                    }
+                }
             }
+        }
+    }
+
+    pub fn connect(&mut self) {
+        self.state = State::Connecting;
+
+        if self.addr.is_none() {
+            debug!("DNS lookup for: {}", self.server);
+            self.resolve_socket_addr();
+            if self.addr.is_none() {
+                error!("Failure resolving: {}", self.server);
+                let _ = self.close();
+            }
+        }
+
+        if let Ok(s) = TcpStream::connect(&self.addr.unwrap()) {
+            self.stream = Some(s);
         } else {
-            Connection {
-                server: server,
-                stream: None,
-                state: State::Closed,
-                buffer: Buffer::new(),
-                timeout: None,
-            }
+            debug!("Error connecting: {}", self.server);
         }
     }
 
@@ -135,12 +129,7 @@ impl Connection {
     /// reconnect the connection in write mode
     pub fn reconnect(&mut self) {
         let _ = self.close();
-        if let Ok(s) = connect(&self.server, InternetProtocol::Any) {
-            self.stream = Some(s);
-            self.state = State::Connecting;
-        } else {
-            error!("failed to reconnect");
-        }
+        self.connect();
     }
 
     pub fn close(&mut self) -> Option<TcpStream> {
@@ -289,11 +278,11 @@ impl Connection {
         Ok(response)
     }
 
-    pub fn event_set(&self) -> mio::Ready {
+    pub fn event_set(&self) -> common::async::Ready {
         match self.state {
-            State::Connecting | State::Writing => mio::Ready::writable(),
-            State::Reading => mio::Ready::readable(),
-            _ => mio::Ready::none(),
+            State::Connecting | State::Writing => common::async::Ready::writable(),
+            State::Reading => common::async::Ready::readable(),
+            _ => common::async::Ready::none(),
         }
     }
 }

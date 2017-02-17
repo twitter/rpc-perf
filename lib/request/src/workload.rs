@@ -16,15 +16,18 @@
 pub const BUCKET_SIZE: usize = 10_000;
 
 use cfgtypes;
-use common::Queue;
+use common::async::channel::{SyncSender, TrySendError};
 use common::limits::Ratelimit;
+use common::stats::{Clocksource, Sender, Stat, Sample};
 use std::thread;
 
 use cfgtypes::ProtocolGen;
 
 /// Launch each of the workloads in their own thread
 pub fn launch_workloads(workloads: Vec<cfgtypes::BenchmarkWorkload>,
-                        work_queue: Queue<Vec<u8>>) {
+                        work_queue: Vec<SyncSender<Vec<u8>>>,
+                        stats: Sender<Stat>,
+                        clocksource: Clocksource) {
 
     for (i, w) in workloads.into_iter().enumerate() {
         info!("Workload {}: Method: {} Rate: {}",
@@ -32,27 +35,37 @@ pub fn launch_workloads(workloads: Vec<cfgtypes::BenchmarkWorkload>,
               w.gen.method(),
               w.rate);
 
-        let mut workload = Workload::new(w.gen, Some(w.rate as u64), work_queue.clone()).unwrap();
+        let mut workload = Workload::new(w.gen,
+                                         Some(w.rate as u64),
+                                         work_queue.clone(),
+                                         stats.clone(),
+                                         clocksource.clone())
+            .unwrap();
 
-        let _ = thread::Builder::new().name(format!("workload{}", i).to_string()).spawn(move || {
-            loop {
-                workload.run();
-            }
-        });
+        let _ =
+            thread::Builder::new().name(format!("workload{}", i).to_string()).spawn(move || {
+                loop {
+                    workload.run();
+                }
+            });
     }
 }
 
 struct Workload {
     protocol: Box<ProtocolGen>,
     ratelimit: Option<Ratelimit>,
-    queue: Queue<Vec<u8>>,
+    queue: Vec<SyncSender<Vec<u8>>>,
+    stats: Sender<Stat>,
+    clocksource: Clocksource,
 }
 
 impl Workload {
     /// Create a new `Workload` based on a protocol, optional rate, and a queue
     fn new(protocol: Box<ProtocolGen>,
            rate: Option<u64>,
-           queue: Queue<Vec<u8>>)
+           queue: Vec<SyncSender<Vec<u8>>>,
+           stats: Sender<Stat>,
+           clocksource: Clocksource)
            -> Result<Workload, &'static str> {
         let mut ratelimit = None;
         if let Some(r) = rate {
@@ -67,17 +80,43 @@ impl Workload {
             protocol: protocol,
             ratelimit: ratelimit,
             queue: queue,
+            stats: stats,
+            clocksource: clocksource,
         })
     }
 
     /// Generates work at a fixed rate and pushes to the queue
     fn run(&mut self) {
+        let mut index = 0;
         loop {
             if let Some(ref mut ratelimit) = self.ratelimit {
                 ratelimit.block(1);
             }
-
-            let _ = self.queue.push(self.protocol.generate_message());
+            let t0 = self.clocksource.counter();
+            let mut msg = Some(self.protocol.generate_message());
+            loop {
+                match self.queue[index].try_send(msg.take().unwrap()) {
+                    Ok(_) => {
+                        let t1 = self.clocksource.counter();
+                        let _ = self.stats.send(Sample::new(t0, t1, Stat::RequestPrepared));
+                        break;
+                    }
+                    Err(e) => {
+                         match e {
+                             TrySendError::Full(m) => {
+                                 msg = Some(m);
+                             }
+                             _ => {
+                                 error!("Receiving thread died?");
+                             }
+                         }
+                    }
+                }
+                index += 1;
+                if index >= self.queue.len() {
+                    index = 0;
+                }
+            }
         }
     }
 }

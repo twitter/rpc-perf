@@ -1,6 +1,6 @@
 [package]
 name = "rpcperf_redis"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Brian Martin <bmartin@twitter.com>"]
 
 license = "Apache-2.0"
@@ -14,8 +14,8 @@ readme = "README.md"
 
 [dependencies]
 log = "=0.3.6"
-rpcperf_cfgtypes = { path = "../cfgtypes", version = "0.1.1" }
-rpcperf_common = { path = "../common", version = "0.1.0" }
+rpcperf_cfgtypes = { path = "../cfgtypes", version = "0.1.2" }
+rpcperf_common = { path = "../common", version = "0.2.0" }
 
 [profile.dev]
 opt-level = 0

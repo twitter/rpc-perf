@@ -16,11 +16,13 @@
 extern crate byteorder;
 extern crate crc;
 extern crate getopts;
+extern crate mio;
 extern crate mpmc;
 extern crate pad;
 extern crate ratelimit;
 extern crate toml;
 extern crate rand;
+extern crate tic;
 
 pub mod random {
     pub use rand::*;
@@ -43,5 +45,57 @@ pub mod limits {
 pub mod config {
     pub use toml::*;
 }
+pub mod async {
+    pub use mio::{channel, tcp, timer};
+    pub use mio::{Evented, Event, Events, Poll, PollOpt, Ready, Token};
+    pub use mpmc::Queue;
+}
+pub mod stats {
+    pub use tic::*;
+    use std::fmt;
 
-pub use mpmc::Queue as Queue;
+    #[derive(Clone, PartialEq, Eq, Hash, Debug)]
+    pub enum Stat {
+        ResponseOk,
+        ResponseError,
+        ResponseTimeout,
+        ResponseOkHit,
+        ResponseOkMiss,
+        ConnectOk,
+        ConnectError,
+        ConnectTimeout,
+        RequestSent,
+        RequestPrepared,
+        SocketRead,
+        SocketWrite,
+        SocketFlush,
+        SocketClose,
+        SocketCreate,
+        Window,
+    }
+
+    impl fmt::Display for Stat {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            match *self {
+                Stat::Window => write!(f, "window"),
+                Stat::ResponseOk => write!(f, "response_ok"),
+                Stat::ResponseError => write!(f, "response_error"),
+                Stat::ResponseTimeout => write!(f, "response_timeout"),
+                Stat::ResponseOkHit => write!(f, "response_ok_hit"),
+                Stat::ResponseOkMiss => write!(f, "response_ok_miss"),
+                Stat::ConnectOk => write!(f, "connect_ok"),
+                Stat::ConnectError => write!(f, "connect_error"),
+                Stat::ConnectTimeout => write!(f, "connect_timeout"),
+                Stat::RequestSent => write!(f, "request_sent"),
+                Stat::RequestPrepared => write!(f, "request_prepared"),
+                Stat::SocketRead => write!(f, "socket_read"),
+                Stat::SocketWrite => write!(f, "socket_write"),
+                Stat::SocketFlush => write!(f, "socket_flush"),
+                Stat::SocketClose => write!(f, "socket_close"),
+                Stat::SocketCreate => write!(f, "socket_create"),
+            }
+        }
+    }
+}
+
+pub use mpmc::Queue;

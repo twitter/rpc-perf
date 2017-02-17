@@ -18,16 +18,11 @@ extern crate log;
 extern crate log_panics;
 
 extern crate bytes;
-extern crate tiny_http;
 extern crate time;
-extern crate mio;
-extern crate regex;
 extern crate rpcperf_request as request;
 extern crate rpcperf_cfgtypes as cfgtypes;
 extern crate rpcperf_common as common;
 extern crate slab;
-extern crate shuteye;
-extern crate tic;
 
 mod client;
 mod connection;
@@ -36,7 +31,7 @@ mod net;
 mod stats;
 
 use common::options::Options;
-use common::Queue as BoundedQueue;
+use common::stats::{Interest, Receiver, Stat};
 use log::LogLevelFilter;
 use request::config;
 use std::env;
@@ -49,14 +44,12 @@ use request::workload;
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
-const BUCKET_SIZE: usize = 10_000;
-
 fn print_usage(program: &str, opts: Options) {
     let brief = format!("Usage: {} [options]", program);
     print!("{}", opts.usage(&brief));
 }
 
-pub fn opts() -> Options {
+fn opts() -> Options {
     let mut opts = Options::new();
 
     opts.optmulti("s", "server", "server address", "HOST:PORT");
@@ -64,7 +57,8 @@ pub fn opts() -> Options {
     opts.optopt("c", "connections", "connections per thread", "INTEGER");
     opts.optopt("d", "duration", "number of seconds per window", "INTEGER");
     opts.optopt("w", "windows", "number of windows in test", "INTEGER");
-    opts.optopt("", "timeout", "request timeout in milliseconds", "INTEGER");
+    opts.optopt("", "request-timeout", "request timeout in milliseconds", "INTEGER");
+    opts.optopt("", "connect-timeout", "connect timeout in milliseconds", "INTEGER");
     opts.optopt("p", "protocol", "client protocol", "STRING");
     opts.optopt("", "config", "TOML config file", "FILE");
     opts.optopt("", "listen", "listen address for stats", "HOST:PORT");
@@ -157,10 +151,10 @@ pub fn main() {
         return;
     }
 
+    let listen = matches.opt_str("listen");
     let waterfall = matches.opt_str("waterfall");
     let trace = matches.opt_str("trace");
 
-    let listen = matches.opt_str("listen");
 
     // Load workload configuration
     let config = match config::load_config(&matches) {
@@ -180,21 +174,6 @@ pub fn main() {
         }
     };
 
-    let work_queue = BoundedQueue::<Vec<u8>>::with_capacity(BUCKET_SIZE);
-
-    // Let the protocol push some initial data if it wants too
-    match config.protocol_config.protocol.prepare() {
-        Ok(bs) => {
-            for b in bs {
-                work_queue.push(b).unwrap();
-            }
-        }
-        Err(e) => {
-            error!("{}", e);
-            return;
-        }
-    }
-
     info!("-----");
     info!("Config:");
     for server in matches.opt_strs("server") {
@@ -213,22 +192,26 @@ pub fn main() {
           config.duration);
     match config.timeout {
         Some(timeout) => {
-            info!("Config: Timeout: {} ms", timeout);
+            info!("Config: Request Timeout: {} ms", timeout);
         }
         None => {
-            info!("Config: Timeout: None");
+            info!("Config: Request Timeout: None");
+        }
+    }
+    match config.connect_timeout() {
+        Some(timeout) => {
+            info!("Config: Connect Timeout: {} ms", timeout);
+        }
+        None => {
+            info!("Config: Connect Timeout: None");
         }
     }
 
-    info!("-----");
-    info!("Workload:");
-
-    workload::launch_workloads(config.protocol_config.workloads, work_queue.clone());
-
-    let mut stats_config = tic::Receiver::<stats::Status>::configure()
-                               .capacity(1_000_000)
-                               .duration(config.duration)
-                               .windows(config.windows);
+    let mut stats_config = Receiver::<Stat>::configure()
+        .batch_size(16)
+        .capacity(65536)
+        .duration(config.duration)
+        .windows(config.windows);
 
     if let Some(addr) = listen {
         stats_config = stats_config.http_listen(addr);
@@ -244,14 +227,30 @@ pub fn main() {
 
     let mut stats_receiver = stats_config.build();
 
-    stats_receiver.add_interest(tic::Interest::Count(stats::Status::Ok));
-    stats_receiver.add_interest(tic::Interest::Count(stats::Status::Hit));
-    stats_receiver.add_interest(tic::Interest::Count(stats::Status::Miss));
-    stats_receiver.add_interest(tic::Interest::Count(stats::Status::Error));
-    stats_receiver.add_interest(tic::Interest::Count(stats::Status::Closed));
-    stats_receiver.add_interest(tic::Interest::Count(stats::Status::Timeout));
+    stats_receiver.add_interest(Interest::Count(Stat::Window));
+    stats_receiver.add_interest(Interest::Count(Stat::ResponseOk));
+    stats_receiver.add_interest(Interest::Count(Stat::ResponseOkHit));
+    stats_receiver.add_interest(Interest::Count(Stat::ResponseOkMiss));
+    stats_receiver.add_interest(Interest::Count(Stat::ResponseError));
+    stats_receiver.add_interest(Interest::Count(Stat::ResponseTimeout));
+    stats_receiver.add_interest(Interest::Count(Stat::RequestPrepared));
+    stats_receiver.add_interest(Interest::Count(Stat::RequestSent));
+    stats_receiver.add_interest(Interest::Count(Stat::ConnectOk));
+    stats_receiver.add_interest(Interest::Count(Stat::ConnectError));
+    stats_receiver.add_interest(Interest::Count(Stat::ConnectTimeout));
+    stats_receiver.add_interest(Interest::Count(Stat::SocketCreate));
+    stats_receiver.add_interest(Interest::Count(Stat::SocketClose));
+    stats_receiver.add_interest(Interest::Count(Stat::SocketRead));
+    stats_receiver.add_interest(Interest::Count(Stat::SocketWrite));
+    stats_receiver.add_interest(Interest::Count(Stat::SocketFlush));
 
-    let mut tx = Vec::new();
+    stats_receiver.add_interest(Interest::Percentile(Stat::ResponseOk));
+    stats_receiver.add_interest(Interest::Percentile(Stat::ResponseOkHit));
+    stats_receiver.add_interest(Interest::Percentile(Stat::ResponseOkMiss));
+    stats_receiver.add_interest(Interest::Percentile(Stat::ConnectOk));
+
+
+    let mut send_queues = Vec::new();
 
     info!("-----");
     info!("Connecting...");
@@ -259,35 +258,33 @@ pub fn main() {
         info!("Client: {}", i);
 
         let mut client_config = Client::configure();
-        client_config.set_pool_size(config.connections);
-        client_config.stats(stats_receiver.get_sender().clone());
-        client_config.set_clocksource(stats_receiver.get_clocksource().clone());
-        client_config.set_protocol(config.protocol_config.protocol.clone());
-        client_config.set_timeout(config.timeout);
+        client_config.set_pool_size(config.connections)
+            .stats(stats_receiver.get_sender().clone())
+            .set_clocksource(stats_receiver.get_clocksource().clone())
+            .set_protocol(config.protocol_config.protocol.clone())
+            .set_request_timeout(config.timeout)
+            .set_connect_timeout(config.connect_timeout())
+            .set_internet_protocol(internet_protocol);
+
         for server in matches.opt_strs("server") {
             client_config.add_server(server);
         }
 
         let mut client = client_config.build();
-        tx.push(client.tx());
+        send_queues.push(client.tx());
 
         let _ = thread::Builder::new().name(format!("client{}", i).to_string()).spawn(move || {
             client.run();
         });
     }
 
-    let _ = thread::Builder::new().name("queue0".to_string()).spawn(move || {
-        let mut i = 0;
-        loop {
-            if let Some(w) = work_queue.pop() {
-                i += 1;
-                if i >= tx.len() {
-                    i = 0;
-                }
-                let _ = tx[i].try_send(w);
-            }
-        }
-    });
+    info!("-----");
+    info!("Workload:");
 
-    stats::run(stats_receiver, config.windows, config.duration);
+    workload::launch_workloads(config.protocol_config.workloads,
+                               send_queues.clone(),
+                               stats_receiver.get_sender().clone(),
+                               stats_receiver.get_clocksource().clone());
+
+    stats::run(stats_receiver, config.windows);
 }
