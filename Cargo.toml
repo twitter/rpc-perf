@@ -45,6 +45,7 @@ log-panics = "=1.1.0"
 slab = "=0.3.0"
 simple_logger = "=0.4.0"
 time = "=0.1.36"
+clippy = {version = "*", optional = true}
 
 [dependencies.rpcperf_request]
 path = "./lib/request"
@@ -56,7 +57,7 @@ version = "=0.1.2"
 
 [dependencies.rpcperf_common]
 path = "./lib/common"
-version = "=0.2.0"
+version = "=0.2.1"
 
 [features]
 asm = [ "rpcperf_common/asm" ]

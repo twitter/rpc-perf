@@ -15,22 +15,23 @@
 
 extern crate slab;
 
+
+use cfgtypes::*;
+
+use common;
+
+use common::async::{Evented, Events, Poll, PollOpt, Ready, Token};
+use common::async::channel::{Receiver, SyncSender};
+use common::async::timer::Timer;
+use common::stats::{Clocksource, Sample, Sender, Stat};
+use connection::*;
+
+use net::InternetProtocol;
 use std::collections::VecDeque;
+use std::net::{SocketAddr, ToSocketAddrs};
 use std::process::exit;
 use std::sync::Arc;
 use std::time::Duration;
-
-use common::async::{Evented, Events, Poll, PollOpt, Ready, Token};
-use common::async::timer::Timer;
-use common::async::channel::{Receiver, SyncSender};
-
-use net::InternetProtocol;
-
-use cfgtypes::*;
-use connection::*;
-
-use common;
-use common::stats::{Stat, Sample, Sender, Clocksource};
 
 const MAX_CONNECTIONS: usize = 65536;
 const MAX_EVENTS: usize = 1024;
@@ -62,6 +63,7 @@ fn ready_queue() -> Ready {
 
 type Slab<T> = slab::Slab<T, Token>;
 
+#[derive(Clone)]
 pub struct Config {
     servers: Vec<String>,
     pool_size: usize,
@@ -95,6 +97,16 @@ impl Config {
         self.validate()
     }
 
+    /// get vector of endpoints
+    pub fn servers(&self) -> Vec<String> {
+        self.servers.clone()
+    }
+
+    /// get the number of connections maintained to each endpoint
+    pub fn pool_size(&self) -> usize {
+        self.pool_size
+    }
+
     /// set the number of connections maintained to each endpoint
     pub fn set_pool_size(&mut self, pool_size: usize) -> &mut Self {
         self.pool_size = pool_size;
@@ -111,6 +123,11 @@ impl Config {
     pub fn set_protocol(&mut self, protocol: Arc<ProtocolParseFactory>) -> &mut Self {
         self.protocol = Some(protocol);
         self
+    }
+
+    /// get the InternetProtocol to use for Connections
+    pub fn internet_protocol(&self) -> InternetProtocol {
+        self.internet_protocol
     }
 
     /// set the InternetProtocol to use for Connections
@@ -154,6 +171,7 @@ impl Config {
 }
 
 pub struct Client {
+    config: Config,
     connections: Slab<Connection>,
     poll: Poll,
     tx: SyncSender<Vec<u8>>,
@@ -196,11 +214,14 @@ impl Client {
             exit(1);
         }
 
+        let c = config.clone();
+
         let (tx, rx) = common::async::channel::sync_channel(MAX_PENDING);
 
         let clocksource = config.clocksource.unwrap();
 
         let mut client = Client {
+            config: c,
             connections: Slab::with_capacity(MAX_CONNECTIONS),
             poll: Poll::new().unwrap(),
             tx: tx,
@@ -218,28 +239,36 @@ impl Client {
             events: Some(Events::with_capacity(MAX_EVENTS)),
         };
 
-        for server in config.servers {
-            for _ in 0..config.pool_size {
+        for server in client.config.servers() {
+            if let Ok(sock_addr) = client.resolve(server.clone()) {
+                for _ in 0..client.config.pool_size() {
 
-                match client.connections.insert(Connection::new(server.clone())) {
-                    Ok(token) => {
-                        client.send_stat(token, Stat::SocketCreate);
-                        if client.has_stream(token) {
-                            client.register(client.connections[token].stream().unwrap(), token);
-                            client.set_timeout(token);
-                        } else {
-                            error!("failure creating connection");
+                    match client.connections.insert(Connection::new(sock_addr)) {
+                        Ok(token) => {
+                            client.send_stat(token, Stat::SocketCreate);
+                            if client.has_stream(token) {
+                                client.register(client.connections[token].stream().unwrap(), token);
+                                client.set_timeout(token);
+                            } else {
+                                error!("failure creating connection");
+                            }
+                        }
+                        Err(_) => {
+                            error!("error acquiring token for connection");
+                            exit(1);
                         }
                     }
-                    Err(_) => {
-                        error!("error acquiring token for connection");
-                        exit(1);
-                    }
                 }
+            } else {
+                panic!("Error resolving: {}", server);
             }
         }
-        let _ = client.poll.register(&client.timer, TOKEN_TIMER, ready_timer(), pollopt_timer());
-        let _ = client.poll.register(&client.rx, TOKEN_QUEUE, ready_queue(), pollopt_queue());
+        let _ = client
+            .poll
+            .register(&client.timer, TOKEN_TIMER, ready_timer(), pollopt_timer());
+        let _ = client
+            .poll
+            .register(&client.rx, TOKEN_QUEUE, ready_queue(), pollopt_queue());
         client
     }
 
@@ -257,14 +286,16 @@ impl Client {
         if self.is_connection(token) {
             if self.connections[token].is_connecting() {
                 if let Some(t) = self.connect_timeout {
-                    self.connections[token].set_timeout(self.timer
-                        .set_timeout(Duration::from_millis(t), token)
-                        .unwrap());
+                    self.connections[token]
+                        .set_timeout(self.timer
+                                         .set_timeout(Duration::from_millis(t), token)
+                                         .unwrap());
                 }
             } else if let Some(t) = self.request_timeout {
                 self.connections[token].set_timeout(self.timer
-                    .set_timeout(Duration::from_millis(t), token)
-                    .unwrap());
+                                                        .set_timeout(Duration::from_millis(t),
+                                                                     token)
+                                                        .unwrap());
             }
         }
     }
@@ -274,7 +305,8 @@ impl Client {
     fn register<E: ?Sized>(&self, io: &E, token: Token)
         where E: Evented
     {
-        match self.poll.register(io, token, self.event_set(token), self.poll_opt(token)) {
+        match self.poll
+                  .register(io, token, self.event_set(token), self.poll_opt(token)) {
             Ok(_) => {}
             Err(e) => {
                 if !self.poll.deregister(io).is_ok() {
@@ -341,6 +373,29 @@ impl Client {
 
     }
 
+    /// resolve host:ip to SocketAddr
+    fn resolve(&mut self, server: String) -> Result<SocketAddr, &'static str> {
+        if let Ok(result) = server.to_socket_addrs() {
+            for addr in result {
+                match addr {
+                    SocketAddr::V4(_) => {
+                        if self.config.internet_protocol() == InternetProtocol::Any ||
+                           self.config.internet_protocol() == InternetProtocol::IpV4 {
+                            return Ok(addr);
+                        }
+                    }
+                    SocketAddr::V6(_) => {
+                        if self.config.internet_protocol() == InternetProtocol::Any ||
+                           self.config.internet_protocol() == InternetProtocol::IpV6 {
+                            return Ok(addr);
+                        }
+                    }
+                }
+            }
+        }
+        Err("failed to convert to socket address")
+    }
+
     /// reconnect helper
     fn reconnect(&mut self, token: Token) {
         debug!("reconnect {:?}", token);
@@ -395,11 +450,11 @@ impl Client {
                     ParsedResponse::Hit => {
                         let _ = self.stats.send(Sample::new(t0, t1, Stat::ResponseOk));
                         Stat::ResponseOkHit
-                    },
+                    }
                     ParsedResponse::Miss => {
                         let _ = self.stats.send(Sample::new(t0, t1, Stat::ResponseOk));
                         Stat::ResponseOkMiss
-                    },
+                    }
                     _ => Stat::ResponseError,
                 };
 
@@ -517,9 +572,13 @@ impl Client {
 
     /// poll for events and handle them
     pub fn poll(&mut self) {
-        let mut events = self.events.take().unwrap_or_else(|| Events::with_capacity(MAX_EVENTS));
-        
-        self.poll.poll(&mut events, Some(Duration::from_millis(TICK_MS))).unwrap();
+        let mut events = self.events
+            .take()
+            .unwrap_or_else(|| Events::with_capacity(MAX_EVENTS));
+
+        self.poll
+            .poll(&mut events, Some(Duration::from_millis(TICK_MS)))
+            .unwrap();
 
         for event in events.iter() {
             let token = event.token();

@@ -15,7 +15,7 @@
 
 extern crate rpcperf_common as common;
 
-pub use common::config::{Value, Parser};
+pub use common::config::{Parser, Value};
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -140,23 +140,25 @@ pub fn extract_parameter<T: Ptype>(index: usize,
                                    parameter: &BTreeMap<String, Value>)
                                    -> CResult<Parameter<T>> {
 
-    let style = match parameter.get("style")
-        .and_then(|k| k.as_str()) {
+    let style = match parameter.get("style").and_then(|k| k.as_str()) {
         Some("random") => Style::Random,
         Some("static") => Style::Static,
         None => Style::Static,
         Some(other) => return Err(format!("bad parameter style: {}", other)),
     };
 
-    let seed = parameter.get("seed")
+    let seed = parameter
+        .get("seed")
         .and_then(|k| k.as_integer())
         .map_or(index, |i| i as usize);
 
-    let size = parameter.get("size")
+    let size = parameter
+        .get("size")
         .and_then(|k| k.as_integer())
         .map_or(1, |i| i as usize);
 
-    let regenerate = parameter.get("regenerate")
+    let regenerate = parameter
+        .get("regenerate")
         .and_then(|k| k.as_bool())
         .unwrap_or(false);
 
@@ -168,8 +170,8 @@ pub fn extract_parameter<T: Ptype>(index: usize,
     }
 
     Ok(Parameter {
-        style: style,
-        regenerate: regenerate,
-        value: value,
-    })
+           style: style,
+           regenerate: regenerate,
+           value: value,
+       })
 }

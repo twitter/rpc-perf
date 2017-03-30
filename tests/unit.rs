@@ -28,7 +28,10 @@ fn main() {
 }
 
 fn test_subcrate(subcrate: &str) {
-    let status = Command::new("cargo").args(&["test", "-p", subcrate]).status().unwrap();
+    let status = Command::new("cargo")
+        .args(&["test", "-p", subcrate])
+        .status()
+        .unwrap();
     assert!(status.success(),
             "test for sub-crate: {} returned: {:?}",
             subcrate,

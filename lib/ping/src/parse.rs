@@ -53,8 +53,8 @@ mod tests {
     #[cfg(feature = "unstable")]
     extern crate test;
 
-    use cfgtypes::ParsedResponse;
     use super::parse_response;
+    use cfgtypes::ParsedResponse;
 
     #[test]
     fn test_parse_pong() {

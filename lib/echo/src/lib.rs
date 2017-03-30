@@ -55,9 +55,9 @@ impl Ptype for EchoData {
     fn parse(seed: usize, size: usize, _: &BTreeMap<String, Value>) -> CResult<Self> {
         let bts = (seed..(seed + size)).map(|i| i as u8).collect();
         Ok(EchoData {
-            size: size,
-            bytes: bts,
-        })
+               size: size,
+               bytes: bts,
+           })
     }
 }
 
@@ -104,20 +104,22 @@ pub fn load_config(table: &BTreeMap<String, Value>) -> CResult<ProtocolConfig> {
         }
 
         Ok(ProtocolConfig {
-            protocol: Arc::new(EchoParser),
-            workloads: ws,
-        })
+               protocol: Arc::new(EchoParser),
+               workloads: ws,
+           })
     } else {
         Err("memcache: no workloads specified".to_owned())
     }
 }
 
 fn extract_workload(workload: &BTreeMap<String, Value>) -> CResult<BenchmarkWorkload> {
-    let rate = workload.get("rate")
+    let rate = workload
+        .get("rate")
         .and_then(|k| k.as_integer())
         .unwrap_or(0);
 
-    let name = workload.get("name")
+    let name = workload
+        .get("name")
         .and_then(|k| k.as_str())
         .unwrap_or("echo")
         .to_owned();

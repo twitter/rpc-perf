@@ -13,8 +13,8 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use common::padding::{PadStr, Alignment};
-use common::random::{thread_rng, Rng};
+use common::padding::{Alignment, PadStr};
+use common::random::{Rng, thread_rng};
 
 
 pub fn random_string(size: usize) -> String {

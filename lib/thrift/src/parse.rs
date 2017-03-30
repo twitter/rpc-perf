@@ -15,7 +15,7 @@
 
 use cfgtypes::ParsedResponse;
 
-use common::bytes::{ByteOrder, BigEndian};
+use common::bytes::{BigEndian, ByteOrder};
 
 pub fn parse_response(response: &[u8]) -> ParsedResponse {
     let bytes = response.len();

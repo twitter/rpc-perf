@@ -42,9 +42,9 @@ impl Ptype for RedisData {
 
     fn parse(seed: usize, size: usize, _: &BTreeMap<String, Value>) -> CResult<Self> {
         Ok(RedisData {
-            size: size,
-            string: tools::seeded_string(size, seed),
-        })
+               size: size,
+               string: tools::seeded_string(size, seed),
+           })
     }
 }
 
@@ -85,7 +85,7 @@ impl Command {
                 gen::hset(p1.value.string.as_str(),
                           p2.value.string.as_str(),
                           p3.value.string.as_str())
-                    .into_bytes()
+                        .into_bytes()
             }
             Command::Del(ref mut p1) => {
                 p1.regen();
@@ -95,7 +95,7 @@ impl Command {
                 p1.regen();
                 gen::expire(p1.value.string.as_str(),
                             p2.value.string.as_str().parse().unwrap())
-                    .into_bytes()
+                        .into_bytes()
             }
             Command::Incr(ref mut p1) => {
                 p1.regen();
@@ -152,10 +152,10 @@ impl ProtocolParseFactory for RedisParseFactory {
 
     fn prepare(&self) -> CResult<Vec<Vec<u8>>> {
         Ok(if self.flush {
-            vec![gen::flushall().into_bytes(), gen::select(&self.database).into_bytes()]
-        } else {
-            vec![gen::select(&self.database).into_bytes()]
-        })
+               vec![gen::flushall().into_bytes(), gen::select(&self.database).into_bytes()]
+           } else {
+               vec![gen::select(&self.database).into_bytes()]
+           })
     }
 
     fn name(&self) -> &str {
@@ -175,7 +175,8 @@ pub fn load_config(table: &BTreeMap<String, Value>, matches: &Matches) -> CResul
 
     let mut ws = Vec::new();
 
-    let database = table.get("general")
+    let database = table
+        .get("general")
         .and_then(|k| k.as_table())
         .and_then(|k| k.get("database"))
         .and_then(|k| k.as_integer())
@@ -191,30 +192,33 @@ pub fn load_config(table: &BTreeMap<String, Value>, matches: &Matches) -> CResul
         }
 
         let proto = Arc::new(RedisParseFactory {
-            flush: matches.opt_present("flush"),
-            database: database,
-        });
+                                 flush: matches.opt_present("flush"),
+                                 database: database,
+                             });
 
         Ok(ProtocolConfig {
-            protocol: proto,
-            workloads: ws,
-        })
+               protocol: proto,
+               workloads: ws,
+           })
     } else {
         Err("no workloads specified".to_owned())
     }
 }
 
 fn extract_workload(workload: &BTreeMap<String, Value>) -> CResult<BenchmarkWorkload> {
-    let rate = workload.get("rate")
+    let rate = workload
+        .get("rate")
         .and_then(|k| k.as_integer())
         .unwrap_or(0);
 
-    let method = workload.get("method")
+    let method = workload
+        .get("method")
         .and_then(|k| k.as_str())
         .unwrap_or("get")
         .to_owned();
 
-    let name = workload.get("name")
+    let name = workload
+        .get("name")
         .and_then(|k| k.as_str())
         .unwrap_or(method.as_str())
         .to_owned();

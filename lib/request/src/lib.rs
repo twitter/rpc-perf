@@ -29,9 +29,9 @@ extern crate rpcperf_thrift as thrift;
 pub mod config;
 pub mod workload;
 
-use common::stats::{Stat, Sender};
 
 use cfgtypes::ProtocolConfig;
+use common::stats::{Sender, Stat};
 
 pub struct BenchmarkConfig {
     pub connections: usize,

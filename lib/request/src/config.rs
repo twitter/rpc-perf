@@ -13,22 +13,22 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
+use super::BenchmarkConfig;
+use cfgtypes::Parser;
+use cfgtypes::Value;
+use cfgtypes::Value::Table;
 use common::options::Matches;
+
+use echo;
+use memcache;
+use ping;
+use redis;
 use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::fs::File;
 use std::io::Read;
 use std::str::FromStr;
-use cfgtypes::Parser;
-use cfgtypes::Value;
-use cfgtypes::Value::Table;
-
-use echo;
-use memcache;
-use redis;
-use ping;
 use thrift;
-use super::BenchmarkConfig;
 
 /// Helper for extracting non-string values from the `Matches`
 fn parse_opt<F>(name: &str, matches: &Matches) -> Result<Option<F>, String>
@@ -90,14 +90,16 @@ fn load_config_table(table: BTreeMap<String, Value>,
                      matches: &Matches)
                      -> Result<BenchmarkConfig, String> {
 
-    let protocol: String = matches.opt_str("protocol")
+    let protocol: String = matches
+        .opt_str("protocol")
         .or_else(|| {
-            table.get("general")
-                .and_then(|k| k.as_table())
-                .and_then(|k| k.get("protocol"))
-                .and_then(|k| k.as_str())
-                .map(|k| k.to_owned())
-        })
+                     table
+                         .get("general")
+                         .and_then(|k| k.as_table())
+                         .and_then(|k| k.get("protocol"))
+                         .and_then(|k| k.as_str())
+                         .map(|k| k.to_owned())
+                 })
         .unwrap_or_else(|| "memcache".to_owned());
 
     // Pick a protocol
@@ -117,22 +119,19 @@ fn load_config_table(table: BTreeMap<String, Value>,
     let mut config = BenchmarkConfig::new(proto);
 
     if let Some(&Table(ref general)) = table.get("general") {
-        if let Some(connections) = general.get("connections")
-            .and_then(|k| k.as_integer()) {
+        if let Some(connections) = general.get("connections").and_then(|k| k.as_integer()) {
             config.connections = connections as usize;
         }
         if let Some(threads) = general.get("threads").and_then(|k| k.as_integer()) {
             config.threads = threads as usize;
         }
-        if let Some(duration) = general.get("duration")
-            .and_then(|k| k.as_integer()) {
+        if let Some(duration) = general.get("duration").and_then(|k| k.as_integer()) {
             config.duration = duration as usize;
         }
         if let Some(windows) = general.get("windows").and_then(|k| k.as_integer()) {
             config.windows = windows as usize;
         }
-        if let Some(tcp_nodelay) = general.get("tcp-nodelay")
-            .and_then(|k| k.as_bool()) {
+        if let Some(tcp_nodelay) = general.get("tcp-nodelay").and_then(|k| k.as_bool()) {
             config.tcp_nodelay = tcp_nodelay;
         }
         if let Some(ipv4) = general.get("ipv4").and_then(|k| k.as_bool()) {
@@ -141,10 +140,14 @@ fn load_config_table(table: BTreeMap<String, Value>,
         if let Some(ipv6) = general.get("ipv6").and_then(|k| k.as_bool()) {
             config.ipv6 = ipv6;
         }
-        if let Some(timeout) = general.get("request-timeout").and_then(|k| k.as_integer()) {
+        if let Some(timeout) = general
+               .get("request-timeout")
+               .and_then(|k| k.as_integer()) {
             config.timeout = Some(timeout as u64);
         }
-        if let Some(v) = general.get("connect-timeout").and_then(|k| k.as_integer()) {
+        if let Some(v) = general
+               .get("connect-timeout")
+               .and_then(|k| k.as_integer()) {
             config.connect_timeout = Some(v as u64);
         }
     }

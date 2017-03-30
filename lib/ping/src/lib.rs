@@ -70,9 +70,9 @@ pub fn load_config(table: &BTreeMap<String, Value>) -> CResult<ProtocolConfig> {
         }
 
         Ok(ProtocolConfig {
-            protocol: Arc::new(Ping),
-            workloads: ws,
-        })
+               protocol: Arc::new(Ping),
+               workloads: ws,
+           })
     } else {
         Err("no workload specified".to_owned())
     }
@@ -80,7 +80,8 @@ pub fn load_config(table: &BTreeMap<String, Value>) -> CResult<ProtocolConfig> {
 
 fn extract_workload(workload: &BTreeMap<String, Value>) -> CResult<BenchmarkWorkload> {
 
-    let rate = workload.get("rate")
+    let rate = workload
+        .get("rate")
         .and_then(|k| k.as_integer())
         .unwrap_or(0);
 
@@ -90,7 +91,8 @@ fn extract_workload(workload: &BTreeMap<String, Value>) -> CResult<BenchmarkWork
         }
     }
 
-    let name = workload.get("name")
+    let name = workload
+        .get("name")
         .and_then(|k| k.as_str())
         .unwrap_or("ping")
         .to_owned();

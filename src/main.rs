@@ -13,6 +13,9 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
+
+#[allow(unknown_lints, useless_attribute)]
+#[cfg_attr(feature = "cargo-clippy", deny(result_unwrap_used))]
 #[macro_use]
 extern crate log;
 extern crate log_panics;
@@ -30,21 +33,21 @@ mod logger;
 mod net;
 mod stats;
 
+
+use client::Client;
 use common::options::Options;
 use common::stats::{Interest, Receiver, Stat};
 use log::LogLevelFilter;
+use logger::SimpleLogger;
+use net::InternetProtocol;
 use request::config;
+use request::workload;
 use std::env;
 use std::thread;
 
-use client::Client;
-use logger::SimpleLogger;
-use net::InternetProtocol;
-use request::workload;
-
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
-fn print_usage(program: &str, opts: Options) {
+fn print_usage(program: &str, opts: &Options) {
     let brief = format!("Usage: {} [options]", program);
     print!("{}", opts.usage(&brief));
 }
@@ -57,8 +60,14 @@ fn opts() -> Options {
     opts.optopt("c", "connections", "connections per thread", "INTEGER");
     opts.optopt("d", "duration", "number of seconds per window", "INTEGER");
     opts.optopt("w", "windows", "number of windows in test", "INTEGER");
-    opts.optopt("", "request-timeout", "request timeout in milliseconds", "INTEGER");
-    opts.optopt("", "connect-timeout", "connect timeout in milliseconds", "INTEGER");
+    opts.optopt("",
+                "request-timeout",
+                "request timeout in milliseconds",
+                "INTEGER");
+    opts.optopt("",
+                "connect-timeout",
+                "connect timeout in milliseconds",
+                "INTEGER");
     opts.optopt("p", "protocol", "client protocol", "STRING");
     opts.optopt("", "config", "TOML config file", "FILE");
     opts.optopt("", "listen", "listen address for stats", "HOST:PORT");
@@ -68,6 +77,7 @@ fn opts() -> Options {
     opts.optflag("", "flush", "flush cache prior to test");
     opts.optflag("", "ipv4", "force IPv4 only");
     opts.optflag("", "ipv6", "force IPv6 only");
+    opts.optflag("", "service", "run continuously");
     opts.optflag("", "version", "show version and exit");
     opts.optflagmulti("v", "verbose", "verbosity (stacking)");
     opts.optflag("h", "help", "print this help menu");
@@ -89,9 +99,9 @@ fn set_log_level(level: usize) {
         }
     }
     let _ = log::set_logger(|max_log_level| {
-        max_log_level.set(log_filter);
-        Box::new(SimpleLogger)
-    });
+                                max_log_level.set(log_filter);
+                                Box::new(SimpleLogger)
+                            });
 }
 
 fn choose_layer_3(ipv4: bool, ipv6: bool) -> Result<InternetProtocol, String> {
@@ -125,7 +135,7 @@ pub fn main() {
     };
 
     if matches.opt_present("help") {
-        print_usage(program, opts);
+        print_usage(program, &opts);
         return;
     }
 
@@ -147,7 +157,7 @@ pub fn main() {
 
     if matches.opt_count("server") < 1 {
         error!("require server parameter");
-        print_usage(program, opts);
+        print_usage(program, &opts);
         return;
     }
 
@@ -217,13 +227,7 @@ pub fn main() {
         stats_config = stats_config.http_listen(addr);
     }
 
-    if let Some(w) = waterfall {
-        stats_config = stats_config.waterfall_file(w);
-    }
 
-    if let Some(t) = trace {
-        stats_config = stats_config.trace_file(t);
-    }
 
     let mut stats_receiver = stats_config.build();
 
@@ -249,6 +253,13 @@ pub fn main() {
     stats_receiver.add_interest(Interest::Percentile(Stat::ResponseOkMiss));
     stats_receiver.add_interest(Interest::Percentile(Stat::ConnectOk));
 
+    if let Some(w) = waterfall {
+        stats_receiver.add_interest(Interest::Waterfall(Stat::ResponseOk, w));
+    }
+
+    if let Some(t) = trace {
+        stats_receiver.add_interest(Interest::Waterfall(Stat::ResponseOk, t));
+    }
 
     let mut send_queues = Vec::new();
 
@@ -258,7 +269,8 @@ pub fn main() {
         info!("Client: {}", i);
 
         let mut client_config = Client::configure();
-        client_config.set_pool_size(config.connections)
+        client_config
+            .set_pool_size(config.connections)
             .stats(stats_receiver.get_sender().clone())
             .set_clocksource(stats_receiver.get_clocksource().clone())
             .set_protocol(config.protocol_config.protocol.clone())
@@ -273,9 +285,9 @@ pub fn main() {
         let mut client = client_config.build();
         send_queues.push(client.tx());
 
-        let _ = thread::Builder::new().name(format!("client{}", i).to_string()).spawn(move || {
-            client.run();
-        });
+        let _ = thread::Builder::new()
+            .name(format!("client{}", i).to_string())
+            .spawn(move || { client.run(); });
     }
 
     info!("-----");
@@ -286,5 +298,7 @@ pub fn main() {
                                stats_receiver.get_sender().clone(),
                                stats_receiver.get_clocksource().clone());
 
-    stats::run(stats_receiver, config.windows);
+    stats::run(stats_receiver,
+               config.windows,
+               matches.opt_present("service"));
 }

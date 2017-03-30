@@ -76,8 +76,8 @@ pub fn parse_response(response: &str) -> ParsedResponse {
 
 #[cfg(test)]
 mod tests {
-    use cfgtypes::ParsedResponse;
     use super::parse_response;
+    use cfgtypes::ParsedResponse;
 
     #[test]
     fn test_parse_incomplete() {

@@ -14,15 +14,15 @@
 //  limitations under the License.
 
 
-use std::collections::BTreeMap;
-use std::sync::Arc;
-use cfgtypes::{CResult, BenchmarkWorkload, ParsedResponse, ProtocolConfig, ProtocolGen,
-               ProtocolParse, ProtocolParseFactory, Style, tools};
 use super::{Parameter, Tvalue};
+use cfgtypes::{BenchmarkWorkload, CResult, ParsedResponse, ProtocolConfig, ProtocolGen,
+               ProtocolParse, ProtocolParseFactory, Style, tools};
+use cfgtypes::Value;
 
 use gen;
 use parse;
-use cfgtypes::Value;
+use std::collections::BTreeMap;
+use std::sync::Arc;
 
 struct ThriftParse;
 struct ThriftParseFactory;
@@ -77,9 +77,9 @@ pub fn load_config(table: &BTreeMap<String, Value>) -> CResult<ProtocolConfig> {
         }
 
         Ok(ProtocolConfig {
-            protocol: Arc::new(ThriftParseFactory),
-            workloads: ws,
-        })
+               protocol: Arc::new(ThriftParseFactory),
+               workloads: ws,
+           })
     } else {
         Err("no workloads specified".to_owned())
     }
@@ -91,11 +91,13 @@ fn extract_workload(workload: &BTreeMap<String, Value>) -> CResult<BenchmarkWork
         None => return Err("malformed config: 'method' not specified".to_owned()),
     };
 
-    let rate = workload.get("rate")
+    let rate = workload
+        .get("rate")
         .and_then(|k| k.as_integer())
         .unwrap_or(0);
 
-    let name = workload.get("name")
+    let name = workload
+        .get("name")
         .and_then(|k| k.as_str())
         .unwrap_or(method)
         .to_owned();
@@ -118,47 +120,43 @@ fn extract_workload(workload: &BTreeMap<String, Value>) -> CResult<BenchmarkWork
     }
 
     let cmd = Box::new(ThriftGen {
-        method: method.to_owned(),
-        parameters: ps,
-    });
+                           method: method.to_owned(),
+                           parameters: ps,
+                       });
 
     Ok(BenchmarkWorkload::new(name, rate as usize, cmd))
 }
 
 fn extract_parameter(i: usize, parameter: &BTreeMap<String, Value>) -> CResult<Parameter> {
 
-    let id = parameter.get("id")
+    let id = parameter
+        .get("id")
         .and_then(|k| k.as_integer())
         .map(|k| k as i16);
 
-    let style = match parameter.get("style")
-        .and_then(|k| k.as_str()) {
+    let style = match parameter.get("style").and_then(|k| k.as_str()) {
         Some("random") => Style::Random,
         Some("static") => Style::Static,
         None => Style::Static,
         Some(other) => return Err(format!("bad parameter style: {}", other)),
     };
 
-    let seed = match parameter.get("seed")
-        .and_then(|k| k.as_integer()) {
+    let seed = match parameter.get("seed").and_then(|k| k.as_integer()) {
         Some(s) => s as usize,
         None => i,
     };
 
-    let size = match parameter.get("size")
-        .and_then(|k| k.as_integer()) {
+    let size = match parameter.get("size").and_then(|k| k.as_integer()) {
         Some(s) => s as usize,
         None => 1,
     };
 
-    let regenerate = match parameter.get("regenerate")
-        .and_then(|k| k.as_bool()) {
+    let regenerate = match parameter.get("regenerate").and_then(|k| k.as_bool()) {
         Some(s) => s,
         None => false,
     };
 
-    let mut value = match parameter.get("type")
-        .and_then(|k| k.as_str()) {
+    let mut value = match parameter.get("type").and_then(|k| k.as_str()) {
         Some("stop") => Tvalue::Stop,
         Some("void") => Tvalue::Void,
         Some("bool") => Tvalue::Bool(true),
@@ -172,7 +170,8 @@ fn extract_parameter(i: usize, parameter: &BTreeMap<String, Value>) -> CResult<P
         Some("map") => Tvalue::Map,
         Some("set") => Tvalue::Set,
         Some("list") => {
-            Tvalue::List(parameter.get("contains")
+            Tvalue::List(parameter
+                             .get("contains")
                              .and_then(|k| k.as_str())
                              .unwrap()
                              .to_owned(),
@@ -187,13 +186,13 @@ fn extract_parameter(i: usize, parameter: &BTreeMap<String, Value>) -> CResult<P
     }
 
     Ok(Parameter {
-        id: id,
-        seed: seed,
-        size: size,
-        style: style,
-        regenerate: regenerate,
-        value: value,
-    })
+           id: id,
+           seed: seed,
+           size: size,
+           style: style,
+           regenerate: regenerate,
+           value: value,
+       })
 }
 
 #[test]
