@@ -1,15 +1,15 @@
 // Connection
 
-use std::io::{self, Read, Write};
-use std::net::{SocketAddr, ToSocketAddrs};
-use std::process::exit;
 
-use bytes::{Buf, MutBuf, ByteBuf, MutByteBuf};
+use bytes::{Buf, ByteBuf, MutBuf, MutByteBuf};
 
 use common;
-use common::async::timer::Timeout;
 use common::async::tcp::TcpStream;
+use common::async::timer::Timeout;
 use net::InternetProtocol;
+use std::io::{self, Read, Write};
+use std::net::SocketAddr;
+use std::process::exit;
 
 const RX_BUFFER: usize = 4 * 1024;
 const TX_BUFFER: usize = 4 * 1024;
@@ -37,11 +37,15 @@ impl Buffer {
     }
 
     pub fn clear(&mut self) {
-        let mut rx = self.rx.take().unwrap_or_else(|| ByteBuf::mut_with_capacity(RX_BUFFER));
+        let mut rx = self.rx
+            .take()
+            .unwrap_or_else(|| ByteBuf::mut_with_capacity(RX_BUFFER));
         rx.clear();
         self.rx = Some(rx);
 
-        let mut tx = self.tx.take().unwrap_or_else(|| ByteBuf::mut_with_capacity(TX_BUFFER));
+        let mut tx = self.tx
+            .take()
+            .unwrap_or_else(|| ByteBuf::mut_with_capacity(TX_BUFFER));
         tx.clear();
         self.tx = Some(tx);
     }
@@ -49,8 +53,7 @@ impl Buffer {
 
 #[derive(Debug)]
 pub struct Connection {
-    server: String,
-    addr: Option<SocketAddr>,
+    addr: SocketAddr,
     stream: Option<TcpStream>,
     state: State,
     buffer: Buffer,
@@ -60,61 +63,26 @@ pub struct Connection {
 
 impl Connection {
     /// create connection
-    pub fn new(server: String) -> Connection {
+    pub fn new(address: SocketAddr) -> Connection {
         let mut c = Connection {
-            server: server,
             stream: None,
             state: State::Connecting,
             buffer: Buffer::new(),
             timeout: None,
             protocol: InternetProtocol::Any,
-            addr: None,
+            addr: address,
         };
         c.reconnect();
         c
     }
 
-    pub fn resolve_socket_addr(&mut self) {
-        if let Ok(result) = self.server.to_socket_addrs() {
-            for addr in result {
-                match addr {
-                    SocketAddr::V4(_) => {
-                        if self.protocol == InternetProtocol::Any ||
-                           self.protocol == InternetProtocol::IpV4 {
-                            self.addr = Some(addr)
-                        } else {
-                            self.addr = None
-                        }
-                    }
-                    SocketAddr::V6(_) => {
-                        if self.protocol == InternetProtocol::Any ||
-                           self.protocol == InternetProtocol::IpV6 {
-                            self.addr = Some(addr)
-                        } else {
-                            self.addr = None
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     pub fn connect(&mut self) {
         self.state = State::Connecting;
 
-        if self.addr.is_none() {
-            debug!("DNS lookup for: {}", self.server);
-            self.resolve_socket_addr();
-            if self.addr.is_none() {
-                error!("Failure resolving: {}", self.server);
-                let _ = self.close();
-            }
-        }
-
-        if let Ok(s) = TcpStream::connect(&self.addr.unwrap()) {
+        if let Ok(s) = TcpStream::connect(&self.addr) {
             self.stream = Some(s);
         } else {
-            debug!("Error connecting: {}", self.server);
+            debug!("Error connecting: {}", self.addr);
         }
     }
 
@@ -256,7 +224,10 @@ impl Connection {
                     // read bytes from connection
                     trace!("read() bytes {}", n);
                     let mut buffer = buffer.flip();
-                    let _ = buffer.by_ref().take(n as u64).read_to_end(&mut response);
+                    let _ = buffer
+                        .by_ref()
+                        .take(n as u64)
+                        .read_to_end(&mut response);
                     trace!("read: {:?}", response);
                     self.buffer.rx = Some(buffer.flip());
                     self.stream = Some(s);

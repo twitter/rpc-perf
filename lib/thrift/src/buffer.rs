@@ -14,7 +14,7 @@
 //  limitations under the License.
 
 
-use common::bytes::{ByteOrder, BigEndian, WriteBytesExt};
+use common::bytes::{BigEndian, ByteOrder, WriteBytesExt};
 
 use consts;
 
@@ -144,9 +144,7 @@ mod tests {
 
     #[test]
     fn test_protocol_header() {
-        test_buff(&[0, 0, 0, 0, 128, 1, 0, 1], |b| {
-            b.protocol_header();
-        });
+        test_buff(&[0, 0, 0, 0, 128, 1, 0, 1], |b| { b.protocol_header(); });
     }
 
     #[test]
@@ -159,15 +157,12 @@ mod tests {
 
     #[test]
     fn test_method_name() {
-        test_buff(&[0, 0, 0, 0, 0, 0, 0, 4, 112, 105, 110, 103], |b| {
-            b.method_name("ping");
-        });
+        test_buff(&[0, 0, 0, 0, 0, 0, 0, 4, 112, 105, 110, 103],
+                  |b| { b.method_name("ping"); });
     }
 
     #[test]
     fn test_stop() {
-        test_buff(&vec![0, 0, 0, 0, 0], |b| {
-            b.stop();
-        });
+        test_buff(&vec![0, 0, 0, 0, 0], |b| { b.stop(); });
     }
 }

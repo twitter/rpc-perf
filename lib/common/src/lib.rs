@@ -46,13 +46,13 @@ pub mod config {
     pub use toml::*;
 }
 pub mod async {
+    pub use mio::{Event, Evented, Events, Poll, PollOpt, Ready, Token};
     pub use mio::{channel, tcp, timer};
-    pub use mio::{Evented, Event, Events, Poll, PollOpt, Ready, Token};
     pub use mpmc::Queue;
 }
 pub mod stats {
-    pub use tic::*;
     use std::fmt;
+    pub use tic::*;
 
     #[derive(Clone, PartialEq, Eq, Hash, Debug)]
     pub enum Stat {

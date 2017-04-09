@@ -16,12 +16,12 @@
 pub const BUCKET_SIZE: usize = 10_000;
 
 use cfgtypes;
-use common::async::channel::{SyncSender, TrySendError};
-use common::limits::Ratelimit;
-use common::stats::{Clocksource, Sender, Stat, Sample};
-use std::thread;
 
 use cfgtypes::ProtocolGen;
+use common::async::channel::{SyncSender, TrySendError};
+use common::limits::Ratelimit;
+use common::stats::{Clocksource, Sample, Sender, Stat};
+use std::thread;
 
 /// Launch each of the workloads in their own thread
 pub fn launch_workloads(workloads: Vec<cfgtypes::BenchmarkWorkload>,
@@ -40,14 +40,13 @@ pub fn launch_workloads(workloads: Vec<cfgtypes::BenchmarkWorkload>,
                                          work_queue.clone(),
                                          stats.clone(),
                                          clocksource.clone())
-            .unwrap();
+                .unwrap();
 
-        let _ =
-            thread::Builder::new().name(format!("workload{}", i).to_string()).spawn(move || {
-                loop {
-                    workload.run();
-                }
-            });
+        let _ = thread::Builder::new()
+            .name(format!("workload{}", i).to_string())
+            .spawn(move || loop {
+                       workload.run();
+                   });
     }
 }
 
@@ -71,18 +70,18 @@ impl Workload {
         if let Some(r) = rate {
             if r > 0 {
                 ratelimit = Some(Ratelimit::configure()
-                    .frequency(r as u32)
-                    .capacity(BUCKET_SIZE as u32)
-                    .build());
+                                     .frequency(r as u32)
+                                     .capacity(BUCKET_SIZE as u32)
+                                     .build());
             }
         }
         Ok(Workload {
-            protocol: protocol,
-            ratelimit: ratelimit,
-            queue: queue,
-            stats: stats,
-            clocksource: clocksource,
-        })
+               protocol: protocol,
+               ratelimit: ratelimit,
+               queue: queue,
+               stats: stats,
+               clocksource: clocksource,
+           })
     }
 
     /// Generates work at a fixed rate and pushes to the queue
@@ -98,18 +97,19 @@ impl Workload {
                 match self.queue[index].try_send(msg.take().unwrap()) {
                     Ok(_) => {
                         let t1 = self.clocksource.counter();
-                        let _ = self.stats.send(Sample::new(t0, t1, Stat::RequestPrepared));
+                        let _ = self.stats
+                            .send(Sample::new(t0, t1, Stat::RequestPrepared));
                         break;
                     }
                     Err(e) => {
-                         match e {
-                             TrySendError::Full(m) => {
-                                 msg = Some(m);
-                             }
-                             _ => {
-                                 error!("Receiving thread died?");
-                             }
-                         }
+                        match e {
+                            TrySendError::Full(m) => {
+                                msg = Some(m);
+                            }
+                            _ => {
+                                error!("Receiving thread died?");
+                            }
+                        }
                     }
                 }
                 index += 1;

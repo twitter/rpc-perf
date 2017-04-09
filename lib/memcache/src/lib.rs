@@ -67,9 +67,9 @@ impl Ptype for CacheData {
 
     fn parse(seed: usize, size: usize, _: &BTreeMap<String, Value>) -> CResult<Self> {
         Ok(CacheData {
-            size: size,
-            string: tools::seeded_string(size, seed),
-        })
+               size: size,
+               string: tools::seeded_string(size, seed),
+           })
     }
 }
 
@@ -80,10 +80,10 @@ impl ProtocolParseFactory for MemcacheParserFactory {
 
     fn prepare(&self) -> CResult<Vec<Vec<u8>>> {
         Ok(if self.flush {
-            vec![gen::flush_all().into_bytes()]
-        } else {
-            Vec::new()
-        })
+               vec![gen::flush_all().into_bytes()]
+           } else {
+               Vec::new()
+           })
     }
 
     fn name(&self) -> &str {
@@ -108,7 +108,7 @@ impl ProtocolGen for MemcacheCommand {
                          val.value.string.as_str(),
                          None,
                          None)
-                    .into_bytes()
+                        .into_bytes()
             }
             MemcacheCommand::Get(ref mut key) => {
                 key.regen();
@@ -125,7 +125,7 @@ impl ProtocolGen for MemcacheCommand {
                          val.value.string.as_str(),
                          None,
                          None)
-                    .into_bytes()
+                        .into_bytes()
             }
             MemcacheCommand::Verbosity(ref mut level) => {
                 level.regen();
@@ -138,7 +138,7 @@ impl ProtocolGen for MemcacheCommand {
                 ttl.regen();
                 gen::touch(key.value.string.as_str(),
                            Some(ttl.value.string.parse().unwrap_or(0)))
-                    .into_bytes()
+                        .into_bytes()
             }
             MemcacheCommand::Delete(ref mut key) => {
                 key.regen();
@@ -150,38 +150,38 @@ impl ProtocolGen for MemcacheCommand {
                          None,
                          None,
                          cas.value.string.parse().unwrap_or(0))
-                    .into_bytes()
+                        .into_bytes()
             }
             MemcacheCommand::Replace(ref mut key, ref mut value) => {
                 gen::replace(key.value.string.as_str(),
                              value.value.string.as_str(),
                              None,
                              None)
-                    .into_bytes()
+                        .into_bytes()
             }
             MemcacheCommand::Append(ref mut key, ref mut value) => {
                 gen::append(key.value.string.as_str(),
                             value.value.string.as_str(),
                             None,
                             None)
-                    .into_bytes()
+                        .into_bytes()
             }
             MemcacheCommand::Prepend(ref mut key, ref mut value) => {
                 gen::prepend(key.value.string.as_str(),
                              value.value.string.as_str(),
                              None,
                              None)
-                    .into_bytes()
+                        .into_bytes()
             }
             MemcacheCommand::Incr(ref mut key, ref mut value) => {
                 gen::incr(key.value.string.as_str(),
                           value.value.string.parse().unwrap_or(1))
-                    .into_bytes()
+                        .into_bytes()
             }
             MemcacheCommand::Decr(ref mut key, ref mut value) => {
                 gen::decr(key.value.string.as_str(),
                           value.value.string.parse().unwrap_or(1))
-                    .into_bytes()
+                        .into_bytes()
             }
         }
     }
@@ -225,9 +225,9 @@ pub fn load_config(table: &BTreeMap<String, Value>, matches: &Matches) -> CResul
         let protocol = Arc::new(MemcacheParserFactory { flush: matches.opt_present("flush") });
 
         Ok(ProtocolConfig {
-            protocol: protocol,
-            workloads: ws,
-        })
+               protocol: protocol,
+               workloads: ws,
+           })
     } else {
         Err("memcache: no workloads specified".to_owned())
     }
@@ -235,16 +235,19 @@ pub fn load_config(table: &BTreeMap<String, Value>, matches: &Matches) -> CResul
 
 fn extract_workload(i: usize, workload: &BTreeMap<String, Value>) -> CResult<BenchmarkWorkload> {
 
-    let rate = workload.get("rate")
+    let rate = workload
+        .get("rate")
         .and_then(|k| k.as_integer())
         .unwrap_or(0);
 
-    let method = workload.get("method")
+    let method = workload
+        .get("method")
         .and_then(|k| k.as_str())
         .unwrap_or("get")
         .to_owned();
 
-    let name = workload.get("name")
+    let name = workload
+        .get("name")
         .and_then(|k| k.as_str())
         .unwrap_or(method.as_str())
         .to_owned();

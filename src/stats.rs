@@ -13,14 +13,14 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use std::process::exit;
 use common::stats::{Meters, Percentile, Receiver, Sample, Stat};
+use std::process::exit;
 
 pub fn meters_delta(t0: &Meters<Stat>, t1: &Meters<Stat>, stat: &Stat) -> u64 {
     *t1.get_count(stat).unwrap_or(&0) - *t0.get_count(stat).unwrap_or(&0)
 }
 
-pub fn run(mut receiver: Receiver<Stat>, windows: usize) {
+pub fn run(mut receiver: Receiver<Stat>, windows: usize, infinite: bool) {
 
     let mut window = 0;
     let mut warmup = true;
@@ -49,9 +49,11 @@ pub fn run(mut receiver: Receiver<Stat>, windows: usize) {
             warmup = false;
         } else {
             let responses = meters_delta(&m0, &m1, &Stat::ResponseOk) +
-                           meters_delta(&m0, &m1, &Stat::ResponseError);
+                            meters_delta(&m0, &m1, &Stat::ResponseError);
 
-            let rate = responses as f64 / ((clocksource.convert(t1) - clocksource.convert(t0)) as f64 / 1_000_000_000.0);
+            let rate = responses as f64 /
+                       ((clocksource.convert(t1) - clocksource.convert(t0)) as f64 /
+                        1_000_000_000.0);
 
             let success_rate = if responses > 0 {
                 100.0 * (responses - meters_delta(&m0, &m1, &Stat::ResponseError)) as f64 /
@@ -75,9 +77,7 @@ pub fn run(mut receiver: Receiver<Stat>, windows: usize) {
                            *m1.get_count(&Stat::ResponseOk).unwrap_or(&0) as i64 -
                            *m1.get_count(&Stat::ResponseError).unwrap_or(&0) as i64 -
                            *m1.get_count(&Stat::ResponseTimeout).unwrap_or(&0) as i64;
-            let open = *m1.get_count(&Stat::ConnectOk).unwrap_or(&0) as i64 -
-                       *m1.get_count(&Stat::ConnectError).unwrap_or(&0) as i64 -
-                       *m1.get_count(&Stat::ConnectTimeout).unwrap_or(&0) as i64 -
+            let open = *m1.get_count(&Stat::SocketCreate).unwrap_or(&0) as i64 -
                        *m1.get_count(&Stat::SocketClose).unwrap_or(&0) as i64;
             info!("Connections: Ok: {} Error: {} Timeout: {} Open: {}",
                   meters_delta(&m0, &m1, &Stat::ConnectOk),
@@ -115,9 +115,13 @@ pub fn run(mut receiver: Receiver<Stat>, windows: usize) {
         window += 1;
 
         if window > windows {
-            receiver.save_trace();
-            receiver.save_waterfall();
-            break;
+            receiver.save_files();
+            if infinite {
+                window = 0;
+                receiver.clear_heatmaps();
+            } else {
+                break;
+            }
         }
     }
 }

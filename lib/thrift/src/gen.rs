@@ -13,10 +13,10 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use consts;
-use buffer::Buffer;
 
 use super::{Parameter, Tvalue};
+use buffer::Buffer;
+use consts;
 
 /// create a ping request
 pub fn ping() -> Vec<u8> {
