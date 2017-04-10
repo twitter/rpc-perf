@@ -1,11 +1,22 @@
-// Connection
-
+//  rpc-perf - RPC Performance Testing
+//  Copyright 2017 Twitter, Inc
+//
+//  Licensed under the Apache License, Version 2.0 (the "License");
+//  you may not use this file except in compliance with the License.
+//  You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+//  Unless required by applicable law or agreed to in writing, software
+//  distributed under the License is distributed on an "AS IS" BASIS,
+//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//  See the License for the specific language governing permissions and
+//  limitations under the License.
 
 use bytes::{Buf, ByteBuf, MutBuf, MutByteBuf};
-
-use common;
-use common::async::tcp::TcpStream;
-use common::async::timer::Timeout;
+use mio::Ready;
+use mio::tcp::TcpStream;
+use mio::timer::Timeout;
 use net::InternetProtocol;
 use std::io::{self, Read, Write};
 use std::net::SocketAddr;
@@ -249,11 +260,11 @@ impl Connection {
         Ok(response)
     }
 
-    pub fn event_set(&self) -> common::async::Ready {
+    pub fn event_set(&self) -> Ready {
         match self.state {
-            State::Connecting | State::Writing => common::async::Ready::writable(),
-            State::Reading => common::async::Ready::readable(),
-            _ => common::async::Ready::none(),
+            State::Connecting | State::Writing => Ready::writable(),
+            State::Reading => Ready::readable(),
+            _ => Ready::none(),
         }
     }
 }

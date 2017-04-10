@@ -13,9 +13,10 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use common::stats::{Interest, Meters, Percentile, Receiver, Sample, Stat};
+use common::stats::Stat;
 use request::BenchmarkConfig;
 use std::process::exit;
+use tic::{Interest, Meters, Percentile, Receiver, Sample};
 
 pub fn stats_receiver_init(config: &BenchmarkConfig,
                            listen: Option<String>,
@@ -25,8 +26,8 @@ pub fn stats_receiver_init(config: &BenchmarkConfig,
     let mut stats_config = Receiver::<Stat>::configure()
         .batch_size(16)
         .capacity(65536)
-        .duration(config.duration)
-        .windows(config.windows);
+        .duration(config.duration())
+        .windows(config.windows());
 
     if let Some(addr) = listen {
         stats_config = stats_config.http_listen(addr);

@@ -16,8 +16,8 @@
 extern crate time;
 extern crate log;
 
-use common::padding::{Alignment, PadStr};
 use log::{LogLevel, LogLevelFilter, LogMetadata, LogRecord};
+use pad::{Alignment, PadStr};
 
 pub struct SimpleLogger;
 
