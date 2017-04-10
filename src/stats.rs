@@ -13,15 +13,15 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use request::BenchmarkConfig;
 use common::stats::{Interest, Meters, Percentile, Receiver, Sample, Stat};
+use request::BenchmarkConfig;
 use std::process::exit;
 
 pub fn stats_receiver_init(config: &BenchmarkConfig,
-                       listen: Option<String>,
-                       waterfall: Option<String>,
-                       trace: Option<String>)
-                       -> Receiver<Stat> {
+                           listen: Option<String>,
+                           waterfall: Option<String>,
+                           trace: Option<String>)
+                           -> Receiver<Stat> {
     let mut stats_config = Receiver::<Stat>::configure()
         .batch_size(16)
         .capacity(65536)

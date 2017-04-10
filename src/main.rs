@@ -96,7 +96,7 @@ pub fn main() {
     };
 
     let internet_protocol = match net::choose_layer_3(matches.opt_present("ipv4"),
-                                                 matches.opt_present("ipv6")) {
+                                                      matches.opt_present("ipv6")) {
         Ok(i) => i,
         Err(e) => {
             error!("{}", e);
