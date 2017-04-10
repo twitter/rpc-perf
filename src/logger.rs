@@ -17,7 +17,7 @@ extern crate time;
 extern crate log;
 
 use common::padding::{Alignment, PadStr};
-use log::{LogLevel, LogMetadata, LogRecord};
+use log::{LogLevel, LogLevelFilter, LogMetadata, LogRecord};
 
 pub struct SimpleLogger;
 
@@ -44,4 +44,23 @@ impl log::Log for SimpleLogger {
                      record.args());
         }
     }
+}
+
+pub fn set_log_level(level: usize) {
+    let log_filter;
+    match level {
+        0 => {
+            log_filter = LogLevelFilter::Info;
+        }
+        1 => {
+            log_filter = LogLevelFilter::Debug;
+        }
+        _ => {
+            log_filter = LogLevelFilter::Trace;
+        }
+    }
+    let _ = log::set_logger(|max_log_level| {
+                                max_log_level.set(log_filter);
+                                Box::new(SimpleLogger)
+                            });
 }
