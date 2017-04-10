@@ -13,8 +13,63 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use common::stats::{Meters, Percentile, Receiver, Sample, Stat};
+use request::BenchmarkConfig;
+use common::stats::{Interest, Meters, Percentile, Receiver, Sample, Stat};
 use std::process::exit;
+
+pub fn stats_receiver_init(config: &BenchmarkConfig,
+                       listen: Option<String>,
+                       waterfall: Option<String>,
+                       trace: Option<String>)
+                       -> Receiver<Stat> {
+    let mut stats_config = Receiver::<Stat>::configure()
+        .batch_size(16)
+        .capacity(65536)
+        .duration(config.duration)
+        .windows(config.windows);
+
+    if let Some(addr) = listen {
+        stats_config = stats_config.http_listen(addr);
+    }
+
+    let mut stats_receiver = stats_config.build();
+
+    let counts = vec![Stat::Window,
+                      Stat::ResponseOk,
+                      Stat::ResponseOkHit,
+                      Stat::ResponseOkMiss,
+                      Stat::ResponseError,
+                      Stat::ResponseTimeout,
+                      Stat::RequestPrepared,
+                      Stat::RequestSent,
+                      Stat::ConnectOk,
+                      Stat::ConnectError,
+                      Stat::ConnectTimeout,
+                      Stat::SocketCreate,
+                      Stat::SocketClose,
+                      Stat::SocketRead,
+                      Stat::SocketFlush,
+                      Stat::SocketWrite];
+
+    for c in counts {
+        stats_receiver.add_interest(Interest::Count(c));
+    }
+
+    for c in vec![Stat::ResponseOk, Stat::ResponseOkHit, Stat::ResponseOkMiss, Stat::ConnectOk] {
+        stats_receiver.add_interest(Interest::Percentile(c));
+    }
+
+    if let Some(w) = waterfall {
+        stats_receiver.add_interest(Interest::Waterfall(Stat::ResponseOk, w));
+    }
+
+    if let Some(t) = trace {
+        stats_receiver.add_interest(Interest::Waterfall(Stat::ResponseOk, t));
+    }
+
+    stats_receiver
+}
+
 
 pub fn meters_delta(t0: &Meters<Stat>, t1: &Meters<Stat>, stat: &Stat) -> u64 {
     *t1.get_count(stat).unwrap_or(&0) - *t0.get_count(stat).unwrap_or(&0)
