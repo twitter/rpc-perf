@@ -13,7 +13,6 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-
 #[allow(unknown_lints, useless_attribute)]
 #[cfg_attr(feature = "cargo-clippy", deny(result_unwrap_used))]
 #[macro_use]
@@ -32,7 +31,6 @@ mod connection;
 mod logger;
 mod net;
 mod stats;
-
 
 use client::Client;
 use common::options::Options;
@@ -166,6 +164,7 @@ pub fn main() {
     let trace = matches.opt_str("trace");
 
 
+
     // Load workload configuration
     let config = match config::load_config(&matches) {
         Ok(cfg) => cfg,
@@ -184,82 +183,9 @@ pub fn main() {
         }
     };
 
-    info!("-----");
-    info!("Config:");
-    for server in matches.opt_strs("server") {
-        info!("Config: Server: {} Protocol: {}",
-              server,
-              config.protocol_config.protocol.name());
-    }
-    info!("Config: IP: {:?} TCP_NODELAY: {}",
-          internet_protocol,
-          config.tcp_nodelay);
-    info!("Config: Threads: {} Connections: {}",
-          config.threads,
-          config.connections);
-    info!("Config: Windows: {} Duration: {}",
-          config.windows,
-          config.duration);
-    match config.timeout {
-        Some(timeout) => {
-            info!("Config: Request Timeout: {} ms", timeout);
-        }
-        None => {
-            info!("Config: Request Timeout: None");
-        }
-    }
-    match config.connect_timeout() {
-        Some(timeout) => {
-            info!("Config: Connect Timeout: {} ms", timeout);
-        }
-        None => {
-            info!("Config: Connect Timeout: None");
-        }
-    }
+    print_config(&config, matches.opt_strs("server"), internet_protocol);
 
-    let mut stats_config = Receiver::<Stat>::configure()
-        .batch_size(16)
-        .capacity(65536)
-        .duration(config.duration)
-        .windows(config.windows);
-
-    if let Some(addr) = listen {
-        stats_config = stats_config.http_listen(addr);
-    }
-
-
-
-    let mut stats_receiver = stats_config.build();
-
-    stats_receiver.add_interest(Interest::Count(Stat::Window));
-    stats_receiver.add_interest(Interest::Count(Stat::ResponseOk));
-    stats_receiver.add_interest(Interest::Count(Stat::ResponseOkHit));
-    stats_receiver.add_interest(Interest::Count(Stat::ResponseOkMiss));
-    stats_receiver.add_interest(Interest::Count(Stat::ResponseError));
-    stats_receiver.add_interest(Interest::Count(Stat::ResponseTimeout));
-    stats_receiver.add_interest(Interest::Count(Stat::RequestPrepared));
-    stats_receiver.add_interest(Interest::Count(Stat::RequestSent));
-    stats_receiver.add_interest(Interest::Count(Stat::ConnectOk));
-    stats_receiver.add_interest(Interest::Count(Stat::ConnectError));
-    stats_receiver.add_interest(Interest::Count(Stat::ConnectTimeout));
-    stats_receiver.add_interest(Interest::Count(Stat::SocketCreate));
-    stats_receiver.add_interest(Interest::Count(Stat::SocketClose));
-    stats_receiver.add_interest(Interest::Count(Stat::SocketRead));
-    stats_receiver.add_interest(Interest::Count(Stat::SocketWrite));
-    stats_receiver.add_interest(Interest::Count(Stat::SocketFlush));
-
-    stats_receiver.add_interest(Interest::Percentile(Stat::ResponseOk));
-    stats_receiver.add_interest(Interest::Percentile(Stat::ResponseOkHit));
-    stats_receiver.add_interest(Interest::Percentile(Stat::ResponseOkMiss));
-    stats_receiver.add_interest(Interest::Percentile(Stat::ConnectOk));
-
-    if let Some(w) = waterfall {
-        stats_receiver.add_interest(Interest::Waterfall(Stat::ResponseOk, w));
-    }
-
-    if let Some(t) = trace {
-        stats_receiver.add_interest(Interest::Waterfall(Stat::ResponseOk, t));
-    }
+    let stats_receiver = stats_receiver_init(&config, listen, waterfall, trace);
 
     let mut send_queues = Vec::new();
 
@@ -301,4 +227,94 @@ pub fn main() {
     stats::run(stats_receiver,
                config.windows,
                matches.opt_present("service"));
+}
+
+fn print_config(config: &request::BenchmarkConfig,
+                servers: Vec<String>,
+                internet_protocol: InternetProtocol) {
+    info!("-----");
+    info!("Config:");
+    for server in servers {
+        info!("Config: Server: {} Protocol: {}",
+              server,
+              config.protocol_config.protocol.name());
+    }
+    info!("Config: IP: {:?} TCP_NODELAY: {}",
+          internet_protocol,
+          config.tcp_nodelay);
+    info!("Config: Threads: {} Connections: {}",
+          config.threads,
+          config.connections);
+    info!("Config: Windows: {} Duration: {}",
+          config.windows,
+          config.duration);
+    match config.timeout {
+        Some(timeout) => {
+            info!("Config: Request Timeout: {} ms", timeout);
+        }
+        None => {
+            info!("Config: Request Timeout: None");
+        }
+    }
+    match config.connect_timeout() {
+        Some(timeout) => {
+            info!("Config: Connect Timeout: {} ms", timeout);
+        }
+        None => {
+            info!("Config: Connect Timeout: None");
+        }
+    }
+}
+
+fn stats_receiver_init(config: &request::BenchmarkConfig,
+                       listen: Option<String>,
+                       waterfall: Option<String>,
+                       trace: Option<String>)
+                       -> Receiver<Stat> {
+    let mut stats_config = Receiver::<Stat>::configure()
+        .batch_size(16)
+        .capacity(65536)
+        .duration(config.duration)
+        .windows(config.windows);
+
+    if let Some(addr) = listen {
+        stats_config = stats_config.http_listen(addr);
+    }
+
+    let mut stats_receiver = stats_config.build();
+
+    let counts = vec![Stat::Window,
+                      Stat::ResponseOk,
+                      Stat::ResponseOkHit,
+                      Stat::ResponseOkMiss,
+                      Stat::ResponseError,
+                      Stat::ResponseTimeout,
+                      Stat::RequestPrepared,
+                      Stat::RequestSent,
+                      Stat::ConnectOk,
+                      Stat::ConnectError,
+                      Stat::ConnectTimeout,
+                      Stat::SocketCreate,
+                      Stat::SocketClose,
+                      Stat::SocketRead,
+                      Stat::SocketFlush,
+                      Stat::SocketWrite];
+
+    for c in counts {
+        stats_receiver.add_interest(Interest::Count(c));
+    }
+
+    for c in vec![Stat::ResponseOk, Stat::ResponseOkHit, Stat::ResponseOkMiss, Stat::ConnectOk] {
+        stats_receiver.add_interest(Interest::Percentile(c));
+    }
+
+    if let Some(w) = waterfall {
+        stats_receiver.add_interest(Interest::Waterfall(Stat::ResponseOk, w));
+    }
+
+    if let Some(t) = trace {
+        stats_receiver.add_interest(Interest::Waterfall(Stat::ResponseOk, t));
+    }
+
+    stats_receiver
 }
