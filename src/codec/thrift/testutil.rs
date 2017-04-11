@@ -14,9 +14,12 @@
 //  limitations under the License.
 
 use super::*;
+#[allow(unused_imports)]
 use super::gen;
 use cfgtypes::Style;
 
+// this function is used only in tests
+#[allow(dead_code)]
 pub fn mk_param(id: i16, value: Tvalue) -> Parameter {
     Parameter {
         id: Some(id),

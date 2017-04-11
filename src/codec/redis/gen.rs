@@ -77,7 +77,6 @@ mod tests {
         b.iter(|| hget("hash", "key"));
     }
 
-
     #[test]
     fn test_del() {
         assert_eq!(del("key"), "del key\r\n");
@@ -88,7 +87,6 @@ mod tests {
     fn del_benchmark(b: &mut test::Bencher) {
         b.iter(|| del("key"));
     }
-
 
     #[test]
     fn test_expire() {
@@ -157,68 +155,50 @@ pub fn select(database: &u32) -> String {
     format!("select {}\r\n", database)
 }
 
-
-
-
-
 /// SET request
 pub fn set(key: &str, value: &str) -> String {
     format!("set {} {}\r\n", key, value)
 }
-
-
 
 /// HSET request
 pub fn hset(hash: &str, key: &str, value: &str) -> String {
     format!("hset {} {} {}\r\n", hash, key, value)
 }
 
-
-
 /// GET request
 pub fn get(key: &str) -> String {
     format!("get {}\r\n", key)
 }
-
-
 
 /// HGET request
 pub fn hget(hash: &str, key: &str) -> String {
     format!("hget {} {}\r\n", hash, key)
 }
 
-
 /// DEL request
 pub fn del(key: &str) -> String {
     format!("del {}\r\n", key)
 }
-
 
 /// EXPIRE request
 pub fn expire(key: &str, seconds: usize) -> String {
     format!("expire {} {}\r\n", key, seconds)
 }
 
-
 /// INCR request
 pub fn incr(key: &str) -> String {
     format!("incr {}\r\n", key)
 }
-
-
 
 /// DECR request
 pub fn decr(key: &str) -> String {
     format!("decr {}\r\n", key)
 }
 
-
-
 /// APPEND request
 pub fn append(key: &str, value: &str) -> String {
     format!("append {} {}\r\n", key, value)
 }
-
 
 /// PREPEND request
 pub fn prepend(key: &str, value: &str) -> String {
