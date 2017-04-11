@@ -18,14 +18,10 @@ pub fn verbosity(level: usize) -> String {
     format!("verbosity {}\r\n", level)
 }
 
-
-
 /// create a memcache version tcp request
 pub fn version() -> String {
     "version\r\n".to_owned()
 }
-
-
 
 /// create a memcache quit request
 pub fn quit() -> String {
@@ -44,7 +40,6 @@ pub fn set(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>) -> 
             value)
 }
 
-
 /// create a cas request
 pub fn cas(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>, cas: u64) -> String {
     let flags = flags.unwrap_or(0);
@@ -58,8 +53,6 @@ pub fn cas(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>, cas
             value)
 }
 
-
-
 /// create an add request
 pub fn add(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>) -> String {
     let flags = flags.unwrap_or(0);
@@ -71,8 +64,6 @@ pub fn add(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>) -> 
             value.len(),
             value)
 }
-
-
 
 /// create a replace request
 pub fn replace(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>) -> String {
@@ -147,7 +138,7 @@ pub fn flush_all() -> String {
 }
 
 mod tests {
-
+    #[allow(unused_imports)]
     use super::*;
     #[cfg(feature = "unstable")]
     use test;

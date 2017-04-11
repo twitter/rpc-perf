@@ -28,7 +28,7 @@ pub fn echo(value: &[u8]) -> Vec<u8> {
 }
 
 mod tests {
-
+    #[allow(unused_imports)]
     use super::*;
     #[cfg(feature = "unstable")]
     use test;
