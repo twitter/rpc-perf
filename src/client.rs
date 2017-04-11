@@ -15,30 +15,26 @@
 
 extern crate slab;
 
-
 use cfgtypes::*;
-
-use common;
-
-use common::async::{Evented, Events, Poll, PollOpt, Ready, Token};
-use common::async::channel::{Receiver, SyncSender};
-use common::async::timer::Timer;
-use common::stats::{Clocksource, Sample, Sender, Stat};
+use common::stats::Stat;
 use connection::*;
-
+use mio;
+use mio::{Evented, Events, Poll, PollOpt, Ready, Token};
+use mio::channel::{Receiver, SyncSender};
+use mio::timer::Timer;
 use net::InternetProtocol;
 use std::collections::VecDeque;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::process::exit;
 use std::sync::Arc;
 use std::time::Duration;
+use tic::{Clocksource, Sample, Sender};
 
 const MAX_CONNECTIONS: usize = 65536;
 const MAX_EVENTS: usize = 1024;
 const MAX_PENDING: usize = 1024;
 const TOKEN_TIMER: Token = Token(MAX_CONNECTIONS + 1);
 const TOKEN_QUEUE: Token = Token(MAX_CONNECTIONS + 2);
-
 const TICK_MS: u64 = 1;
 
 fn pollopt_conn() -> PollOpt {
@@ -216,7 +212,7 @@ impl Client {
 
         let c = config.clone();
 
-        let (tx, rx) = common::async::channel::sync_channel(MAX_PENDING);
+        let (tx, rx) = mio::channel::sync_channel(MAX_PENDING);
 
         let clocksource = config.clocksource.unwrap();
 
@@ -231,7 +227,7 @@ impl Client {
             times: vec![clocksource.counter(); MAX_CONNECTIONS],
             clocksource: clocksource,
             protocol: config.protocol.unwrap().clone().new(),
-            timer: common::async::timer::Builder::default()
+            timer: mio::timer::Builder::default()
                 .tick_duration(Duration::from_millis(TICK_MS))
                 .build(),
             request_timeout: config.request_timeout,
@@ -332,12 +328,12 @@ impl Client {
     }
 
     #[inline]
-    fn event_set(&self, token: Token) -> common::async::Ready {
+    fn event_set(&self, token: Token) -> mio::Ready {
         self.connections[token].event_set()
     }
 
     #[inline]
-    fn poll_opt(&self, token: Token) -> common::async::PollOpt {
+    fn poll_opt(&self, token: Token) -> mio::PollOpt {
         if token.0 <= MAX_CONNECTIONS {
             pollopt_conn()
         } else {
@@ -542,7 +538,7 @@ impl Client {
     }
 
     /// event handler for connections
-    fn connection_ready(&mut self, token: Token, event: common::async::Event) {
+    fn connection_ready(&mut self, token: Token, event: mio::Event) {
         if self.connections[token].is_connecting() {
             if event.kind().is_hup() {
                 debug!("hangup on connect {:?}", token);

@@ -13,6 +13,10 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
+#![cfg_attr(feature = "unstable", feature(test))]
+#[cfg(feature = "unstable")]
+extern crate test;
+
 #[allow(unknown_lints, useless_attribute)]
 #[cfg_attr(feature = "cargo-clippy", deny(result_unwrap_used))]
 #[macro_use]
@@ -20,25 +24,33 @@ extern crate log;
 extern crate log_panics;
 
 extern crate bytes;
+extern crate byteorder;
+extern crate crc;
+extern crate getopts;
+extern crate mio;
+extern crate pad;
 extern crate time;
-extern crate rpcperf_request as request;
-extern crate rpcperf_cfgtypes as cfgtypes;
-extern crate rpcperf_common as common;
+extern crate rand;
+extern crate ratelimit;
 extern crate slab;
+extern crate tic;
+extern crate toml;
 
+mod common;
+mod cfgtypes;
 mod client;
 mod connection;
 mod logger;
 mod net;
 mod options;
 mod stats;
+mod codec;
+mod request;
 
 use client::Client;
 use net::InternetProtocol;
-use request::config;
-use request::workload;
-use std::env;
-use std::thread;
+use request::{config, workload};
+use std::{env, thread};
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
@@ -76,7 +88,9 @@ pub fn main() {
         info!("feature: asm: disabled");
     }
 
-    if matches.opt_count("server") < 1 {
+    let servers: Vec<String> = matches.opt_strs("server");
+
+    if servers.is_empty() {
         error!("require server parameter");
         options::print_usage(program, &opts);
         return;
@@ -104,32 +118,33 @@ pub fn main() {
         }
     };
 
-    print_config(&config, matches.opt_strs("server"), internet_protocol);
+    print_config(&config, &servers, internet_protocol);
 
     let stats_receiver = stats::stats_receiver_init(&config, listen, waterfall, trace);
 
     let mut send_queues = Vec::new();
 
+    let mut client_config = Client::configure();
+
+    client_config
+        .set_pool_size(config.poolsize())
+        .stats(stats_receiver.get_sender().clone())
+        .set_clocksource(stats_receiver.get_clocksource().clone())
+        .set_protocol(config.protocol_config.protocol.clone())
+        .set_request_timeout(config.request_timeout())
+        .set_connect_timeout(config.connect_timeout())
+        .set_internet_protocol(internet_protocol);
+
+    for server in servers {
+        client_config.add_server(server);
+    }
+
     info!("-----");
     info!("Connecting...");
-    for i in 0..config.threads {
+    for i in 0..config.threads() {
         info!("Client: {}", i);
 
-        let mut client_config = Client::configure();
-        client_config
-            .set_pool_size(config.connections)
-            .stats(stats_receiver.get_sender().clone())
-            .set_clocksource(stats_receiver.get_clocksource().clone())
-            .set_protocol(config.protocol_config.protocol.clone())
-            .set_request_timeout(config.timeout)
-            .set_connect_timeout(config.connect_timeout())
-            .set_internet_protocol(internet_protocol);
-
-        for server in matches.opt_strs("server") {
-            client_config.add_server(server);
-        }
-
-        let mut client = client_config.build();
+        let mut client = client_config.clone().build();
         send_queues.push(client.tx());
 
         let _ = thread::Builder::new()
@@ -140,18 +155,18 @@ pub fn main() {
     info!("-----");
     info!("Workload:");
 
+    let windows = config.windows();
+
     workload::launch_workloads(config.protocol_config.workloads,
                                send_queues.clone(),
                                stats_receiver.get_sender().clone(),
                                stats_receiver.get_clocksource().clone());
 
-    stats::run(stats_receiver,
-               config.windows,
-               matches.opt_present("service"));
+    stats::run(stats_receiver, windows, matches.opt_present("service"));
 }
 
 fn print_config(config: &request::BenchmarkConfig,
-                servers: Vec<String>,
+                servers: &[String],
                 internet_protocol: InternetProtocol) {
     info!("-----");
     info!("Config:");
@@ -162,24 +177,24 @@ fn print_config(config: &request::BenchmarkConfig,
     }
     info!("Config: IP: {:?} TCP_NODELAY: {}",
           internet_protocol,
-          config.tcp_nodelay);
-    info!("Config: Threads: {} Connections: {}",
-          config.threads,
-          config.connections);
+          config.tcp_nodelay());
+    info!("Config: Threads: {} Poolsize: {}",
+          config.threads(),
+          config.poolsize());
     info!("Config: Windows: {} Duration: {}",
-          config.windows,
-          config.duration);
-    match config.timeout {
-        Some(timeout) => {
-            info!("Config: Request Timeout: {} ms", timeout);
+          config.windows(),
+          config.duration());
+    match config.request_timeout() {
+        Some(v) => {
+            info!("Config: Request Timeout: {} ms", v);
         }
         None => {
             info!("Config: Request Timeout: None");
         }
     }
     match config.connect_timeout() {
-        Some(timeout) => {
-            info!("Config: Connect Timeout: {} ms", timeout);
+        Some(v) => {
+            info!("Config: Connect Timeout: {} ms", v);
         }
         None => {
             info!("Config: Connect Timeout: None");

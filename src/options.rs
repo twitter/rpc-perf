@@ -13,7 +13,7 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use common::options::Options;
+use getopts::Options;
 
 pub fn print_usage(program: &str, opts: &Options) {
     let brief = format!("Usage: {} [options]", program);
