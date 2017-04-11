@@ -16,7 +16,6 @@
 use bytes::{Buf, ByteBuf, MutBuf, MutByteBuf};
 use mio::Ready;
 use mio::tcp::TcpStream;
-use mio::timer::Timeout;
 use net::InternetProtocol;
 use std::io::{self, Read, Write};
 use std::net::SocketAddr;
@@ -68,7 +67,7 @@ pub struct Connection {
     stream: Option<TcpStream>,
     state: State,
     buffer: Buffer,
-    timeout: Option<Timeout>,
+    timeout: Option<u64>,
     protocol: InternetProtocol,
 }
 
@@ -97,12 +96,12 @@ impl Connection {
         }
     }
 
-    pub fn get_timeout(&mut self) -> Option<Timeout> {
-        self.timeout.take()
+    pub fn get_timeout(&mut self) -> Option<u64> {
+        self.timeout
     }
 
-    pub fn set_timeout(&mut self, timeout: Timeout) {
-        self.timeout = Some(timeout);
+    pub fn set_timeout(&mut self, timeout: Option<u64>) {
+        self.timeout = timeout;
     }
 
     /// reconnect the connection in write mode
@@ -264,7 +263,7 @@ impl Connection {
         match self.state {
             State::Connecting | State::Writing => Ready::writable(),
             State::Reading => Ready::readable(),
-            _ => Ready::none(),
+            _ => Ready::empty(),
         }
     }
 }

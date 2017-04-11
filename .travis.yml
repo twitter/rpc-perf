@@ -6,15 +6,17 @@ rust:
 os:
   - linux
 script:
-- cargo build --verbose
-- cargo build --release --verbose
-- cargo test --verbose
-- cargo test --release --verbose
+- cargo build --verbose --no-default-features
+- cargo build --release --verbose --no-default-features
+- cargo test --verbose --no-default-features
+- cargo test --release --verbose --no-default-features
 matrix:
   include:
     - os: linux
       rust: nightly
-      script: cargo bench --features unstable
+      script: cargo bench --no-default-features --features unstable
     - os: linux
       rust: nightly
-      script: cargo build --features asm
+      script: cargo build --no-default-features --features asm
+  allow_failures:
+    - rust: nightly

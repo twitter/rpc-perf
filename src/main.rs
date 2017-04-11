@@ -28,6 +28,7 @@ extern crate byteorder;
 extern crate crc;
 extern crate getopts;
 extern crate mio;
+extern crate mpmc;
 extern crate pad;
 extern crate time;
 extern crate rand;
@@ -52,7 +53,13 @@ use net::InternetProtocol;
 use request::{config, workload};
 use std::{env, thread};
 
-const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+#[cfg(feature="git-version")]
+include!(concat!(env!("OUT_DIR"), "/version.rs"));
+
+#[cfg(not(feature="git-version"))]
+const VERSION: &'static str = "unknown";
+
+const PKG_VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
 pub fn main() {
     let args: Vec<String> = env::args().collect();
@@ -73,7 +80,7 @@ pub fn main() {
     }
 
     if matches.opt_present("version") {
-        println!("rpc-perf {}", VERSION);
+        println!("rpc-perf {} {}", PKG_VERSION, VERSION);
         return;
     }
 
@@ -81,7 +88,7 @@ pub fn main() {
     logger::set_log_level(matches.opt_count("verbose"));
     log_panics::init();
 
-    info!("rpc-perf {} initializing...", VERSION);
+    info!("rpc-perf {} {} initializing...", PKG_VERSION, VERSION);
     if cfg!(feature = "asm") {
         info!("feature: asm: enabled");
     } else {

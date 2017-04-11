@@ -24,7 +24,7 @@ pub fn stats_receiver_init(config: &BenchmarkConfig,
                            trace: Option<String>)
                            -> Receiver<Stat> {
     let mut stats_config = Receiver::<Stat>::configure()
-        .batch_size(16)
+        .batch_size(128)
         .capacity(65536)
         .duration(config.duration())
         .windows(config.windows());
