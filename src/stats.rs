@@ -56,7 +56,10 @@ pub fn stats_receiver_init(config: &BenchmarkConfig,
         stats_receiver.add_interest(Interest::Count(c));
     }
 
-    for c in vec![Stat::ResponseOk, Stat::ResponseOkHit, Stat::ResponseOkMiss, Stat::ConnectOk] {
+    for c in vec![Stat::ResponseOk,
+                  Stat::ResponseOkHit,
+                  Stat::ResponseOkMiss,
+                  Stat::ConnectOk] {
         stats_receiver.add_interest(Interest::Percentile(c));
     }
 

@@ -153,7 +153,8 @@ impl ProtocolParseFactory for RedisParseFactory {
 
     fn prepare(&self) -> CResult<Vec<Vec<u8>>> {
         Ok(if self.flush {
-               vec![gen::flushall().into_bytes(), gen::select(&self.database).into_bytes()]
+               vec![gen::flushall().into_bytes(),
+                    gen::select(&self.database).into_bytes()]
            } else {
                vec![gen::select(&self.database).into_bytes()]
            })
