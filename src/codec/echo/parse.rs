@@ -30,7 +30,7 @@ pub fn parse_response(response: &[u8]) -> ParsedResponse {
         return ParsedResponse::Incomplete;
     }
 
-    let (value, crc) = msg.split_at((msg.len() - 4));
+    let (value, crc) = msg.split_at(msg.len() - 4);
 
     if !(crc.len() == 4) {
         return ParsedResponse::Unknown;

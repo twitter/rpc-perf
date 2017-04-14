@@ -134,8 +134,7 @@ fn extract_parameter(i: usize, parameter: &BTreeMap<String, Value>) -> CResult<P
 
     let style = match parameter.get("style").and_then(|k| k.as_str()) {
         Some("random") => Style::Random,
-        Some("static") => Style::Static,
-        None => Style::Static,
+        Some("static") | None => Style::Static,
         Some(other) => return Err(format!("bad parameter style: {}", other)),
     };
 

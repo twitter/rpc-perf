@@ -26,9 +26,9 @@ use tic::{Clocksource, Sample, Sender};
 
 /// Launch each of the workloads in their own thread
 pub fn launch_workloads(workloads: Vec<cfgtypes::BenchmarkWorkload>,
-                        work_queue: Vec<Queue<Vec<u8>>>,
-                        stats: Sender<Stat>,
-                        clocksource: Clocksource) {
+                        work_queue: &[Queue<Vec<u8>>],
+                        stats: &Sender<Stat>,
+                        clocksource: &Clocksource) {
 
     for (i, w) in workloads.into_iter().enumerate() {
         info!("Workload {}: Method: {} Rate: {}",
@@ -38,7 +38,7 @@ pub fn launch_workloads(workloads: Vec<cfgtypes::BenchmarkWorkload>,
 
         let mut workload = Workload::new(w.gen,
                                          Some(w.rate as u64),
-                                         work_queue.clone(),
+                                         work_queue.to_vec(),
                                          stats.clone(),
                                          clocksource.clone())
                 .unwrap();
