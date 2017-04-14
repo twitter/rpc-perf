@@ -19,9 +19,9 @@ use cfgtypes::*;
 use common::stats::Stat;
 use connection::*;
 use mio;
-use mio::{Evented, Events, Poll, PollOpt, Ready, Token};
-use mio::channel::{Receiver, SyncSender};
-use mio::timer::Timer;
+use mio::{Evented, Events, Poll, PollOpt, Token};
+use mio::unix::UnixReady;
+use mpmc::Queue;
 use net::InternetProtocol;
 use std::collections::VecDeque;
 use std::net::{SocketAddr, ToSocketAddrs};
@@ -33,28 +33,10 @@ use tic::{Clocksource, Sample, Sender};
 const MAX_CONNECTIONS: usize = 65536;
 const MAX_EVENTS: usize = 1024;
 const MAX_PENDING: usize = 1024;
-const TOKEN_TIMER: Token = Token(MAX_CONNECTIONS + 1);
-const TOKEN_QUEUE: Token = Token(MAX_CONNECTIONS + 2);
 const TICK_MS: u64 = 1;
 
 fn pollopt_conn() -> PollOpt {
     PollOpt::edge() | PollOpt::oneshot()
-}
-
-fn pollopt_timer() -> PollOpt {
-    PollOpt::level()
-}
-
-fn pollopt_queue() -> PollOpt {
-    PollOpt::level()
-}
-
-fn ready_timer() -> Ready {
-    Ready::readable()
-}
-
-fn ready_queue() -> Ready {
-    Ready::readable()
 }
 
 type Slab<T> = slab::Slab<T, Token>;
@@ -170,14 +152,13 @@ pub struct Client {
     config: Config,
     connections: Slab<Connection>,
     poll: Poll,
-    tx: SyncSender<Vec<u8>>,
-    rx: Receiver<Vec<u8>>,
+    queue: Queue<Vec<u8>>,
     ready: VecDeque<Token>,
     stats: Sender<Stat>,
     times: Vec<u64>,
+    rtimes: Vec<u64>,
     clocksource: Clocksource,
     protocol: Box<ProtocolParse>,
-    timer: Timer<Token>,
     request_timeout: Option<u64>,
     connect_timeout: Option<u64>,
     events: Option<Events>,
@@ -212,7 +193,7 @@ impl Client {
 
         let c = config.clone();
 
-        let (tx, rx) = mio::channel::sync_channel(MAX_PENDING);
+        let queue = Queue::with_capacity(MAX_PENDING);
 
         let clocksource = config.clocksource.unwrap();
 
@@ -220,16 +201,13 @@ impl Client {
             config: c,
             connections: Slab::with_capacity(MAX_CONNECTIONS),
             poll: Poll::new().unwrap(),
-            tx: tx,
-            rx: rx,
+            queue: queue,
             ready: VecDeque::new(),
             stats: config.stats.unwrap(),
             times: vec![clocksource.counter(); MAX_CONNECTIONS],
+            rtimes: vec![clocksource.counter(); MAX_CONNECTIONS],
             clocksource: clocksource,
             protocol: config.protocol.unwrap().clone().new(),
-            timer: mio::timer::Builder::default()
-                .tick_duration(Duration::from_millis(TICK_MS))
-                .build(),
             request_timeout: config.request_timeout,
             connect_timeout: config.connect_timeout,
             events: Some(Events::with_capacity(MAX_EVENTS)),
@@ -259,12 +237,6 @@ impl Client {
                 panic!("Error resolving: {}", server);
             }
         }
-        let _ = client
-            .poll
-            .register(&client.timer, TOKEN_TIMER, ready_timer(), pollopt_timer());
-        let _ = client
-            .poll
-            .register(&client.rx, TOKEN_QUEUE, ready_queue(), pollopt_queue());
         client
     }
 
@@ -282,16 +254,14 @@ impl Client {
         if self.is_connection(token) {
             if self.connections[token].is_connecting() {
                 if let Some(t) = self.connect_timeout {
-                    self.connections[token]
-                        .set_timeout(self.timer
-                                         .set_timeout(Duration::from_millis(t), token)
-                                         .unwrap());
+                    let deadline = self.clocksource.counter() +
+                                   t * self.clocksource.frequency() as u64 / 1000;
+                    self.connections[token].set_timeout(Some(deadline));
                 }
             } else if let Some(t) = self.request_timeout {
-                self.connections[token].set_timeout(self.timer
-                                                        .set_timeout(Duration::from_millis(t),
-                                                                     token)
-                                                        .unwrap());
+                let deadline = self.clocksource.counter() +
+                               t * self.clocksource.frequency() as u64 / 1000;
+                self.connections[token].set_timeout(Some(deadline));
             }
         }
     }
@@ -337,14 +307,8 @@ impl Client {
         if token.0 <= MAX_CONNECTIONS {
             pollopt_conn()
         } else {
-            match token {
-                TOKEN_TIMER => pollopt_timer(),
-                TOKEN_QUEUE => pollopt_queue(),
-                _ => {
-                    error!("poll_opt() unknown token: {:?}", token);
-                    exit(1);
-                }
-            }
+            error!("poll_opt() unknown token: {:?}", token);
+            exit(1);
         }
     }
 
@@ -396,6 +360,7 @@ impl Client {
     fn reconnect(&mut self, token: Token) {
         debug!("reconnect {:?}", token);
         self.close(token);
+        self.times[token.0] = self.clocksource.counter();
         self.connections[token].connect();
         self.send_stat(token, Stat::SocketCreate);
         if self.connections[token].stream().is_some() {
@@ -437,7 +402,7 @@ impl Client {
         if let Ok(response) = self.connections[token].read() {
             if !response.is_empty() {
                 let t0 = self.times[token.0];
-                let t1 = self.clocksource.counter();
+                let t1 = self.rtimes[token.0];
 
                 let parsed = self.protocol.parse(&response);
 
@@ -513,7 +478,7 @@ impl Client {
     /// write a request from the queue to the given token
     fn send(&mut self, token: Token) {
         if self.connections[token].is_writable() {
-            if let Ok(work) = self.rx.try_recv() {
+            if let Some(work) = self.queue.pop() {
                 self.write(token, work);
             } else {
                 self.set_writable(token);
@@ -532,15 +497,13 @@ impl Client {
     }
 
     fn clear_timer(&mut self, token: Token) {
-        if let Some(timeout) = self.connections[token].get_timeout() {
-            self.timer.cancel_timeout(&timeout);
-        }
+        self.connections[token].set_timeout(None);
     }
 
     /// event handler for connections
     fn connection_ready(&mut self, token: Token, event: mio::Event) {
         if self.connections[token].is_connecting() {
-            if event.kind().is_hup() {
+            if UnixReady::from(event.readiness()).is_hup() {
                 debug!("hangup on connect {:?}", token);
                 self.send_stat(token, Stat::ConnectError);
                 self.reconnect(token);
@@ -551,15 +514,15 @@ impl Client {
                 self.clear_timer(token);
                 self.set_writable(token);
             }
-        } else if event.kind().is_hup() {
+        } else if UnixReady::from(event.readiness()).is_hup() {
             debug!("hangup event {:?}", token);
             self.send_stat(token, Stat::ConnectError);
             self.reconnect(token);
-        } else if event.kind().is_readable() {
+        } else if event.readiness().is_readable() {
             trace!("reading event {:?}", token);
             self.send_stat(token, Stat::SocketRead);
             self.read(token);
-        } else if event.kind().is_writable() {
+        } else if event.readiness().is_writable() {
             trace!("writing event {:?}", token);
             self.send_stat(token, Stat::SocketFlush);
             self.flush(token);
@@ -568,6 +531,15 @@ impl Client {
 
     /// poll for events and handle them
     pub fn poll(&mut self) {
+        let time = self.clocksource.counter();
+
+        for i in 0..self.connections.len() {
+            if let Some(timeout) = self.connections[Token(i)].get_timeout() {
+                if time >= timeout {
+                    self.timeout(Token(i));
+                }
+            }
+        }
         let mut events = self.events
             .take()
             .unwrap_or_else(|| Events::with_capacity(MAX_EVENTS));
@@ -576,36 +548,27 @@ impl Client {
             .poll(&mut events, Some(Duration::from_millis(TICK_MS)))
             .unwrap();
 
+        let mut rtokens = Vec::new();
+
         for event in events.iter() {
             let token = event.token();
             if token.0 <= MAX_CONNECTIONS {
                 trace!("connection ready {:?}", token);
-                self.connection_ready(token, event);
+                self.rtimes[token.0] = self.clocksource.counter();
+                rtokens.push((token, event));
             } else {
-                match token {
-                    TOKEN_TIMER => {
-                        if let Some(token) = self.timer.poll() {
-                            trace!("timeout fired for {:?}", token);
-                            self.timeout(token);
-                        }
-                    }
-                    TOKEN_QUEUE => {
-                        loop {
-                            if !self.ready.is_empty() {
-                                // we have work to do and a connection to use
-                                let token = self.ready.pop_front().unwrap();
-                                self.send(token);
-                            } else {
-                                break;
-                            }
-                        }
-                    }
-                    _ => {
-                        error!("unknown token: {:?}", token);
-                        exit(1);
-                    }
-                }
+                error!("unknown token: {:?}", token);
+                exit(1);
             }
+        }
+
+        for (token, event) in rtokens {
+            self.connection_ready(token, event);
+        }
+
+        for _ in 0..self.ready.len() {
+            let token = self.ready.pop_front().unwrap();
+            self.send(token);
         }
 
         self.events = Some(events);
@@ -619,7 +582,7 @@ impl Client {
     }
 
     /// returns a synchronous sender for pushing requests to the connection
-    pub fn tx(&self) -> SyncSender<Vec<u8>> {
-        self.tx.clone()
+    pub fn tx(&self) -> Queue<Vec<u8>> {
+        self.queue.clone()
     }
 }

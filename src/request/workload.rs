@@ -19,14 +19,14 @@ use cfgtypes;
 
 use cfgtypes::ProtocolGen;
 use common::stats::Stat;
-use mio::channel::{SyncSender, TrySendError};
+use mpmc::Queue;
 use ratelimit::Ratelimit;
 use std::thread;
 use tic::{Clocksource, Sample, Sender};
 
 /// Launch each of the workloads in their own thread
 pub fn launch_workloads(workloads: Vec<cfgtypes::BenchmarkWorkload>,
-                        work_queue: Vec<SyncSender<Vec<u8>>>,
+                        work_queue: Vec<Queue<Vec<u8>>>,
                         stats: Sender<Stat>,
                         clocksource: Clocksource) {
 
@@ -54,7 +54,7 @@ pub fn launch_workloads(workloads: Vec<cfgtypes::BenchmarkWorkload>,
 struct Workload {
     protocol: Box<ProtocolGen>,
     ratelimit: Option<Ratelimit>,
-    queue: Vec<SyncSender<Vec<u8>>>,
+    queue: Vec<Queue<Vec<u8>>>,
     stats: Sender<Stat>,
     clocksource: Clocksource,
 }
@@ -63,7 +63,7 @@ impl Workload {
     /// Create a new `Workload` based on a protocol, optional rate, and a queue
     fn new(protocol: Box<ProtocolGen>,
            rate: Option<u64>,
-           queue: Vec<SyncSender<Vec<u8>>>,
+           queue: Vec<Queue<Vec<u8>>>,
            stats: Sender<Stat>,
            clocksource: Clocksource)
            -> Result<Workload, &'static str> {
@@ -95,22 +95,15 @@ impl Workload {
             let t0 = self.clocksource.counter();
             let mut msg = Some(self.protocol.generate_message());
             loop {
-                match self.queue[index].try_send(msg.take().unwrap()) {
+                match self.queue[index].push(msg.take().unwrap()) {
                     Ok(_) => {
                         let t1 = self.clocksource.counter();
                         let _ = self.stats
                             .send(Sample::new(t0, t1, Stat::RequestPrepared));
                         break;
                     }
-                    Err(e) => {
-                        match e {
-                            TrySendError::Full(m) => {
-                                msg = Some(m);
-                            }
-                            _ => {
-                                error!("Receiving thread died?");
-                            }
-                        }
+                    Err(m) => {
+                        msg = Some(m);
                     }
                 }
                 index += 1;
