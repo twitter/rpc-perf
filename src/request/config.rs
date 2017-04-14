@@ -55,7 +55,7 @@ pub fn load_config(matches: &Matches) -> Result<BenchmarkConfig, String> {
         match p.parse() {
             Some(table) => {
                 debug!("toml parsed successfully. creating config");
-                load_config_table(table, matches)
+                load_config_table(&table, matches)
             }
 
             None => {
@@ -78,7 +78,7 @@ pub fn load_config(matches: &Matches) -> Result<BenchmarkConfig, String> {
     }
 }
 
-fn load_config_table(table: BTreeMap<String, Value>,
+fn load_config_table(table: &BTreeMap<String, Value>,
                      matches: &Matches)
                      -> Result<BenchmarkConfig, String> {
 
@@ -96,11 +96,11 @@ fn load_config_table(table: BTreeMap<String, Value>,
 
     // Pick a protocol
     let proto = match protocol.as_str() {
-        "memcache" => try!(memcache::load_config(&table, matches)),
-        "echo" => try!(echo::load_config(&table)),
-        "redis" => try!(redis::load_config(&table, matches)),
-        "ping" => try!(ping::load_config(&table)),
-        "thrift" => try!(thrift::load_config(&table)),
+        "memcache" => try!(memcache::load_config(table, matches)),
+        "echo" => try!(echo::load_config(table)),
+        "redis" => try!(redis::load_config(table, matches)),
+        "ping" => try!(ping::load_config(table)),
+        "thrift" => try!(thrift::load_config(table)),
         _ => return Err(format!("Protocol {} not known", protocol)),
     };
 

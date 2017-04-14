@@ -246,7 +246,7 @@ fn extract_workload(i: usize, workload: &BTreeMap<String, Value>) -> CResult<Ben
     let name = workload
         .get("name")
         .and_then(|k| k.as_str())
-        .unwrap_or(method.as_str())
+        .unwrap_or_else(|| method.as_str())
         .to_owned();
 
     if let Some(&Value::Array(ref params)) = workload.get("parameter") {
@@ -269,8 +269,8 @@ fn extract_workload(i: usize, workload: &BTreeMap<String, Value>) -> CResult<Ben
             "set" if ps.len() == 2 => MemcacheCommand::Set(ps[0].clone(), ps[1].clone()),
             "add" if ps.len() == 2 => MemcacheCommand::Add(ps[0].clone(), ps[1].clone()),
             "verbosity" if ps.len() == 1 => MemcacheCommand::Verbosity(ps[0].clone()),
-            "version" if ps.len() == 0 => MemcacheCommand::Version,
-            "quit" if ps.len() == 0 => MemcacheCommand::Quit,
+            "version" if ps.is_empty() => MemcacheCommand::Version,
+            "quit" if ps.is_empty() => MemcacheCommand::Quit,
             "cas" if ps.len() == 3 => {
                 MemcacheCommand::Cas(ps[0].clone(), ps[1].clone(), ps[2].clone())
             }

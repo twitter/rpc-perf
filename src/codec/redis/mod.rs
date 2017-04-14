@@ -221,7 +221,7 @@ fn extract_workload(workload: &BTreeMap<String, Value>) -> CResult<BenchmarkWork
     let name = workload
         .get("name")
         .and_then(|k| k.as_str())
-        .unwrap_or(method.as_str())
+        .unwrap_or_else(|| method.as_str())
         .to_owned();
 
     if let Some(&Value::Array(ref params)) = workload.get("parameter") {

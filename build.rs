@@ -1,7 +1,7 @@
 #[cfg(feature="git-version")]
 extern crate git_build_version;
 #[cfg(feature="git-version")]
-const PACKAGE_TOP_DIR : &'static str = ".";
+const PACKAGE_TOP_DIR: &'static str = ".";
 
 fn main() {
     #[cfg(feature="git-version")]

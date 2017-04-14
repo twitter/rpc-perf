@@ -83,7 +83,7 @@ pub fn generic(method: &str, sequence_id: i32, payload: &mut Vec<Parameter>) -> 
                     buffer.write_bytes(&[consts::STRING]);
                     buffer.write_i16(id);
                 }
-                buffer.write_str(&val);
+                buffer.write_str(val);
             }
             Tvalue::Struct => {
                 if let Some(id) = p.id {

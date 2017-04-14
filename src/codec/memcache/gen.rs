@@ -132,7 +132,7 @@ pub fn delete(key: &str) -> String {
     format!("delete {}\r\n", key)
 }
 
-/// create a flush_all request
+/// create a flush all request
 pub fn flush_all() -> String {
     "flush_all\r\n".to_owned()
 }

@@ -53,7 +53,7 @@ pub fn parse_response(response: &str) -> ParsedResponse {
                 _ => {}
             }
             // incr/decr give a numeric single token response
-            if let Ok(_) = tokens[0].parse::<u64>() {
+            if tokens[0].parse::<u64>().is_ok() {
                 return ParsedResponse::Ok;
             }
         } else {

@@ -165,9 +165,9 @@ pub fn main() {
     let windows = config.windows();
 
     workload::launch_workloads(config.protocol_config.workloads,
-                               send_queues.clone(),
-                               stats_receiver.get_sender().clone(),
-                               stats_receiver.get_clocksource().clone());
+                               &send_queues,
+                               &stats_receiver.get_sender(),
+                               &stats_receiver.get_clocksource());
 
     stats::run(stats_receiver, windows, matches.opt_present("service"));
 }
