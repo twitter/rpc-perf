@@ -5,6 +5,7 @@ rust:
   - nightly
 os:
   - linux
+cache: cargo
 before_script: (cargo install rustfmt || true)
 script:
 - cargo build --verbose --no-default-features
