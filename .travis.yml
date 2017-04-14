@@ -5,11 +5,13 @@ rust:
   - nightly
 os:
   - linux
+before_script: (cargo install rustfmt || true)
 script:
 - cargo build --verbose --no-default-features
 - cargo build --release --verbose --no-default-features
 - cargo test --verbose --no-default-features
 - cargo test --release --verbose --no-default-features
+- cargo fmt -- --write-mode=diff
 matrix:
   include:
     - os: linux
