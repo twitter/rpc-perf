@@ -12,8 +12,6 @@ repository = "https://github.com/twitter/rpc-perf"
 
 readme = "README.md"
 
-exclude = ["./lib"]
-
 [profile.dev]
 opt-level = 0
 debug = true
