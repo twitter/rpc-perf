@@ -1,6 +1,6 @@
 [package]
 name = "rpc-perf"
-version = "2.0.0"
+version = "2.0.1-pre"
 authors = ["Brian Martin <bmartin@twitter.com>"]
 
 license = "Apache-2.0"
