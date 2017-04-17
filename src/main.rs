@@ -53,13 +53,7 @@ use net::InternetProtocol;
 use request::{config, workload};
 use std::{env, thread};
 
-#[cfg(feature="git-version")]
-include!(concat!(env!("OUT_DIR"), "/version.rs"));
-
-#[cfg(not(feature="git-version"))]
-const VERSION: &'static str = "unknown";
-
-const PKG_VERSION: &'static str = env!("CARGO_PKG_VERSION");
+const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
 pub fn main() {
     let args: Vec<String> = env::args().collect();
@@ -80,7 +74,7 @@ pub fn main() {
     }
 
     if matches.opt_present("version") {
-        println!("rpc-perf {} {}", PKG_VERSION, VERSION);
+        println!("rpc-perf {}", VERSION);
         return;
     }
 
@@ -88,7 +82,7 @@ pub fn main() {
     logger::set_log_level(matches.opt_count("verbose"));
     log_panics::init();
 
-    info!("rpc-perf {} {} initializing...", PKG_VERSION, VERSION);
+    info!("rpc-perf {} initializing...", VERSION);
     if cfg!(feature = "asm") {
         info!("feature: asm: enabled");
     } else {

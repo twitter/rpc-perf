@@ -8,18 +8,18 @@ os:
 cache: cargo
 before_script: (cargo install rustfmt || true)
 script:
-- cargo build --verbose --no-default-features
-- cargo build --release --verbose --no-default-features
-- cargo test --verbose --no-default-features
-- cargo test --release --verbose --no-default-features
+- cargo build --verbose
+- cargo build --release --verbose
+- cargo test --verbose
+- cargo test --release --verbose
 - cargo fmt -- --write-mode=diff
 matrix:
   include:
     - os: linux
       rust: nightly
-      script: cargo bench --no-default-features --features unstable
+      script: cargo bench --features unstable
     - os: linux
       rust: nightly
-      script: cargo build --no-default-features --features asm
+      script: cargo build --features asm --release
   allow_failures:
     - rust: nightly
