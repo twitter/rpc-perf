@@ -14,8 +14,6 @@ readme = "README.md"
 
 exclude = ["./lib"]
 
-build = "build.rs"
-
 [profile.dev]
 opt-level = 0
 debug = true
