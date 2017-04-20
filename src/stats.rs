@@ -68,7 +68,7 @@ pub fn stats_receiver_init(config: &BenchmarkConfig,
     }
 
     if let Some(t) = trace {
-        stats_receiver.add_interest(Interest::Waterfall(Stat::ResponseOk, t));
+        stats_receiver.add_interest(Interest::Trace(Stat::ResponseOk, t));
     }
 
     stats_receiver
