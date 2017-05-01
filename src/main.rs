@@ -51,7 +51,7 @@ mod request;
 use client::Client;
 use net::InternetProtocol;
 use request::{config, workload};
-use std::{env, thread};
+use std::{env, process, thread};
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
@@ -63,8 +63,9 @@ pub fn main() {
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => m,
         Err(f) => {
-            error!("Failed to parse command line args: {}", f);
-            return;
+            println!("ERROR {}", f);
+            options::print_usage(program, &opts);
+            process::exit(1);
         }
     };
 
