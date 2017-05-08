@@ -19,10 +19,9 @@ extern crate test;
 
 #[allow(unknown_lints, useless_attribute)]
 #[cfg_attr(feature = "cargo-clippy", deny(result_unwrap_used))]
-#[macro_use]
-extern crate log;
-extern crate log_panics;
 
+#[macro_use] extern crate log;
+extern crate log_panics;
 extern crate bytes;
 extern crate byteorder;
 extern crate crc;
