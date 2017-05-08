@@ -13,9 +13,9 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
+use common::*;
 use common::stats::Stat;
 use request::BenchmarkConfig;
-use std::process::exit;
 use tic::{Interest, Meters, Percentile, Receiver};
 
 pub fn stats_receiver_init(config: &BenchmarkConfig,
@@ -100,8 +100,7 @@ pub fn run(mut receiver: Receiver<Stat>, windows: usize, infinite: bool) {
         if warmup {
             info!("-----");
             if meters_delta(&m0, &m1, &Stat::ConnectOk) == 0 {
-                error!("No connections established. Please check that server(s) are available");
-                exit(1);
+                halt!("No connections established. Please check that server(s) are available");
             }
             info!("Warmup complete");
             warmup = false;

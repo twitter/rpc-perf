@@ -14,12 +14,12 @@
 //  limitations under the License.
 
 use bytes::{Buf, ByteBuf, MutBuf, MutByteBuf};
+use common::*;
 use mio::Ready;
 use mio::tcp::TcpStream;
 use net::InternetProtocol;
 use std::io::{self, Read, Write};
 use std::net::SocketAddr;
-use std::process::exit;
 
 const RX_BUFFER: usize = 4 * 1024;
 const TX_BUFFER: usize = 4 * 1024;
@@ -131,8 +131,7 @@ impl Connection {
     /// flush the buffer
     pub fn flush(&mut self) -> Result<(), ()> {
         if self.state != State::Writing {
-            error!("flush() {:?} connection", self.state);
-            exit(1);
+            halt!("flush() {:?} connection", self.state);
         }
         let b = self.buffer.tx.take();
         if let Some(buffer) = b {
@@ -171,8 +170,7 @@ impl Connection {
 
     pub fn write(&mut self, bytes: Vec<u8>) -> Result<(), ()> {
         if !self.is_writable() {
-            error!("write() {:?} connection", self.state);
-            exit(1);
+            halt!("write() {:?} connection", self.state);
         }
         trace!("write(): {:?}", bytes);
         let b = self.buffer.tx.take();
@@ -181,8 +179,7 @@ impl Connection {
             buffer.write_slice(&bytes);
             self.buffer.tx = Some(buffer);
         } else {
-            error!("buffer error");
-            exit(1);
+            halt!("buffer error");
         }
         self.flush()
     }
@@ -211,8 +208,7 @@ impl Connection {
 
     pub fn read(&mut self) -> Result<Vec<u8>, ()> {
         if !self.is_readable() {
-            error!("read() {:?} connection", self.state);
-            exit(1);
+            halt!("read() {:?} connection", self.state);
         }
 
         trace!("read()");
@@ -253,8 +249,7 @@ impl Connection {
                 }
             }
         } else {
-            error!("read() buffer issue");
-            exit(1);
+            halt!("read() buffer issue");
         }
         Ok(response)
     }

@@ -16,6 +16,7 @@
 extern crate slab;
 
 use cfgtypes::*;
+use common::*;
 use common::stats::Stat;
 use connection::*;
 use mio;
@@ -25,7 +26,6 @@ use mpmc::Queue;
 use net::InternetProtocol;
 use std::collections::VecDeque;
 use std::net::{SocketAddr, ToSocketAddrs};
-use std::process::exit;
 use std::sync::Arc;
 use std::time::Duration;
 use tic::{Clocksource, Sample, Sender};
@@ -141,8 +141,7 @@ impl Config {
     /// validation after set methods
     fn validate(&mut self) -> &mut Self {
         if (self.servers.len() * self.pool_size) > MAX_CONNECTIONS {
-            error!("Too many total connections");
-            exit(1);
+            halt!("Too many total connections");
         }
         self
     }
@@ -179,16 +178,13 @@ impl Client {
     /// turn a `Config` into a `Client`
     fn configured(config: Config) -> Client {
         if config.stats.is_none() {
-            error!("need stats");
-            exit(1);
+            halt!("need stats");
         }
         if config.clocksource.is_none() {
-            error!("need clocksource");
-            exit(1);
+            halt!("need clocksource");
         }
         if config.protocol.is_none() {
-            error!("need protocol");
-            exit(1);
+            halt!("need protocol");
         }
 
         let c = config.clone();
@@ -228,8 +224,7 @@ impl Client {
                             }
                         }
                         Err(_) => {
-                            error!("error acquiring token for connection");
-                            exit(1);
+                            halt!("error acquiring token for connection");
                         }
                     }
                 }
@@ -307,8 +302,7 @@ impl Client {
         if token.0 <= MAX_CONNECTIONS {
             pollopt_conn()
         } else {
-            error!("poll_opt() unknown token: {:?}", token);
-            exit(1);
+            halt!("poll_opt() unknown token: {:?}", token);
         }
     }
 
@@ -484,9 +478,8 @@ impl Client {
                 self.set_writable(token);
             }
         } else {
-            error!("internal state error. dispatch to non-writable {:?}",
+            halt!("internal state error. dispatch to non-writable {:?}",
                    self.state(token));
-            exit(1);
         }
     }
 
@@ -557,8 +550,7 @@ impl Client {
                 self.rtimes[token.0] = self.clocksource.counter();
                 rtokens.push((token, event));
             } else {
-                error!("unknown token: {:?}", token);
-                exit(1);
+                halt!("unknown token: {:?}", token);
             }
         }
 
