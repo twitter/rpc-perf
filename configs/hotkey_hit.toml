@@ -1,6 +1,8 @@
 # non-ratelimitied hotkey get suitable for memcache or redis on a 1 byte key
 #
 # use-case: benchmark peak throughput for 128 byte value (hitrate: 100%)
+#
+# tip: try changing the number of connections and threads
 
 [[workload]]
 name = "get"

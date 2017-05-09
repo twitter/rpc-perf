@@ -2,6 +2,8 @@
 # non-ratelimitied hotkey get suitable for memcache or redis on a 1byte key
 #
 # use-case: measure the peak get rate for a single connection with minimal payload
+#
+# tip: you can override the protocol on the command line eg: --protocol redis
 
 [general]
 threads = 1
