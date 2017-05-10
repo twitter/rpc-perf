@@ -479,7 +479,7 @@ impl Client {
             }
         } else {
             halt!("internal state error. dispatch to non-writable {:?}",
-                   self.state(token));
+                  self.state(token));
         }
     }
 
