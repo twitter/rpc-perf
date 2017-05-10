@@ -22,7 +22,7 @@ codegen-units = 1
 
 [profile.bench]
 opt-level = 3
-debug = false
+debug = true
 rpath = false
 lto = true
 debug-assertions = false
@@ -41,9 +41,9 @@ byteorder = "=1.0.0"
 bytes = "=0.3.0"
 crc = "=1.2.0"
 getopts = "=0.2.14"
-log = "=0.3.6"
+log = "=0.3.7"
 log-panics = "=1.1.0"
-mio = "=0.6.6"
+mio = "=0.6.7"
 mpmc = "=0.1.2"
 pad = "=0.1.4"
 rand = "=0.3.15"
@@ -52,9 +52,8 @@ shuteye = "=0.2.0"
 slab = "=0.3.0"
 simple_logger = "=0.4.0"
 tic = "=0.2.0"
-time = "=0.1.36"
+time = "=0.1.37"
 toml = "=0.2.1"
-clippy = {version = "=0.0.122", optional = true}
 
 [features]
 asm = [ "tic/asm" ]
