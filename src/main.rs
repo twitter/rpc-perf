@@ -21,12 +21,12 @@ extern crate test;
 #[cfg_attr(feature = "cargo-clippy", deny(result_unwrap_used))]
 #[macro_use]
 extern crate log;
-extern crate log_panics;
 
 extern crate bytes;
 extern crate byteorder;
 extern crate crc;
 extern crate getopts;
+extern crate log_panics;
 extern crate mio;
 extern crate mpmc;
 extern crate pad;
@@ -37,6 +37,7 @@ extern crate slab;
 extern crate tic;
 extern crate toml;
 
+#[macro_use]
 mod common;
 mod cfgtypes;
 mod client;
@@ -49,9 +50,10 @@ mod codec;
 mod request;
 
 use client::Client;
+use common::*;
 use net::InternetProtocol;
 use request::{config, workload};
-use std::{env, process, thread};
+use std::{env, thread};
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
@@ -104,10 +106,9 @@ pub fn main() {
 
     // Load workload configuration
     let config = match config::load_config(&matches) {
-        Ok(cfg) => cfg,
+        Ok(c) => c,
         Err(e) => {
-            error!("{}", e);
-            return;
+            halt!("{}", e);
         }
     };
 
@@ -115,8 +116,7 @@ pub fn main() {
                                                       matches.opt_present("ipv6")) {
         Ok(i) => i,
         Err(e) => {
-            error!("{}", e);
-            return;
+            halt!("{}", e);
         }
     };
 

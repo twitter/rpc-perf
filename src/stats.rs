@@ -13,10 +13,10 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
+use common::*;
 use common::stats::Stat;
 use request::BenchmarkConfig;
-use std::process::exit;
-use tic::{Interest, Meters, Percentile, Receiver, Sample};
+use tic::{Interest, Meters, Percentile, Receiver};
 
 pub fn stats_receiver_init(config: &BenchmarkConfig,
                            listen: Option<String>,
@@ -24,8 +24,8 @@ pub fn stats_receiver_init(config: &BenchmarkConfig,
                            trace: Option<String>)
                            -> Receiver<Stat> {
     let mut stats_config = Receiver::<Stat>::configure()
-        .batch_size(128)
-        .capacity(65536)
+        .batch_size(1024)
+        .capacity(4096)
         .duration(config.duration())
         .windows(config.windows());
 
@@ -76,13 +76,14 @@ pub fn stats_receiver_init(config: &BenchmarkConfig,
 
 
 pub fn meters_delta(t0: &Meters<Stat>, t1: &Meters<Stat>, stat: &Stat) -> u64 {
-    *t1.get_count(stat).unwrap_or(&0) - *t0.get_count(stat).unwrap_or(&0)
+    *t1.count(stat).unwrap_or(&0) - *t0.count(stat).unwrap_or(&0)
 }
 
 pub fn run(mut receiver: Receiver<Stat>, windows: usize, infinite: bool) {
 
     let mut window = 0;
     let mut warmup = true;
+    let mut next_window = window + windows;
 
     let clocksource = receiver.get_clocksource().clone();
     let mut sender = receiver.get_sender().clone();
@@ -95,14 +96,12 @@ pub fn run(mut receiver: Receiver<Stat>, windows: usize, infinite: bool) {
     loop {
         receiver.run_once();
         let t1 = clocksource.counter();
-        let _ = sender.send(Sample::new(t0, t1, Stat::Window));
         let m1 = receiver.clone_meters();
 
         if warmup {
             info!("-----");
             if meters_delta(&m0, &m1, &Stat::ConnectOk) == 0 {
-                error!("No connections established. Please check that server(s) are available");
-                exit(1);
+                halt!("No connections established. Please check that server(s) are available");
             }
             info!("Warmup complete");
             warmup = false;
@@ -131,13 +130,13 @@ pub fn run(mut receiver: Receiver<Stat>, windows: usize, infinite: bool) {
             };
 
             info!("-----");
-            info!("Window: {}", *m1.get_count(&Stat::Window).unwrap_or(&0));
-            let inflight = *m1.get_count(&Stat::RequestSent).unwrap_or(&0) as i64 -
-                           *m1.get_count(&Stat::ResponseOk).unwrap_or(&0) as i64 -
-                           *m1.get_count(&Stat::ResponseError).unwrap_or(&0) as i64 -
-                           *m1.get_count(&Stat::ResponseTimeout).unwrap_or(&0) as i64;
-            let open = *m1.get_count(&Stat::SocketCreate).unwrap_or(&0) as i64 -
-                       *m1.get_count(&Stat::SocketClose).unwrap_or(&0) as i64;
+            info!("Window: {}", window);
+            let inflight = *m1.count(&Stat::RequestSent).unwrap_or(&0) as i64 -
+                           *m1.count(&Stat::ResponseOk).unwrap_or(&0) as i64 -
+                           *m1.count(&Stat::ResponseError).unwrap_or(&0) as i64 -
+                           *m1.count(&Stat::ResponseTimeout).unwrap_or(&0) as i64;
+            let open = *m1.count(&Stat::SocketCreate).unwrap_or(&0) as i64 -
+                       *m1.count(&Stat::SocketClose).unwrap_or(&0) as i64;
             info!("Connections: Ok: {} Error: {} Timeout: {} Open: {}",
                   meters_delta(&m0, &m1, &Stat::ConnectOk),
                   meters_delta(&m0, &m1, &Stat::ConnectError),
@@ -173,10 +172,10 @@ pub fn run(mut receiver: Receiver<Stat>, windows: usize, infinite: bool) {
         t0 = t1;
         window += 1;
 
-        if window > windows {
+        if window > next_window {
             receiver.save_files();
             if infinite {
-                window = 0;
+                next_window += windows;
                 receiver.clear_heatmaps();
             } else {
                 break;
@@ -188,19 +187,19 @@ pub fn run(mut receiver: Receiver<Stat>, windows: usize, infinite: bool) {
 fn display_percentiles(meters: &Meters<Stat>, stat: &Stat, label: &str) {
     info!("Percentiles: {} (us): min: {} p50: {} p90: {} p99: {} p999: {} p9999: {} max: {}",
                     label,
-                    meters.get_percentile(stat,
+                    meters.percentile(stat,
                         Percentile("min".to_owned(), 0.0)).unwrap_or(&0) / 1000,
-                    meters.get_percentile(stat,
+                    meters.percentile(stat,
                         Percentile("p50".to_owned(), 50.0)).unwrap_or(&0) / 1000,
-                    meters.get_percentile(stat,
+                    meters.percentile(stat,
                         Percentile("p90".to_owned(), 90.0)).unwrap_or(&0) / 1000,
-                    meters.get_percentile(stat,
+                    meters.percentile(stat,
                         Percentile("p99".to_owned(), 99.0)).unwrap_or(&0) / 1000,
-                    meters.get_percentile(stat,
+                    meters.percentile(stat,
                         Percentile("p999".to_owned(), 99.9)).unwrap_or(&0) / 1000,
-                    meters.get_percentile(stat,
+                    meters.percentile(stat,
                         Percentile("p9999".to_owned(), 99.99)).unwrap_or(&0) / 1000,
-                    meters.get_percentile(stat,
+                    meters.percentile(stat,
                         Percentile("max".to_owned(), 100.0)).unwrap_or(&0) / 1000,
                 );
 }

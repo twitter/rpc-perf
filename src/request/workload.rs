@@ -109,6 +109,7 @@ impl Workload {
                 index += 1;
                 if index >= self.queue.len() {
                     index = 0;
+                    break;
                 }
             }
         }

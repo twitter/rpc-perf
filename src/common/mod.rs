@@ -24,6 +24,24 @@ extern crate toml;
 extern crate rand;
 extern crate tic;
 
+pub use std::process;
+
+#[macro_export]
+macro_rules! halt {
+    () => (
+        error!();
+        process::exit(1);
+        );
+    ($fmt:expr) => (
+        error!($fmt);
+        process::exit(1);
+        );
+    ($fmt:expr, $($arg:tt)*) => (
+        error!($fmt, $($arg)*);
+        process::exit(1);
+        );
+}
+
 pub mod stats {
     use std::fmt;
 
