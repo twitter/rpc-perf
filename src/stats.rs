@@ -83,6 +83,7 @@ pub fn run(mut receiver: Receiver<Stat>, windows: usize, infinite: bool) {
 
     let mut window = 0;
     let mut warmup = true;
+    let mut next_window = window + windows;
 
     let clocksource = receiver.get_clocksource().clone();
     let mut sender = receiver.get_sender().clone();
@@ -171,10 +172,10 @@ pub fn run(mut receiver: Receiver<Stat>, windows: usize, infinite: bool) {
         t0 = t1;
         window += 1;
 
-        if window > windows {
+        if window > next_window {
             receiver.save_files();
             if infinite {
-                window = 0;
+                next_window += windows;
                 receiver.clear_heatmaps();
             } else {
                 break;
