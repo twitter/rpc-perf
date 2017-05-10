@@ -27,9 +27,21 @@ pub fn parse_response(response: &str) -> ParsedResponse {
         return ParsedResponse::Incomplete;
     }
 
-    let (first_char, msg) = lines[0].split_at(1);
+    if lines.is_empty() {
+        return ParsedResponse::Incomplete;
+    }
 
-    match first_char {
+    let mut chars: Vec<char> = lines[0].chars().collect();
+
+    if chars.len() < 2 {
+        return ParsedResponse::Incomplete;
+    }
+
+    let first_char = chars.remove(0).to_string();
+    let msg: String = chars.into_iter().collect();
+    let msg = msg.as_str();
+
+    match first_char.as_str() {
         "+" => {
             // simple string
             // + simple string

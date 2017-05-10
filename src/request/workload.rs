@@ -98,8 +98,7 @@ impl Workload {
                 match self.queue[index].push(msg.take().unwrap()) {
                     Ok(_) => {
                         let t1 = self.clocksource.counter();
-                        let _ = self.stats
-                            .send(Sample::new(t0, t1, Stat::RequestPrepared));
+                        let _ = self.stats.send(Sample::new(t0, t1, Stat::RequestPrepared));
                         break;
                     }
                     Err(m) => {

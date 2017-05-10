@@ -25,7 +25,7 @@ use std::str;
 use std::sync::Arc;
 use toml::Value;
 
-struct Ping;
+pub struct Ping;
 
 impl ProtocolGen for Ping {
     fn generate_message(&mut self) -> Vec<u8> {
@@ -49,8 +49,11 @@ impl ProtocolParseFactory for Ping {
 
 impl ProtocolParse for Ping {
     fn parse(&self, bytes: &[u8]) -> ParsedResponse {
-        let s = str::from_utf8(bytes).unwrap();
-        parse::parse_response(s)
+        if let Ok(s) = str::from_utf8(bytes) {
+            parse::parse_response(s)
+        } else {
+            ParsedResponse::Invalid
+        }
     }
 }
 

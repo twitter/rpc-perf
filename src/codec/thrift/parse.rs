@@ -18,15 +18,23 @@ use byteorder::{BigEndian, ByteOrder};
 use cfgtypes::ParsedResponse;
 
 pub fn parse_response(response: &[u8]) -> ParsedResponse {
-    let bytes = response.len();
+    let bytes = response.len() as u32;
     if bytes > 4 {
         let length = BigEndian::read_u32(&response[0..4]);
 
-        if bytes as u32 == (length + 4_u32) {
-            return ParsedResponse::Ok;
+        match length.checked_add(4_u32) {
+            Some(b) => {
+                if b == bytes {
+                    ParsedResponse::Ok
+                } else {
+                    ParsedResponse::Incomplete
+                }
+            }
+            None => ParsedResponse::Invalid,
         }
+    } else {
+        ParsedResponse::Incomplete
     }
-    ParsedResponse::Incomplete
 }
 
 #[cfg(test)]
