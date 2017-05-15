@@ -13,8 +13,6 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-#![cfg_attr(feature = "unstable", feature(test))]
-
 pub fn ping() -> String {
     "PING\r\n".to_owned()
 }
@@ -23,6 +21,7 @@ mod tests {
     #[allow(unused_imports)]
     use super::*;
     #[cfg(feature = "unstable")]
+    #[allow(unused_imports)]
     use test;
 
     #[cfg(feature = "unstable")]

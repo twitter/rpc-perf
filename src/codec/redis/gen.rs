@@ -13,14 +13,12 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-#![cfg_attr(feature = "unstable", feature(test))]
-
 mod tests {
     #[allow(unused_imports)]
     use super::*;
     #[cfg(feature = "unstable")]
+    #[allow(unused_imports)]
     use test;
-
 
     #[test]
     fn test_flushall() {
