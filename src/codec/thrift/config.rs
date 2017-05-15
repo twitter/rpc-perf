@@ -23,7 +23,7 @@ use cfgtypes::Value;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-struct ThriftParse;
+pub struct ThriftParse;
 struct ThriftParseFactory;
 
 struct ThriftGen {

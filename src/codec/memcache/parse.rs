@@ -19,6 +19,10 @@ pub fn parse_response(response: &str) -> ParsedResponse {
 
     let mut lines: Vec<&str> = response.split("\r\n").collect();
 
+    if lines.len() < 2 {
+        return ParsedResponse::Incomplete;
+    }
+
     // expect an empty line from the split
     if lines[lines.len() - 1] == "" {
         let _ = lines.pop();
@@ -27,6 +31,10 @@ pub fn parse_response(response: &str) -> ParsedResponse {
     }
 
     let tokens: Vec<&str> = lines[0].split_whitespace().collect();
+
+    if tokens.len() < 1 {
+        return ParsedResponse::Incomplete;
+    }
 
     // one line responses can be special cased
     if lines.len() == 1 {

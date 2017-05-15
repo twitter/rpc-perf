@@ -230,10 +230,7 @@ impl Connection {
                     // read bytes from connection
                     trace!("read() bytes {}", n);
                     let mut buffer = buffer.flip();
-                    let _ = buffer
-                        .by_ref()
-                        .take(n as u64)
-                        .read_to_end(&mut response);
+                    let _ = buffer.by_ref().take(n as u64).read_to_end(&mut response);
                     trace!("read: {:?}", response);
                     self.buffer.rx = Some(buffer.flip());
                     self.stream = Some(s);

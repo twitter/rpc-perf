@@ -21,7 +21,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use toml::Value;
 
-struct EchoParser;
+pub struct EchoParser;
 
 struct EchoGen {
     value: Parameter<EchoData>,

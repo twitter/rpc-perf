@@ -132,14 +132,10 @@ fn load_config_table(table: &BTreeMap<String, Value>,
         if let Some(ipv6) = general.get("ipv6").and_then(|k| k.as_bool()) {
             config.ipv6 = ipv6;
         }
-        if let Some(v) = general
-               .get("request-timeout")
-               .and_then(|k| k.as_integer()) {
+        if let Some(v) = general.get("request-timeout").and_then(|k| k.as_integer()) {
             config.set_request_timeout(Some(v as u64));
         }
-        if let Some(v) = general
-               .get("connect-timeout")
-               .and_then(|k| k.as_integer()) {
+        if let Some(v) = general.get("connect-timeout").and_then(|k| k.as_integer()) {
             config.set_connect_timeout(Some(v as u64));
         }
     }

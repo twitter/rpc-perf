@@ -50,7 +50,7 @@ struct MemcacheParserFactory {
     flush: bool,
 }
 
-struct MemcacheParser;
+pub struct MemcacheParser;
 
 #[derive(Clone, Debug)]
 struct CacheData {
@@ -91,8 +91,11 @@ impl ProtocolParseFactory for MemcacheParserFactory {
 
 impl ProtocolParse for MemcacheParser {
     fn parse(&self, bytes: &[u8]) -> ParsedResponse {
-        let s = str::from_utf8(bytes).unwrap();
-        parse::parse_response(s)
+        if let Ok(s) = str::from_utf8(bytes) {
+            parse::parse_response(s)
+        } else {
+            ParsedResponse::Invalid
+        }
     }
 }
 

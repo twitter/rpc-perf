@@ -118,7 +118,7 @@ impl Command {
     }
 }
 
-struct RedisParse;
+pub struct RedisParse;
 
 struct RedisParseFactory {
     flush: bool,
@@ -167,8 +167,11 @@ impl ProtocolParseFactory for RedisParseFactory {
 
 impl ProtocolParse for RedisParse {
     fn parse(&self, bytes: &[u8]) -> ParsedResponse {
-        let s = str::from_utf8(bytes).unwrap();
-        parse::parse_response(s)
+        if let Ok(s) = str::from_utf8(bytes) {
+            parse::parse_response(s)
+        } else {
+            ParsedResponse::Invalid
+        }
     }
 }
 

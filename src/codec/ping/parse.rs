@@ -19,6 +19,10 @@ use cfgtypes::ParsedResponse;
 pub fn parse_response(response: &str) -> ParsedResponse {
     let mut lines: Vec<&str> = response.split("\r\n").collect();
 
+    if lines.len() < 2 {
+        return ParsedResponse::Incomplete;
+    }
+
     // expect an empty line from the split
     if lines[lines.len() - 1] == "" {
         let _ = lines.pop();
