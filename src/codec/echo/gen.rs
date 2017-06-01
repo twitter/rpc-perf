@@ -31,6 +31,7 @@ mod tests {
     #[allow(unused_imports)]
     use super::*;
     #[cfg(feature = "unstable")]
+    #[allow(unused_imports)]
     use test;
 
     #[cfg(feature = "unstable")]

@@ -59,3 +59,4 @@ toml = "=0.2.1"
 asm = [ "tic/asm" ]
 default = []
 unstable = []
+benchcmp = []
