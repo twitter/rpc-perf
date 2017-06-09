@@ -13,11 +13,12 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
+use super::net::InternetProtocol;
+
 use bytes::{Buf, ByteBuf, MutBuf, MutByteBuf};
 use common::*;
 use mio::Ready;
 use mio::tcp::TcpStream;
-use net::InternetProtocol;
 use std::io::{self, Read, Write};
 use std::net::SocketAddr;
 

@@ -15,15 +15,18 @@
 
 extern crate slab;
 
+pub mod connection;
+pub mod net;
+
+use self::connection::*;
+use self::net::InternetProtocol;
 use cfgtypes::*;
 use common::*;
 use common::stats::Stat;
-use connection::*;
 use mio;
 use mio::{Evented, Events, Poll, PollOpt, Token};
 use mio::unix::UnixReady;
 use mpmc::Queue;
-use net::InternetProtocol;
 use std::collections::VecDeque;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::Arc;
