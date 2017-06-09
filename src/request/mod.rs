@@ -17,6 +17,7 @@ pub mod config;
 pub mod workload;
 
 use cfgtypes::ProtocolConfig;
+use common::*;
 
 pub struct BenchmarkConfig {
     connections: usize,
@@ -28,7 +29,10 @@ pub struct BenchmarkConfig {
     ipv6: bool,
     connect_timeout: Option<u64>,
     request_timeout: Option<u64>,
+    protocol_name: String,
     pub protocol_config: ProtocolConfig,
+    rx_buffer_size: usize,
+    tx_buffer_size: usize,
 }
 
 impl BenchmarkConfig {
@@ -43,7 +47,10 @@ impl BenchmarkConfig {
             ipv6: true,
             connect_timeout: None,
             request_timeout: None,
+            protocol_name: "unknown".to_owned(),
             protocol_config: protocol,
+            tx_buffer_size: 4 * KILOBYTE,
+            rx_buffer_size: 4 * KILOBYTE,
         }
     }
 
@@ -108,5 +115,27 @@ impl BenchmarkConfig {
     pub fn set_request_timeout(&mut self, milliseconds: Option<u64>) -> &Self {
         self.request_timeout = milliseconds;
         self
+    }
+
+    pub fn rx_buffer_size(&self) -> usize {
+        self.rx_buffer_size
+    }
+
+    pub fn set_rx_buffer_size(&mut self, bytes: usize) -> &Self {
+        self.rx_buffer_size = bytes;
+        self
+    }
+
+    pub fn tx_buffer_size(&self) -> usize {
+        self.tx_buffer_size
+    }
+
+    pub fn set_tx_buffer_size(&mut self, bytes: usize) -> &Self {
+        self.tx_buffer_size = bytes;
+        self
+    }
+
+    pub fn protocol_name(&self) -> String {
+        self.protocol_name.clone()
     }
 }

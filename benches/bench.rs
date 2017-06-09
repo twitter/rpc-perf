@@ -4,12 +4,12 @@ mod tests {
     #[cfg(feature = "benchcmp")]
     extern crate test;
 
-    use std::env;
-    use std::process;
-
     #[cfg(feature = "benchcmp")]
     #[bench]
     fn benchcmp(_: &mut test::Bencher) {
+        use std::env;
+        use std::process;
+
         let travis_pr_branch = env::var("TRAVIS_PULL_REQUEST_BRANCH");
 
         let travis_branch = match env::var("TRAVIS_BRANCH") {

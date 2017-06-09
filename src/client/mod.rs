@@ -15,9 +15,11 @@
 
 extern crate slab;
 
+pub mod config;
 pub mod connection;
 pub mod net;
 
+use self::config::Config;
 use self::connection::*;
 use self::net::InternetProtocol;
 use cfgtypes::*;
@@ -29,7 +31,6 @@ use mio::unix::UnixReady;
 use mpmc::Queue;
 use std::collections::VecDeque;
 use std::net::{SocketAddr, ToSocketAddrs};
-use std::sync::Arc;
 use std::time::Duration;
 use tic::{Clocksource, Sample, Sender};
 
@@ -43,112 +44,6 @@ fn pollopt_conn() -> PollOpt {
 }
 
 type Slab<T> = slab::Slab<T, Token>;
-
-#[derive(Clone)]
-pub struct Config {
-    servers: Vec<String>,
-    pool_size: usize,
-    stats: Option<Sender<Stat>>,
-    clocksource: Option<Clocksource>,
-    protocol: Option<Arc<ProtocolParseFactory>>,
-    request_timeout: Option<u64>,
-    internet_protocol: InternetProtocol,
-    connect_timeout: Option<u64>,
-}
-
-impl Default for Config {
-    fn default() -> Config {
-        Config {
-            servers: Vec::new(),
-            pool_size: 1,
-            stats: None,
-            clocksource: None,
-            protocol: None,
-            request_timeout: None,
-            connect_timeout: None,
-            internet_protocol: InternetProtocol::Any,
-        }
-    }
-}
-
-impl Config {
-    /// add an endpoint (host:port)
-    pub fn add_server(&mut self, server: String) -> &mut Self {
-        self.servers.push(server);
-        self.validate()
-    }
-
-    /// get vector of endpoints
-    pub fn servers(&self) -> Vec<String> {
-        self.servers.clone()
-    }
-
-    /// get the number of connections maintained to each endpoint
-    pub fn pool_size(&self) -> usize {
-        self.pool_size
-    }
-
-    /// set the number of connections maintained to each endpoint
-    pub fn set_pool_size(&mut self, pool_size: usize) -> &mut Self {
-        self.pool_size = pool_size;
-        self.validate()
-    }
-
-    /// give the client a `Clocksource` for timing
-    pub fn set_clocksource(&mut self, clocksource: Clocksource) -> &mut Self {
-        self.clocksource = Some(clocksource);
-        self
-    }
-
-    /// give the client a `ProtocolParseFactory` to read the responses
-    pub fn set_protocol(&mut self, protocol: Arc<ProtocolParseFactory>) -> &mut Self {
-        self.protocol = Some(protocol);
-        self
-    }
-
-    /// get the InternetProtocol to use for Connections
-    pub fn internet_protocol(&self) -> InternetProtocol {
-        self.internet_protocol
-    }
-
-    /// set the InternetProtocol to use for Connections
-    pub fn set_internet_protocol(&mut self, protocol: InternetProtocol) -> &mut Self {
-        self.internet_protocol = protocol;
-        self
-    }
-
-    /// sets the timeout for responses
-    pub fn set_request_timeout(&mut self, milliseconds: Option<u64>) -> &mut Self {
-        self.request_timeout = milliseconds;
-        self
-    }
-
-    /// sets the timeout for connects
-    pub fn set_connect_timeout(&mut self, milliseconds: Option<u64>) -> &mut Self {
-        self.connect_timeout = milliseconds;
-        self
-    }
-
-    /// turn the `Config` into a `Client`
-    pub fn build(mut self) -> Client {
-        self.validate();
-        Client::configured(self)
-    }
-
-    /// sgive the client a stats sender
-    pub fn stats(&mut self, stats: Sender<Stat>) -> &mut Self {
-        self.stats = Some(stats);
-        self
-    }
-
-    /// validation after set methods
-    fn validate(&mut self) -> &mut Self {
-        if (self.servers.len() * self.pool_size) > MAX_CONNECTIONS {
-            halt!("Too many total connections");
-        }
-        self
-    }
-}
 
 pub struct Client {
     config: Config,
@@ -180,13 +75,13 @@ impl Client {
 
     /// turn a `Config` into a `Client`
     fn configured(config: Config) -> Client {
-        if config.stats.is_none() {
+        if config.stats().is_none() {
             halt!("need stats");
         }
-        if config.clocksource.is_none() {
+        if config.clocksource().is_none() {
             halt!("need clocksource");
         }
-        if config.protocol.is_none() {
+        if config.protocol().is_none() {
             halt!("need protocol");
         }
 
@@ -194,7 +89,7 @@ impl Client {
 
         let queue = Queue::with_capacity(MAX_PENDING);
 
-        let clocksource = config.clocksource.unwrap();
+        let clocksource = config.clocksource().unwrap();
 
         let mut client = Client {
             config: c,
@@ -202,21 +97,23 @@ impl Client {
             poll: Poll::new().unwrap(),
             queue: queue,
             ready: VecDeque::new(),
-            stats: config.stats.unwrap(),
+            stats: config.stats().unwrap(),
             times: vec![clocksource.counter(); MAX_CONNECTIONS],
             rtimes: vec![clocksource.counter(); MAX_CONNECTIONS],
             clocksource: clocksource,
-            protocol: config.protocol.unwrap().clone().new(),
-            request_timeout: config.request_timeout,
-            connect_timeout: config.connect_timeout,
+            protocol: config.protocol().unwrap().clone().new(),
+            request_timeout: config.request_timeout(),
+            connect_timeout: config.connect_timeout(),
             events: Some(Events::with_capacity(MAX_EVENTS)),
         };
 
         for server in client.config.servers() {
             if let Ok(sock_addr) = client.resolve(server.clone()) {
                 for _ in 0..client.config.pool_size() {
-
-                    match client.connections.insert(Connection::new(sock_addr)) {
+                    let mut connection = Connection::new(sock_addr);
+                    connection.resize_rx_buffer(config.rx_buffer_size());
+                    connection.resize_tx_buffer(config.tx_buffer_size());
+                    match client.connections.insert(connection) {
                         Ok(token) => {
                             client.send_stat(token, Stat::SocketCreate);
                             if client.has_stream(token) {
@@ -418,13 +315,9 @@ impl Client {
 
                 if parsed != ParsedResponse::Incomplete {
                     let _ = self.stats.send(Sample::new(t0, t1, status.clone()));
-                    if status == Stat::ResponseError {
-                        self.reconnect(token);
-                    } else {
-                        trace!("switch to writable");
-                        self.clear_timer(token);
-                        self.set_writable(token);
-                    }
+                    trace!("switch to writable");
+                    self.clear_timer(token);
+                    self.set_writable(token);
                 }
             }
         } else {

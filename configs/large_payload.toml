@@ -1,0 +1,31 @@
+# demonstrate a workload with large payload. set both the
+# tx and rx buffer size to handle the largest request and
+# response sizes
+#
+# use-case: demonstrate buffer size setting
+
+[general]
+rx-buffer-size = 1048576 # 1 megabyte
+tx-buffer-size = 1048576 # 1 megabyte
+
+[[workload]]
+name = "get"
+method = "get"
+rate = 1000
+  [[workload.parameter]]
+  style = "static"
+  size = 1
+  seed = 0
+
+[[workload]]
+name = "set"
+method = "set"
+rate = 1000
+  [[workload.parameter]]
+  style = "static"
+  size = 1
+  seed = 0
+  [[workload.parameter]]
+  style = "random"
+  size = 262144 # 256 kilobytes
+  regenerate = false

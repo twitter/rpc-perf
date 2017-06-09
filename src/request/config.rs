@@ -138,6 +138,13 @@ fn load_config_table(table: &BTreeMap<String, Value>,
         if let Some(v) = general.get("connect-timeout").and_then(|k| k.as_integer()) {
             config.set_connect_timeout(Some(v as u64));
         }
+        if let Some(v) = general.get("rx-buffer-size").and_then(|k| k.as_integer()) {
+            config.set_rx_buffer_size(v as usize);
+        }
+        if let Some(v) = general.get("tx-buffer-size").and_then(|k| k.as_integer()) {
+            config.set_tx_buffer_size(v as usize);
+        }
+        config.protocol_name = protocol.clone();
     }
 
     // get any overrides from the command line
