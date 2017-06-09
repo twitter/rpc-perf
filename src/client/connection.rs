@@ -60,6 +60,14 @@ impl Buffer {
         tx.clear();
         self.tx = Some(tx);
     }
+
+    pub fn resize_rx_buffer(&mut self, size: usize) {
+        self.rx = Some(ByteBuf::mut_with_capacity(size));
+    }
+
+    pub fn resize_tx_buffer(&mut self, size: usize) {
+        self.tx = Some(ByteBuf::mut_with_capacity(size));
+    }
 }
 
 #[derive(Debug)]
@@ -103,6 +111,16 @@ impl Connection {
 
     pub fn set_timeout(&mut self, timeout: Option<u64>) {
         self.timeout = timeout;
+    }
+
+    pub fn resize_rx_buffer(&mut self, bytes: usize) {
+        trace!("resize rx buffer {}", bytes);
+        self.buffer.resize_rx_buffer(bytes);
+    }
+
+    pub fn resize_tx_buffer(&mut self, bytes: usize) {
+        trace!("resize tx buffer {}", bytes);
+        self.buffer.resize_tx_buffer(bytes);
     }
 
     /// reconnect the connection in write mode

@@ -128,11 +128,14 @@ pub fn main() {
 
     client_config
         .set_pool_size(config.poolsize())
-        .stats(stats_receiver.get_sender().clone())
+        .set_stats(stats_receiver.get_sender().clone())
         .set_clocksource(stats_receiver.get_clocksource().clone())
+        .set_protocol_name(config.protocol_name().clone())
         .set_protocol(config.protocol_config.protocol.clone())
         .set_request_timeout(config.request_timeout())
         .set_connect_timeout(config.connect_timeout())
+        .set_rx_buffer_size(config.rx_buffer_size())
+        .set_tx_buffer_size(config.tx_buffer_size())
         .set_internet_protocol(internet_protocol);
 
     for server in servers {
@@ -200,4 +203,7 @@ fn print_config(config: &request::BenchmarkConfig,
             info!("Config: Connect Timeout: None");
         }
     }
+    info!("Config: Buffer size (bytes): RX: {} TX: {}",
+          config.rx_buffer_size(),
+          config.tx_buffer_size());
 }

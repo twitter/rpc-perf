@@ -24,7 +24,10 @@ extern crate toml;
 extern crate rand;
 extern crate tic;
 
+pub use self::stats::Stat;
 pub use std::process;
+
+pub const KILOBYTE: usize = 1024;
 
 #[macro_export]
 macro_rules! halt {

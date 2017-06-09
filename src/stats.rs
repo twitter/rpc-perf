@@ -14,7 +14,6 @@
 //  limitations under the License.
 
 use common::*;
-use common::stats::Stat;
 use request::BenchmarkConfig;
 use tic::{Interest, Meters, Percentile, Receiver};
 
