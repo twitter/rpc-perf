@@ -107,7 +107,7 @@ impl ProtocolGen for MemcacheCommand {
                          val.value.string.as_str(),
                          None,
                          None)
-                        .into_bytes()
+                    .into_bytes()
             }
             MemcacheCommand::Get(ref mut key) => {
                 key.regen();
@@ -124,7 +124,7 @@ impl ProtocolGen for MemcacheCommand {
                          val.value.string.as_str(),
                          None,
                          None)
-                        .into_bytes()
+                    .into_bytes()
             }
             MemcacheCommand::Verbosity(ref mut level) => {
                 level.regen();
@@ -137,7 +137,7 @@ impl ProtocolGen for MemcacheCommand {
                 ttl.regen();
                 gen::touch(key.value.string.as_str(),
                            Some(ttl.value.string.parse().unwrap_or(0)))
-                        .into_bytes()
+                    .into_bytes()
             }
             MemcacheCommand::Delete(ref mut key) => {
                 key.regen();
@@ -149,38 +149,38 @@ impl ProtocolGen for MemcacheCommand {
                          None,
                          None,
                          cas.value.string.parse().unwrap_or(0))
-                        .into_bytes()
+                    .into_bytes()
             }
             MemcacheCommand::Replace(ref mut key, ref mut value) => {
                 gen::replace(key.value.string.as_str(),
                              value.value.string.as_str(),
                              None,
                              None)
-                        .into_bytes()
+                    .into_bytes()
             }
             MemcacheCommand::Append(ref mut key, ref mut value) => {
                 gen::append(key.value.string.as_str(),
                             value.value.string.as_str(),
                             None,
                             None)
-                        .into_bytes()
+                    .into_bytes()
             }
             MemcacheCommand::Prepend(ref mut key, ref mut value) => {
                 gen::prepend(key.value.string.as_str(),
                              value.value.string.as_str(),
                              None,
                              None)
-                        .into_bytes()
+                    .into_bytes()
             }
             MemcacheCommand::Incr(ref mut key, ref mut value) => {
                 gen::incr(key.value.string.as_str(),
                           value.value.string.parse().unwrap_or(1))
-                        .into_bytes()
+                    .into_bytes()
             }
             MemcacheCommand::Decr(ref mut key, ref mut value) => {
                 gen::decr(key.value.string.as_str(),
                           value.value.string.parse().unwrap_or(1))
-                        .into_bytes()
+                    .into_bytes()
             }
         }
     }

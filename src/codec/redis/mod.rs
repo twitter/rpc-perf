@@ -84,7 +84,7 @@ impl Command {
                 gen::hset(p1.value.string.as_str(),
                           p2.value.string.as_str(),
                           p3.value.string.as_str())
-                        .into_bytes()
+                    .into_bytes()
             }
             Command::Del(ref mut p1) => {
                 p1.regen();
@@ -94,7 +94,7 @@ impl Command {
                 p1.regen();
                 gen::expire(p1.value.string.as_str(),
                             p2.value.string.as_str().parse().unwrap())
-                        .into_bytes()
+                    .into_bytes()
             }
             Command::Incr(ref mut p1) => {
                 p1.regen();

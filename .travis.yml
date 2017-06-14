@@ -26,7 +26,7 @@ matrix:
       rust: stable
       env: TYPE=rustfmt RUST_BACKTRACE=1
       script:
-        - cargo install -f rustfmt
+        - cargo install rustfmt || cargo fmt -- --version || cargo install -f rustfmt || exit 0
         - cargo fmt -- --write-mode=diff
     - os: linux
       rust: nightly
@@ -44,7 +44,7 @@ matrix:
       rust: nightly
       env: TYPE=clippy RUST_BACKTRACE=1
       script:
-        - cargo install clippy -f
+        - cargo install clippy || cargo clippy -- --version || cargo install -f clippy || exit 0
         - cargo clippy
     - os: linux
       rust: nightly
