@@ -41,7 +41,7 @@ pub fn launch_workloads(workloads: Vec<cfgtypes::BenchmarkWorkload>,
                                          work_queue.to_vec(),
                                          stats.clone(),
                                          clocksource.clone())
-                .unwrap();
+            .unwrap();
 
         let _ = thread::Builder::new()
             .name(format!("workload{}", i).to_string())

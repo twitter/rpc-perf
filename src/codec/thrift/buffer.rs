@@ -155,8 +155,9 @@ mod tests {
 
     #[test]
     fn test_method_name() {
-        test_buff(&[0, 0, 0, 0, 0, 0, 0, 4, 112, 105, 110, 103],
-                  |b| { b.method_name("ping"); });
+        test_buff(&[0, 0, 0, 0, 0, 0, 0, 4, 112, 105, 110, 103], |b| {
+            b.method_name("ping");
+        });
     }
 
     #[test]
