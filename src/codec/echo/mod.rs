@@ -49,9 +49,9 @@ impl Ptype for EchoData {
     fn parse(seed: usize, size: usize, _: &BTreeMap<String, Value>) -> CResult<Self> {
         let bts = (seed..(seed + size)).map(|i| i as u8).collect();
         Ok(EchoData {
-               size: size,
-               bytes: bts,
-           })
+            size: size,
+            bytes: bts,
+        })
     }
 }
 
@@ -98,9 +98,9 @@ pub fn load_config(table: &BTreeMap<String, Value>) -> CResult<ProtocolConfig> {
         }
 
         Ok(ProtocolConfig {
-               protocol: Arc::new(EchoParser),
-               workloads: ws,
-           })
+            protocol: Arc::new(EchoParser),
+            workloads: ws,
+        })
     } else {
         Err("memcache: no workloads specified".to_owned())
     }
@@ -129,7 +129,10 @@ fn extract_workload(workload: &BTreeMap<String, Value>) -> CResult<BenchmarkWork
                 }
             }
             other => {
-                return Err(format!("malformed config: too many parameters for echo: {}", other));
+                return Err(format!(
+                    "malformed config: too many parameters for echo: {}",
+                    other
+                ));
             }
         };
 

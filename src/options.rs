@@ -28,14 +28,18 @@ pub fn opts() -> Options {
     opts.optopt("c", "connections", "connections per thread", "INTEGER");
     opts.optopt("d", "duration", "number of seconds per window", "INTEGER");
     opts.optopt("w", "windows", "number of windows in test", "INTEGER");
-    opts.optopt("",
-                "request-timeout",
-                "request timeout in milliseconds",
-                "INTEGER");
-    opts.optopt("",
-                "connect-timeout",
-                "connect timeout in milliseconds",
-                "INTEGER");
+    opts.optopt(
+        "",
+        "request-timeout",
+        "request timeout in milliseconds",
+        "INTEGER",
+    );
+    opts.optopt(
+        "",
+        "connect-timeout",
+        "connect timeout in milliseconds",
+        "INTEGER",
+    );
     opts.optopt("p", "protocol", "client protocol", "STRING");
     opts.optopt("", "config", "TOML config file", "FILE");
     opts.optopt("", "listen", "listen address for stats", "HOST:PORT");

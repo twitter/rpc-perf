@@ -150,12 +150,12 @@ impl Client {
             if self.connections[token].is_connecting() {
                 if let Some(t) = self.connect_timeout {
                     let deadline = self.clocksource.counter() +
-                                   t * self.clocksource.frequency() as u64 / 1000;
+                        t * self.clocksource.frequency() as u64 / 1000;
                     self.connections[token].set_timeout(Some(deadline));
                 }
             } else if let Some(t) = self.request_timeout {
                 let deadline = self.clocksource.counter() +
-                               t * self.clocksource.frequency() as u64 / 1000;
+                    t * self.clocksource.frequency() as u64 / 1000;
                 self.connections[token].set_timeout(Some(deadline));
             }
         }
@@ -164,17 +164,26 @@ impl Client {
     /// register with the poller
     /// - reregister on failure
     fn register<E: ?Sized>(&self, io: &E, token: Token)
-        where E: Evented
+    where
+        E: Evented,
     {
-        match self.poll
-                  .register(io, token, self.event_set(token), self.poll_opt(token)) {
+        match self.poll.register(
+            io,
+            token,
+            self.event_set(token),
+            self.poll_opt(token),
+        ) {
             Ok(_) => {}
             Err(e) => {
                 if !self.poll.deregister(io).is_ok() {
                     debug!("error registering {:?}: {}", token, e);
                 } else {
-                    let _ = self.poll
-                        .register(io, token, self.event_set(token), self.poll_opt(token));
+                    let _ = self.poll.register(
+                        io,
+                        token,
+                        self.event_set(token),
+                        self.poll_opt(token),
+                    );
                 }
             }
         }
@@ -182,7 +191,8 @@ impl Client {
 
     // remove from the poller
     fn deregister<E: ?Sized>(&self, io: &E)
-        where E: Evented
+    where
+        E: Evented,
     {
         match self.poll.deregister(io) {
             Ok(_) => {}
@@ -234,13 +244,15 @@ impl Client {
                 match addr {
                     SocketAddr::V4(_) => {
                         if self.config.internet_protocol() == InternetProtocol::Any ||
-                           self.config.internet_protocol() == InternetProtocol::IpV4 {
+                            self.config.internet_protocol() == InternetProtocol::IpV4
+                        {
                             return Ok(addr);
                         }
                     }
                     SocketAddr::V6(_) => {
                         if self.config.internet_protocol() == InternetProtocol::Any ||
-                           self.config.internet_protocol() == InternetProtocol::IpV6 {
+                            self.config.internet_protocol() == InternetProtocol::IpV6
+                        {
                             return Ok(addr);
                         }
                     }
@@ -374,8 +386,10 @@ impl Client {
                 self.set_writable(token);
             }
         } else {
-            halt!("internal state error. dispatch to non-writable {:?}",
-                  self.state(token));
+            halt!(
+                "internal state error. dispatch to non-writable {:?}",
+                self.state(token)
+            );
         }
     }
 
@@ -429,9 +443,9 @@ impl Client {
                 }
             }
         }
-        let mut events = self.events
-            .take()
-            .unwrap_or_else(|| Events::with_capacity(MAX_EVENTS));
+        let mut events = self.events.take().unwrap_or_else(
+            || Events::with_capacity(MAX_EVENTS),
+        );
 
         self.poll
             .poll(&mut events, Some(Duration::from_millis(TICK_MS)))

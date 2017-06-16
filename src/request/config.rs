@@ -26,8 +26,9 @@ use toml::Value::Table;
 
 /// Helper for extracting non-string values from the `Matches`
 fn parse_opt<F>(name: &str, matches: &Matches) -> Result<Option<F>, String>
-    where F: FromStr,
-          F::Err: Display
+where
+    F: FromStr,
+    F::Err: Display,
 {
     if let Some(v) = matches.opt_str(name) {
         match v.parse() {
@@ -62,13 +63,15 @@ pub fn load_config(matches: &Matches) -> Result<BenchmarkConfig, String> {
                 for err in &p.errors {
                     let (loline, locol) = p.to_linecol(err.lo);
                     let (hiline, hicol) = p.to_linecol(err.hi);
-                    println!("{}:{}:{}-{}:{} error: {}",
-                             toml,
-                             loline,
-                             locol,
-                             hiline,
-                             hicol,
-                             err.desc);
+                    println!(
+                        "{}:{}:{}-{}:{} error: {}",
+                        toml,
+                        loline,
+                        locol,
+                        hiline,
+                        hicol,
+                        err.desc
+                    );
                 }
                 Err("failed to load config".to_owned())
             }
@@ -78,20 +81,21 @@ pub fn load_config(matches: &Matches) -> Result<BenchmarkConfig, String> {
     }
 }
 
-fn load_config_table(table: &BTreeMap<String, Value>,
-                     matches: &Matches)
-                     -> Result<BenchmarkConfig, String> {
+fn load_config_table(
+    table: &BTreeMap<String, Value>,
+    matches: &Matches,
+) -> Result<BenchmarkConfig, String> {
 
     let protocol: String = matches
         .opt_str("protocol")
         .or_else(|| {
-                     table
-                         .get("general")
-                         .and_then(|k| k.as_table())
-                         .and_then(|k| k.get("protocol"))
-                         .and_then(|k| k.as_str())
-                         .map(|k| k.to_owned())
-                 })
+            table
+                .get("general")
+                .and_then(|k| k.as_table())
+                .and_then(|k| k.get("protocol"))
+                .and_then(|k| k.as_str())
+                .map(|k| k.to_owned())
+        })
         .unwrap_or_else(|| "memcache".to_owned());
 
     // Pick a protocol

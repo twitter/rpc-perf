@@ -110,8 +110,10 @@ pub fn main() {
         }
     };
 
-    let internet_protocol = match client::net::choose_layer_3(matches.opt_present("ipv4"),
-                                                              matches.opt_present("ipv6")) {
+    let internet_protocol = match client::net::choose_layer_3(
+        matches.opt_present("ipv4"),
+        matches.opt_present("ipv6"),
+    ) {
         Ok(i) => i,
         Err(e) => {
             halt!("{}", e);
@@ -160,33 +162,45 @@ pub fn main() {
 
     let windows = config.windows();
 
-    workload::launch_workloads(config.protocol_config.workloads,
-                               &send_queues,
-                               &stats_receiver.get_sender(),
-                               &stats_receiver.get_clocksource());
+    workload::launch_workloads(
+        config.protocol_config.workloads,
+        &send_queues,
+        &stats_receiver.get_sender(),
+        &stats_receiver.get_clocksource(),
+    );
 
     stats::run(stats_receiver, windows, matches.opt_present("service"));
 }
 
-fn print_config(config: &request::BenchmarkConfig,
-                servers: &[String],
-                internet_protocol: InternetProtocol) {
+fn print_config(
+    config: &request::BenchmarkConfig,
+    servers: &[String],
+    internet_protocol: InternetProtocol,
+) {
     info!("-----");
     info!("Config:");
     for server in servers {
-        info!("Config: Server: {} Protocol: {}",
-              server,
-              config.protocol_config.protocol.name());
+        info!(
+            "Config: Server: {} Protocol: {}",
+            server,
+            config.protocol_config.protocol.name()
+        );
     }
-    info!("Config: IP: {:?} TCP_NODELAY: {}",
-          internet_protocol,
-          config.tcp_nodelay());
-    info!("Config: Threads: {} Poolsize: {}",
-          config.threads(),
-          config.poolsize());
-    info!("Config: Windows: {} Duration: {}",
-          config.windows(),
-          config.duration());
+    info!(
+        "Config: IP: {:?} TCP_NODELAY: {}",
+        internet_protocol,
+        config.tcp_nodelay()
+    );
+    info!(
+        "Config: Threads: {} Poolsize: {}",
+        config.threads(),
+        config.poolsize()
+    );
+    info!(
+        "Config: Windows: {} Duration: {}",
+        config.windows(),
+        config.duration()
+    );
     match config.request_timeout() {
         Some(v) => {
             info!("Config: Request Timeout: {} ms", v);
@@ -203,7 +217,9 @@ fn print_config(config: &request::BenchmarkConfig,
             info!("Config: Connect Timeout: None");
         }
     }
-    info!("Config: Buffer size (bytes): RX: {} TX: {}",
-          config.rx_buffer_size(),
-          config.tx_buffer_size());
+    info!(
+        "Config: Buffer size (bytes): RX: {} TX: {}",
+        config.rx_buffer_size(),
+        config.tx_buffer_size()
+    );
 }

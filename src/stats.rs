@@ -17,11 +17,12 @@ use common::*;
 use request::BenchmarkConfig;
 use tic::{Interest, Meters, Percentile, Receiver};
 
-pub fn stats_receiver_init(config: &BenchmarkConfig,
-                           listen: Option<String>,
-                           waterfall: Option<String>,
-                           trace: Option<String>)
-                           -> Receiver<Stat> {
+pub fn stats_receiver_init(
+    config: &BenchmarkConfig,
+    listen: Option<String>,
+    waterfall: Option<String>,
+    trace: Option<String>,
+) -> Receiver<Stat> {
     let mut stats_config = Receiver::<Stat>::configure()
         .batch_size(1024)
         .capacity(4096)
@@ -34,31 +35,36 @@ pub fn stats_receiver_init(config: &BenchmarkConfig,
 
     let mut stats_receiver = stats_config.build();
 
-    let counts = vec![Stat::Window,
-                      Stat::ResponseOk,
-                      Stat::ResponseOkHit,
-                      Stat::ResponseOkMiss,
-                      Stat::ResponseError,
-                      Stat::ResponseTimeout,
-                      Stat::RequestPrepared,
-                      Stat::RequestSent,
-                      Stat::ConnectOk,
-                      Stat::ConnectError,
-                      Stat::ConnectTimeout,
-                      Stat::SocketCreate,
-                      Stat::SocketClose,
-                      Stat::SocketRead,
-                      Stat::SocketFlush,
-                      Stat::SocketWrite];
+    let counts = vec![
+        Stat::Window,
+        Stat::ResponseOk,
+        Stat::ResponseOkHit,
+        Stat::ResponseOkMiss,
+        Stat::ResponseError,
+        Stat::ResponseTimeout,
+        Stat::RequestPrepared,
+        Stat::RequestSent,
+        Stat::ConnectOk,
+        Stat::ConnectError,
+        Stat::ConnectTimeout,
+        Stat::SocketCreate,
+        Stat::SocketClose,
+        Stat::SocketRead,
+        Stat::SocketFlush,
+        Stat::SocketWrite,
+    ];
 
     for c in counts {
         stats_receiver.add_interest(Interest::Count(c));
     }
 
-    for c in vec![Stat::ResponseOk,
-                  Stat::ResponseOkHit,
-                  Stat::ResponseOkMiss,
-                  Stat::ConnectOk] {
+    for c in vec![
+        Stat::ResponseOk,
+        Stat::ResponseOkHit,
+        Stat::ResponseOkMiss,
+        Stat::ConnectOk,
+    ]
+    {
         stats_receiver.add_interest(Interest::Percentile(c));
     }
 
@@ -106,15 +112,14 @@ pub fn run(mut receiver: Receiver<Stat>, windows: usize, infinite: bool) {
             warmup = false;
         } else {
             let responses = meters_delta(&m0, &m1, &Stat::ResponseOk) +
-                            meters_delta(&m0, &m1, &Stat::ResponseError);
+                meters_delta(&m0, &m1, &Stat::ResponseError);
 
             let rate = responses as f64 /
-                       ((clocksource.convert(t1) - clocksource.convert(t0)) as f64 /
-                        1_000_000_000.0);
+                ((clocksource.convert(t1) - clocksource.convert(t0)) as f64 / 1_000_000_000.0);
 
             let success_rate = if responses > 0 {
                 100.0 * (responses - meters_delta(&m0, &m1, &Stat::ResponseError)) as f64 /
-                (responses + meters_delta(&m0, &m1, &Stat::ResponseTimeout)) as f64
+                    (responses + meters_delta(&m0, &m1, &Stat::ResponseTimeout)) as f64
             } else {
                 0.0
             };
@@ -131,39 +136,49 @@ pub fn run(mut receiver: Receiver<Stat>, windows: usize, infinite: bool) {
             info!("-----");
             info!("Window: {}", window);
             let inflight = *m1.count(&Stat::RequestSent).unwrap_or(&0) as i64 -
-                           *m1.count(&Stat::ResponseOk).unwrap_or(&0) as i64 -
-                           *m1.count(&Stat::ResponseError).unwrap_or(&0) as i64 -
-                           *m1.count(&Stat::ResponseTimeout).unwrap_or(&0) as i64;
+                *m1.count(&Stat::ResponseOk).unwrap_or(&0) as i64 -
+                *m1.count(&Stat::ResponseError).unwrap_or(&0) as i64 -
+                *m1.count(&Stat::ResponseTimeout).unwrap_or(&0) as i64;
             let open = *m1.count(&Stat::SocketCreate).unwrap_or(&0) as i64 -
-                       *m1.count(&Stat::SocketClose).unwrap_or(&0) as i64;
-            info!("Connections: Ok: {} Error: {} Timeout: {} Open: {}",
-                  meters_delta(&m0, &m1, &Stat::ConnectOk),
-                  meters_delta(&m0, &m1, &Stat::ConnectError),
-                  meters_delta(&m0, &m1, &Stat::ConnectTimeout),
-                  open);
-            info!("Sockets: Create: {} Close: {} Read: {} Write: {} Flush: {}",
-                  meters_delta(&m0, &m1, &Stat::SocketCreate),
-                  meters_delta(&m0, &m1, &Stat::SocketClose),
-                  meters_delta(&m0, &m1, &Stat::SocketRead),
-                  meters_delta(&m0, &m1, &Stat::SocketWrite),
-                  meters_delta(&m0, &m1, &Stat::SocketFlush));
-            info!("Requests: Sent: {} Prepared: {} In-Flight: {}",
-                  meters_delta(&m0, &m1, &Stat::RequestSent),
-                  meters_delta(&m0, &m1, &Stat::RequestPrepared),
-                  inflight);
-            info!("Responses: Ok: {} Error: {} Timeout: {} Hit: {} Miss: {}",
-                  meters_delta(&m0, &m1, &Stat::ResponseOk),
-                  meters_delta(&m0, &m1, &Stat::ResponseError),
-                  meters_delta(&m0, &m1, &Stat::ResponseTimeout),
-                  meters_delta(&m0, &m1, &Stat::ResponseOkHit),
-                  meters_delta(&m0, &m1, &Stat::ResponseOkMiss));
-            info!("Rate: {:.*} rps Success: {:.*} % Hit Rate: {:.*} %",
-                  2,
-                  rate,
-                  2,
-                  success_rate,
-                  2,
-                  hit_rate);
+                *m1.count(&Stat::SocketClose).unwrap_or(&0) as i64;
+            info!(
+                "Connections: Ok: {} Error: {} Timeout: {} Open: {}",
+                meters_delta(&m0, &m1, &Stat::ConnectOk),
+                meters_delta(&m0, &m1, &Stat::ConnectError),
+                meters_delta(&m0, &m1, &Stat::ConnectTimeout),
+                open
+            );
+            info!(
+                "Sockets: Create: {} Close: {} Read: {} Write: {} Flush: {}",
+                meters_delta(&m0, &m1, &Stat::SocketCreate),
+                meters_delta(&m0, &m1, &Stat::SocketClose),
+                meters_delta(&m0, &m1, &Stat::SocketRead),
+                meters_delta(&m0, &m1, &Stat::SocketWrite),
+                meters_delta(&m0, &m1, &Stat::SocketFlush)
+            );
+            info!(
+                "Requests: Sent: {} Prepared: {} In-Flight: {}",
+                meters_delta(&m0, &m1, &Stat::RequestSent),
+                meters_delta(&m0, &m1, &Stat::RequestPrepared),
+                inflight
+            );
+            info!(
+                "Responses: Ok: {} Error: {} Timeout: {} Hit: {} Miss: {}",
+                meters_delta(&m0, &m1, &Stat::ResponseOk),
+                meters_delta(&m0, &m1, &Stat::ResponseError),
+                meters_delta(&m0, &m1, &Stat::ResponseTimeout),
+                meters_delta(&m0, &m1, &Stat::ResponseOkHit),
+                meters_delta(&m0, &m1, &Stat::ResponseOkMiss)
+            );
+            info!(
+                "Rate: {:.*} rps Success: {:.*} % Hit Rate: {:.*} %",
+                2,
+                rate,
+                2,
+                success_rate,
+                2,
+                hit_rate
+            );
             display_percentiles(&m1, &Stat::ResponseOk, "Response OK");
         }
 

@@ -32,73 +32,85 @@ pub fn quit() -> String {
 pub fn set(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>) -> String {
     let flags = flags.unwrap_or(0);
     let exptime = exptime.unwrap_or(0);
-    format!("set {} {} {} {}\r\n{}\r\n",
-            key,
-            flags,
-            exptime,
-            value.len(),
-            value)
+    format!(
+        "set {} {} {} {}\r\n{}\r\n",
+        key,
+        flags,
+        exptime,
+        value.len(),
+        value
+    )
 }
 
 /// create a cas request
 pub fn cas(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>, cas: u64) -> String {
     let flags = flags.unwrap_or(0);
     let exptime = exptime.unwrap_or(0);
-    format!("cas {} {} {} {} {}\r\n{}\r\n",
-            key,
-            flags,
-            exptime,
-            value.len(),
-            cas,
-            value)
+    format!(
+        "cas {} {} {} {} {}\r\n{}\r\n",
+        key,
+        flags,
+        exptime,
+        value.len(),
+        cas,
+        value
+    )
 }
 
 /// create an add request
 pub fn add(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>) -> String {
     let flags = flags.unwrap_or(0);
     let exptime = exptime.unwrap_or(0);
-    format!("add {} {} {} {}\r\n{}\r\n",
-            key,
-            flags,
-            exptime,
-            value.len(),
-            value)
+    format!(
+        "add {} {} {} {}\r\n{}\r\n",
+        key,
+        flags,
+        exptime,
+        value.len(),
+        value
+    )
 }
 
 /// create a replace request
 pub fn replace(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>) -> String {
     let flags = flags.unwrap_or(0);
     let exptime = exptime.unwrap_or(0);
-    format!("replace {} {} {} {}\r\n{}\r\n",
-            key,
-            flags,
-            exptime,
-            value.len(),
-            value)
+    format!(
+        "replace {} {} {} {}\r\n{}\r\n",
+        key,
+        flags,
+        exptime,
+        value.len(),
+        value
+    )
 }
 
 /// create an append request
 pub fn append(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>) -> String {
     let flags = flags.unwrap_or(0);
     let exptime = exptime.unwrap_or(0);
-    format!("append {} {} {} {}\r\n{}\r\n",
-            key,
-            flags,
-            exptime,
-            value.len(),
-            value)
+    format!(
+        "append {} {} {} {}\r\n{}\r\n",
+        key,
+        flags,
+        exptime,
+        value.len(),
+        value
+    )
 }
 
 /// create an prepend request
 pub fn prepend(key: &str, value: &str, exptime: Option<u32>, flags: Option<u32>) -> String {
     let flags = flags.unwrap_or(0);
     let exptime = exptime.unwrap_or(0);
-    format!("prepend {} {} {} {}\r\n{}\r\n",
-            key,
-            flags,
-            exptime,
-            value.len(),
-            value)
+    format!(
+        "prepend {} {} {} {}\r\n{}\r\n",
+        key,
+        flags,
+        exptime,
+        value.len(),
+        value
+    )
 }
 
 /// create a incr request
@@ -179,8 +191,10 @@ mod tests {
 
     #[test]
     fn test_set() {
-        assert_eq!(set("key", "value", None, None),
-                   "set key 0 0 5\r\nvalue\r\n");
+        assert_eq!(
+            set("key", "value", None, None),
+            "set key 0 0 5\r\nvalue\r\n"
+        );
     }
 
     #[cfg(feature = "unstable")]
@@ -191,8 +205,10 @@ mod tests {
 
     #[test]
     fn test_cas() {
-        assert_eq!(cas("key", "value", None, None, 100_u64),
-                   "cas key 0 0 5 100\r\nvalue\r\n");
+        assert_eq!(
+            cas("key", "value", None, None, 100_u64),
+            "cas key 0 0 5 100\r\nvalue\r\n"
+        );
     }
 
     #[cfg(feature = "unstable")]
@@ -203,8 +219,10 @@ mod tests {
 
     #[test]
     fn test_add() {
-        assert_eq!(add("key", "value", None, None),
-                   "add key 0 0 5\r\nvalue\r\n");
+        assert_eq!(
+            add("key", "value", None, None),
+            "add key 0 0 5\r\nvalue\r\n"
+        );
     }
 
     #[cfg(feature = "unstable")]
@@ -215,8 +233,10 @@ mod tests {
 
     #[test]
     fn test_replace() {
-        assert_eq!(replace("key", "value", None, None),
-                   "replace key 0 0 5\r\nvalue\r\n");
+        assert_eq!(
+            replace("key", "value", None, None),
+            "replace key 0 0 5\r\nvalue\r\n"
+        );
     }
 
     #[cfg(feature = "unstable")]
@@ -227,8 +247,10 @@ mod tests {
 
     #[test]
     fn test_append() {
-        assert_eq!(append("key", "value", None, None),
-                   "append key 0 0 5\r\nvalue\r\n");
+        assert_eq!(
+            append("key", "value", None, None),
+            "append key 0 0 5\r\nvalue\r\n"
+        );
     }
 
     #[cfg(feature = "unstable")]
@@ -239,8 +261,10 @@ mod tests {
 
     #[test]
     fn test_prepend() {
-        assert_eq!(prepend("key", "value", None, None),
-                   "prepend key 0 0 5\r\nvalue\r\n");
+        assert_eq!(
+            prepend("key", "value", None, None),
+            "prepend key 0 0 5\r\nvalue\r\n"
+        );
     }
 
     #[cfg(feature = "unstable")]

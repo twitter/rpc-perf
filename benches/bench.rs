@@ -56,7 +56,9 @@ mod tests {
 
         process::Command::new("bash")
             .arg("-c")
-            .arg("cargo bench --features unstable | tee target/benchcmp/result.current")
+            .arg(
+                "cargo bench --features unstable | tee target/benchcmp/result.current",
+            )
             .current_dir(travis_build_dir.to_owned())
             .status()
             .expect("Failed to cargo bench current");

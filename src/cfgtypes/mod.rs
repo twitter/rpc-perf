@@ -134,9 +134,10 @@ impl<T: Ptype> Parameter<T> {
 }
 
 /// Extract a `Parameter` from the toml tree
-pub fn extract_parameter<T: Ptype>(index: usize,
-                                   parameter: &BTreeMap<String, Value>)
-                                   -> CResult<Parameter<T>> {
+pub fn extract_parameter<T: Ptype>(
+    index: usize,
+    parameter: &BTreeMap<String, Value>,
+) -> CResult<Parameter<T>> {
 
     let style = match parameter.get("style").and_then(|k| k.as_str()) {
         Some("random") => Style::Random,
@@ -144,15 +145,19 @@ pub fn extract_parameter<T: Ptype>(index: usize,
         Some(other) => return Err(format!("bad parameter style: {}", other)),
     };
 
-    let seed = parameter
-        .get("seed")
-        .and_then(|k| k.as_integer())
-        .map_or(index, |i| i as usize);
+    let seed = parameter.get("seed").and_then(|k| k.as_integer()).map_or(
+        index,
+        |i| {
+            i as usize
+        },
+    );
 
-    let size = parameter
-        .get("size")
-        .and_then(|k| k.as_integer())
-        .map_or(1, |i| i as usize);
+    let size = parameter.get("size").and_then(|k| k.as_integer()).map_or(
+        1,
+        |i| {
+            i as usize
+        },
+    );
 
     let regenerate = parameter
         .get("regenerate")
@@ -167,8 +172,8 @@ pub fn extract_parameter<T: Ptype>(index: usize,
     }
 
     Ok(Parameter {
-           style: style,
-           regenerate: regenerate,
-           value: value,
-       })
+        style: style,
+        regenerate: regenerate,
+        value: value,
+    })
 }

@@ -129,12 +129,16 @@ mod tests {
     #[test]
     fn test_parse_error() {
         let r = "-ERROR\r\n";
-        assert_eq!(parse_response(r),
-                   ParsedResponse::Error("ERROR".to_string()));
+        assert_eq!(
+            parse_response(r),
+            ParsedResponse::Error("ERROR".to_string())
+        );
 
         let r = "-ERROR with message\r\n";
-        assert_eq!(parse_response(r),
-                   ParsedResponse::Error("ERROR with message".to_string()));
+        assert_eq!(
+            parse_response(r),
+            ParsedResponse::Error("ERROR with message".to_string())
+        );
     }
 
     #[test]

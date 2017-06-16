@@ -75,9 +75,9 @@ pub fn load_config(table: &BTreeMap<String, Value>) -> CResult<ProtocolConfig> {
         }
 
         Ok(ProtocolConfig {
-               protocol: Arc::new(ThriftParseFactory),
-               workloads: ws,
-           })
+            protocol: Arc::new(ThriftParseFactory),
+            workloads: ws,
+        })
     } else {
         Err("no workloads specified".to_owned())
     }
@@ -118,19 +118,18 @@ fn extract_workload(workload: &BTreeMap<String, Value>) -> CResult<BenchmarkWork
     }
 
     let cmd = Box::new(ThriftGen {
-                           method: method.to_owned(),
-                           parameters: ps,
-                       });
+        method: method.to_owned(),
+        parameters: ps,
+    });
 
     Ok(BenchmarkWorkload::new(name, rate as usize, cmd))
 }
 
 fn extract_parameter(i: usize, parameter: &BTreeMap<String, Value>) -> CResult<Parameter> {
 
-    let id = parameter
-        .get("id")
-        .and_then(|k| k.as_integer())
-        .map(|k| k as i16);
+    let id = parameter.get("id").and_then(|k| k.as_integer()).map(
+        |k| k as i16,
+    );
 
     let style = match parameter.get("style").and_then(|k| k.as_str()) {
         Some("random") => Style::Random,
@@ -167,12 +166,14 @@ fn extract_parameter(i: usize, parameter: &BTreeMap<String, Value>) -> CResult<P
         Some("map") => Tvalue::Map,
         Some("set") => Tvalue::Set,
         Some("list") => {
-            Tvalue::List(parameter
-                             .get("contains")
-                             .and_then(|k| k.as_str())
-                             .unwrap()
-                             .to_owned(),
-                         size as i32)
+            Tvalue::List(
+                parameter
+                    .get("contains")
+                    .and_then(|k| k.as_str())
+                    .unwrap()
+                    .to_owned(),
+                size as i32,
+            )
         }
         Some(unknown) => return Err(format!("unknown parameter type: {}", unknown)),
         None => return Err("paramter type not specified".to_owned()),
@@ -183,13 +184,13 @@ fn extract_parameter(i: usize, parameter: &BTreeMap<String, Value>) -> CResult<P
     }
 
     Ok(Parameter {
-           id: id,
-           seed: seed,
-           size: size,
-           style: style,
-           regenerate: regenerate,
-           value: value,
-       })
+        id: id,
+        seed: seed,
+        size: size,
+        style: style,
+        regenerate: regenerate,
+        value: value,
+    })
 }
 
 #[test]
