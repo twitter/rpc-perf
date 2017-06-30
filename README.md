@@ -18,7 +18,7 @@ rpc-perf was created to help measure the performance of caching systems. We've f
 
 ## Getting rpc-perf
 
-rpc-perf is built through the `cargo` command which ships with rust. If you don't have rust installed, I recommend using [multirust][1] to manage your rust installation. Otherwise, follow the instructions on [rust-lang.org][2] to get rust and cargo installed. rpc-perf targets stable rust.
+rpc-perf is built through the `cargo` command which ships with rust. If you don't have rust installed, you can use [rustup][rustup] to manage your rust installation. Otherwise, follow the instructions on [rust-lang.org][rust-lang] to get rust and cargo installed. rpc-perf targets stable rust.
 
 ### Build from source
 
@@ -118,7 +118,7 @@ $ rpc-perf --server 127.0.0.1:11211 --config hotkey_hit.toml --windows 1
 
 * high-resolution latency metrics
 * supports memcache and redis protocols
-* [mio][3] for async networking
+* [mio][mio] for async networking
 * optional trace file for further analysis
 * optional waterfall visualization of latencies
 * ratelimited workload
@@ -139,6 +139,6 @@ $ rpc-perf --server 127.0.0.1:11211 --config hotkey_hit.toml --windows 1
 * push your feature branch
 * create a pull request
 
-[1]: https://github.com/brson/multirust
-[2]: https://rust-lang.org/
-[3]: https://github.com/carllerche/mio
+[rustlang]: https://rust-lang.org/
+[rustup]: https://rustup.rs
+[mio]: https://github.com/carllerche/mio
