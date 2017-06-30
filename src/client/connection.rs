@@ -48,15 +48,15 @@ impl Buffer {
     }
 
     pub fn clear(&mut self) {
-        let mut rx = self.rx
-            .take()
-            .unwrap_or_else(|| ByteBuf::mut_with_capacity(RX_BUFFER));
+        let mut rx = self.rx.take().unwrap_or_else(
+            || ByteBuf::mut_with_capacity(RX_BUFFER),
+        );
         rx.clear();
         self.rx = Some(rx);
 
-        let mut tx = self.tx
-            .take()
-            .unwrap_or_else(|| ByteBuf::mut_with_capacity(TX_BUFFER));
+        let mut tx = self.tx.take().unwrap_or_else(
+            || ByteBuf::mut_with_capacity(TX_BUFFER),
+        );
         tx.clear();
         self.tx = Some(tx);
     }
@@ -281,7 +281,8 @@ impl Connection {
 
 pub trait TryRead {
     fn try_read_buf<B: MutBuf>(&mut self, buf: &mut B) -> io::Result<Option<usize>>
-        where Self: Sized
+    where
+        Self: Sized,
     {
         // Reads the length of the slice supplied by buf.mut_bytes into the buffer
         // This is not guaranteed to consume an entire datagram or segment.
@@ -304,7 +305,8 @@ pub trait TryRead {
 
 pub trait TryWrite {
     fn try_write_buf<B: Buf>(&mut self, buf: &mut B) -> io::Result<Option<usize>>
-        where Self: Sized
+    where
+        Self: Sized,
     {
         let res = self.try_write(buf.bytes());
 

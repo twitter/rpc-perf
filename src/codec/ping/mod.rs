@@ -70,9 +70,9 @@ pub fn load_config(table: &BTreeMap<String, Value>) -> CResult<ProtocolConfig> {
         }
 
         Ok(ProtocolConfig {
-               protocol: Arc::new(Ping),
-               workloads: ws,
-           })
+            protocol: Arc::new(Ping),
+            workloads: ws,
+        })
     } else {
         Err("no workload specified".to_owned())
     }

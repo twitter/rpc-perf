@@ -145,14 +145,62 @@ mod test {
 
     #[test]
     fn test_ping() {
-        assert_eq!(ping(),
-                   [0, 0, 0, 17, 128, 1, 0, 1, 0, 0, 0, 4, 112, 105, 110, 103, 0, 0, 0, 0, 0]);
+        assert_eq!(
+            ping(),
+            [
+                0,
+                0,
+                0,
+                17,
+                128,
+                1,
+                0,
+                1,
+                0,
+                0,
+                0,
+                4,
+                112,
+                105,
+                110,
+                103,
+                0,
+                0,
+                0,
+                0,
+                0,
+            ]
+        );
     }
 
     #[test]
     fn thrift_ping() {
-        assert_eq!(generic("ping", 0, &mut Vec::new()),
-                   vec![0, 0, 0, 17, 128, 1, 0, 1, 0, 0, 0, 4, 112, 105, 110, 103, 0, 0, 0, 0, 0]);
+        assert_eq!(
+            generic("ping", 0, &mut Vec::new()),
+            vec![
+                0,
+                0,
+                0,
+                17,
+                128,
+                1,
+                0,
+                1,
+                0,
+                0,
+                0,
+                4,
+                112,
+                105,
+                110,
+                103,
+                0,
+                0,
+                0,
+                0,
+                0,
+            ]
+        );
     }
 
     #[cfg(feature = "unstable")]
@@ -164,8 +212,10 @@ mod test {
     #[cfg(feature = "unstable")]
     #[bench]
     fn add_benchmark(b: &mut test::Bencher) {
-        let mut ps = vec![testutil::mk_param(1, Tvalue::Int32(1)),
-                          testutil::mk_param(2, Tvalue::Int32(1))];
+        let mut ps = vec![
+            testutil::mk_param(1, Tvalue::Int32(1)),
+            testutil::mk_param(2, Tvalue::Int32(1)),
+        ];
         b.iter(|| generic("add", 0, &mut ps));
     }
 

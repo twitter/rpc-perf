@@ -25,29 +25,34 @@ use std::thread;
 use tic::{Clocksource, Sample, Sender};
 
 /// Launch each of the workloads in their own thread
-pub fn launch_workloads(workloads: Vec<cfgtypes::BenchmarkWorkload>,
-                        work_queue: &[Queue<Vec<u8>>],
-                        stats: &Sender<Stat>,
-                        clocksource: &Clocksource) {
+pub fn launch_workloads(
+    workloads: Vec<cfgtypes::BenchmarkWorkload>,
+    work_queue: &[Queue<Vec<u8>>],
+    stats: &Sender<Stat>,
+    clocksource: &Clocksource,
+) {
 
     for (i, w) in workloads.into_iter().enumerate() {
-        info!("Workload {}: Method: {} Rate: {}",
-              i,
-              w.gen.method(),
-              w.rate);
+        info!(
+            "Workload {}: Method: {} Rate: {}",
+            i,
+            w.gen.method(),
+            w.rate
+        );
 
-        let mut workload = Workload::new(w.gen,
-                                         Some(w.rate as u64),
-                                         work_queue.to_vec(),
-                                         stats.clone(),
-                                         clocksource.clone())
-            .unwrap();
+        let mut workload = Workload::new(
+            w.gen,
+            Some(w.rate as u64),
+            work_queue.to_vec(),
+            stats.clone(),
+            clocksource.clone(),
+        ).unwrap();
 
         let _ = thread::Builder::new()
             .name(format!("workload{}", i).to_string())
             .spawn(move || loop {
-                       workload.run();
-                   });
+                workload.run();
+            });
     }
 }
 
@@ -61,28 +66,31 @@ struct Workload {
 
 impl Workload {
     /// Create a new `Workload` based on a protocol, optional rate, and a queue
-    fn new(protocol: Box<ProtocolGen>,
-           rate: Option<u64>,
-           queue: Vec<Queue<Vec<u8>>>,
-           stats: Sender<Stat>,
-           clocksource: Clocksource)
-           -> Result<Workload, &'static str> {
+    fn new(
+        protocol: Box<ProtocolGen>,
+        rate: Option<u64>,
+        queue: Vec<Queue<Vec<u8>>>,
+        stats: Sender<Stat>,
+        clocksource: Clocksource,
+    ) -> Result<Workload, &'static str> {
         let mut ratelimit = None;
         if let Some(r) = rate {
             if r > 0 {
-                ratelimit = Some(Ratelimit::configure()
-                                     .frequency(r as u32)
-                                     .capacity(BUCKET_SIZE as u32)
-                                     .build());
+                ratelimit = Some(
+                    Ratelimit::configure()
+                        .frequency(r as u32)
+                        .capacity(BUCKET_SIZE as u32)
+                        .build(),
+                );
             }
         }
         Ok(Workload {
-               protocol: protocol,
-               ratelimit: ratelimit,
-               queue: queue,
-               stats: stats,
-               clocksource: clocksource,
-           })
+            protocol: protocol,
+            ratelimit: ratelimit,
+            queue: queue,
+            stats: stats,
+            clocksource: clocksource,
+        })
     }
 
     /// Generates work at a fixed rate and pushes to the queue

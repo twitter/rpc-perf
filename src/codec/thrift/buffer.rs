@@ -126,7 +126,8 @@ mod tests {
     use super::*;
 
     fn test_buff<F>(expected: &[u8], f: F)
-        where F: FnOnce(&mut Buffer) -> ()
+    where
+        F: FnOnce(&mut Buffer) -> (),
     {
 
         let mut b = Buffer::new();
