@@ -1,6 +1,6 @@
 [package]
 name = "rpc-perf"
-version = "2.0.4-pre"
+version = "2.1.0-pre"
 authors = ["Brian Martin <bmartin@twitter.com>"]
 
 license = "Apache-2.0"
@@ -41,9 +41,9 @@ byteorder = "=1.0.0"
 bytes = "=0.3.0"
 crc = "=1.2.0"
 getopts = "=0.2.14"
-log = "=0.3.7"
+log = "0.3.8"
 log-panics = "=1.1.0"
-mio = "=0.6.7"
+mio = "=0.6.8"
 mpmc = "=0.1.2"
 pad = "=0.1.4"
 rand = "=0.3.15"
@@ -51,7 +51,7 @@ ratelimit = "=0.3.1"
 shuteye = "=0.2.0"
 slab = "=0.3.0"
 simple_logger = "=0.4.0"
-tic = "=0.2.0"
+tic = "=0.2.2"
 time = "=0.1.37"
 toml = "=0.2.1"
 

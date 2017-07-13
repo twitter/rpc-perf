@@ -15,6 +15,7 @@
 
 extern crate slab;
 
+pub mod buffer;
 pub mod config;
 pub mod connection;
 pub mod net;
@@ -23,7 +24,6 @@ use self::config::Config;
 use self::connection::*;
 use self::net::InternetProtocol;
 use cfgtypes::*;
-use common::*;
 use common::stats::Stat;
 use mio;
 use mio::{Evented, Events, Poll, PollOpt, Token};
@@ -48,6 +48,7 @@ type Slab<T> = slab::Slab<T, Token>;
 pub struct Client {
     config: Config,
     connections: Slab<Connection>,
+    factory: Factory,
     poll: Poll,
     queue: Queue<Vec<u8>>,
     ready: VecDeque<Token>,
@@ -91,28 +92,29 @@ impl Client {
 
         let clocksource = config.clocksource().unwrap();
 
+        let factory = Factory::new(config.rx_buffer_size(), config.tx_buffer_size());
+
         let mut client = Client {
+            clocksource: clocksource.clone(),
             config: c,
             connections: Slab::with_capacity(MAX_CONNECTIONS),
+            events: Some(Events::with_capacity(MAX_EVENTS)),
+            factory: factory,
             poll: Poll::new().unwrap(),
             queue: queue,
             ready: VecDeque::new(),
             stats: config.stats().unwrap(),
             times: vec![clocksource.counter(); MAX_CONNECTIONS],
             rtimes: vec![clocksource.counter(); MAX_CONNECTIONS],
-            clocksource: clocksource,
             protocol: config.protocol().unwrap().clone().new(),
             request_timeout: config.request_timeout(),
             connect_timeout: config.connect_timeout(),
-            events: Some(Events::with_capacity(MAX_EVENTS)),
         };
 
         for server in client.config.servers() {
             if let Ok(sock_addr) = client.resolve(server.clone()) {
                 for _ in 0..client.config.pool_size() {
-                    let mut connection = Connection::new(sock_addr);
-                    connection.resize_rx_buffer(config.rx_buffer_size());
-                    connection.resize_tx_buffer(config.tx_buffer_size());
+                    let connection = client.factory.connect(sock_addr);
                     match client.connections.insert(connection) {
                         Ok(token) => {
                             client.send_stat(token, Stat::SocketCreate);
@@ -217,14 +219,13 @@ impl Client {
     }
 
     #[inline]
-    fn state(&self, token: Token) -> &State {
+    fn state(&self, token: Token) -> State {
         self.connections[token].state()
     }
 
     #[inline]
-    fn set_writable(&mut self, token: Token) {
-        self.connections[token].set_writable();
-        self.ready.push_back(token);
+    fn set_state(&mut self, token: Token, state: State) {
+        self.connections[token].set_state(state);
     }
 
     fn close(&mut self, token: Token) {
@@ -296,10 +297,22 @@ impl Client {
             }
         } else {
             debug!("couldn't write");
+
             self.send_stat(token, Stat::ConnectError);
             self.reconnect(token);
         }
     }
+
+    /// idle connection
+    /// - reconnect on failure
+    /// - transition to Reading if entire buffer written in one call
+    fn idle(&mut self, token: Token) {
+        trace!("idle {:?}", token);
+        if let Some(s) = self.connections[token].stream() {
+            self.register(s, token);
+        }
+    }
+
 
     /// read and parse response
     /// - reconnect on failure
@@ -327,9 +340,10 @@ impl Client {
 
                 if parsed != ParsedResponse::Incomplete {
                     let _ = self.stats.send(Sample::new(t0, t1, status.clone()));
-                    trace!("switch to writable");
+                    trace!("switch to established");
                     self.clear_timer(token);
-                    self.set_writable(token);
+                    self.set_state(token, State::Established);
+                    self.idle(token);
                 }
             }
         } else {
@@ -343,7 +357,7 @@ impl Client {
     /// - reconnect always
     fn timeout(&mut self, token: Token) {
         debug!("timeout {:?}", token);
-        match *self.connections[token].state() {
+        match self.state(token) {
             State::Connecting => {
                 self.send_stat(token, Stat::ConnectTimeout);
                 self.reconnect(token);
@@ -351,12 +365,13 @@ impl Client {
             State::Closed => {
                 self.reconnect(token);
             }
+            State::Established => error!("timeout for State::Established"),
             State::Reading => {
                 self.send_stat(token, Stat::ResponseTimeout);
                 self.reconnect(token);
             }
             State::Writing => {
-                debug!("timeout for State::Writing");
+                error!("timeout for State::Writing");
             }
         }
     }
@@ -377,13 +392,16 @@ impl Client {
         }
     }
 
-    /// write a request from the queue to the given token
-    fn send(&mut self, token: Token) {
+    /// try to send the next request using the given token
+    /// - requeue in front if no work to send
+    /// - halt: if the connection isn't actually writable
+    fn try_send(&mut self, token: Token) {
         if self.connections[token].is_writable() {
             if let Some(work) = self.queue.pop() {
+                trace!("send {:?}", token);
                 self.write(token, work);
             } else {
-                self.set_writable(token);
+                self.ready.push_front(token);
             }
         } else {
             halt!(
@@ -415,20 +433,34 @@ impl Client {
                 trace!("connection established {:?}", token);
                 self.send_stat(token, Stat::ConnectOk);
                 self.clear_timer(token);
-                self.set_writable(token);
+                self.set_state(token, State::Writing);
+                self.ready.push_back(token);
             }
-        } else if UnixReady::from(event.readiness()).is_hup() {
-            debug!("hangup event {:?}", token);
-            self.send_stat(token, Stat::ConnectError);
-            self.reconnect(token);
-        } else if event.readiness().is_readable() {
-            trace!("reading event {:?}", token);
-            self.send_stat(token, Stat::SocketRead);
-            self.read(token);
-        } else if event.readiness().is_writable() {
-            trace!("writing event {:?}", token);
-            self.send_stat(token, Stat::SocketFlush);
-            self.flush(token);
+        } else {
+            if UnixReady::from(event.readiness()).is_hup() {
+                debug!("server hangup {:?}", token);
+                self.reconnect(token);
+                return;
+            }
+            match self.state(token) {
+                State::Established => {
+                    trace!("ready to write {:?}", token);
+                    self.send_stat(token, Stat::SocketRead);
+                    self.set_state(token, State::Writing);
+                    self.ready.push_back(token);
+                }
+                State::Reading => {
+                    trace!("reading {:?}", token);
+                    self.send_stat(token, Stat::SocketRead);
+                    self.read(token);
+                }
+                State::Writing => {
+                    trace!("writing {:?}", token);
+                    self.send_stat(token, Stat::SocketFlush);
+                    self.flush(token);
+                }
+                _ => {}
+            }
         }
     }
 
@@ -470,7 +502,7 @@ impl Client {
 
         for _ in 0..self.ready.len() {
             let token = self.ready.pop_front().unwrap();
-            self.send(token);
+            self.try_send(token);
         }
 
         self.events = Some(events);

@@ -105,9 +105,6 @@ pub fn run(mut receiver: Receiver<Stat>, windows: usize, infinite: bool) {
 
         if warmup {
             info!("-----");
-            if meters_delta(&m0, &m1, &Stat::ConnectOk) == 0 {
-                halt!("No connections established. Please check that server(s) are available");
-            }
             info!("Warmup complete");
             warmup = false;
         } else {

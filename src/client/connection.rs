@@ -13,60 +13,49 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use super::net::InternetProtocol;
-
-use bytes::{Buf, ByteBuf, MutBuf, MutByteBuf};
-use common::*;
-use mio::Ready;
-use mio::tcp::TcpStream;
-use std::io::{self, Read, Write};
-use std::net::SocketAddr;
-
 const RX_BUFFER: usize = 4 * 1024;
 const TX_BUFFER: usize = 4 * 1024;
 
-#[derive(Clone, Debug, PartialEq)]
+use super::net::InternetProtocol;
+
+use bytes::{Buf, MutBuf};
+use client::buffer::Buffer;
+use mio::Ready;
+use mio::tcp::TcpStream;
+use mio::unix::UnixReady;
+use std::io::{self, Read, Write};
+use std::net::SocketAddr;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum State {
     Closed,
     Connecting,
+    Established,
     Reading,
     Writing,
 }
 
-#[derive(Debug)]
-struct Buffer {
-    rx: Option<MutByteBuf>,
-    tx: Option<MutByteBuf>,
+pub struct Factory {
+    rx: usize,
+    tx: usize,
 }
 
-impl Buffer {
-    pub fn new() -> Buffer {
-        Buffer {
-            rx: Some(ByteBuf::mut_with_capacity(RX_BUFFER)),
-            tx: Some(ByteBuf::mut_with_capacity(TX_BUFFER)),
+impl Factory {
+    pub fn new(rx: usize, tx: usize) -> Factory {
+        Factory { rx: rx, tx: tx }
+    }
+
+    pub fn connect(&self, address: SocketAddr) -> Connection {
+        Connection::new(address, self.rx, self.tx)
+    }
+}
+
+impl Default for Factory {
+    fn default() -> Self {
+        Factory {
+            rx: RX_BUFFER,
+            tx: TX_BUFFER,
         }
-    }
-
-    pub fn clear(&mut self) {
-        let mut rx = self.rx.take().unwrap_or_else(
-            || ByteBuf::mut_with_capacity(RX_BUFFER),
-        );
-        rx.clear();
-        self.rx = Some(rx);
-
-        let mut tx = self.tx.take().unwrap_or_else(
-            || ByteBuf::mut_with_capacity(TX_BUFFER),
-        );
-        tx.clear();
-        self.tx = Some(tx);
-    }
-
-    pub fn resize_rx_buffer(&mut self, size: usize) {
-        self.rx = Some(ByteBuf::mut_with_capacity(size));
-    }
-
-    pub fn resize_tx_buffer(&mut self, size: usize) {
-        self.tx = Some(ByteBuf::mut_with_capacity(size));
     }
 }
 
@@ -81,18 +70,24 @@ pub struct Connection {
 }
 
 impl Connection {
-    /// create connection
-    pub fn new(address: SocketAddr) -> Connection {
+    /// create connection with specified buffer sizes
+    pub fn new(address: SocketAddr, rx: usize, tx: usize) -> Self {
         let mut c = Connection {
             stream: None,
             state: State::Connecting,
-            buffer: Buffer::new(),
+            buffer: Buffer::new(rx, tx),
             timeout: None,
             protocol: InternetProtocol::Any,
             addr: address,
         };
         c.reconnect();
         c
+    }
+
+    pub fn close(&mut self) -> Option<TcpStream> {
+        self.state = State::Closed;
+        self.buffer.clear();
+        self.stream.take()
     }
 
     pub fn connect(&mut self) {
@@ -113,26 +108,10 @@ impl Connection {
         self.timeout = timeout;
     }
 
-    pub fn resize_rx_buffer(&mut self, bytes: usize) {
-        trace!("resize rx buffer {}", bytes);
-        self.buffer.resize_rx_buffer(bytes);
-    }
-
-    pub fn resize_tx_buffer(&mut self, bytes: usize) {
-        trace!("resize tx buffer {}", bytes);
-        self.buffer.resize_tx_buffer(bytes);
-    }
-
     /// reconnect the connection in write mode
     pub fn reconnect(&mut self) {
         let _ = self.close();
         self.connect();
-    }
-
-    pub fn close(&mut self) -> Option<TcpStream> {
-        self.state = State::Closed;
-        self.buffer.clear();
-        self.stream.take()
     }
 
     pub fn stream(&self) -> Option<&TcpStream> {
@@ -143,74 +122,77 @@ impl Connection {
         }
     }
 
-    pub fn state(&self) -> &State {
-        &self.state
+    pub fn state(&self) -> State {
+        self.state
     }
 
     /// flush the buffer
-    pub fn flush(&mut self) -> Result<(), ()> {
+    pub fn flush(&mut self) -> Result<(), io::Error> {
         if self.state != State::Writing {
-            halt!("flush() {:?} connection", self.state);
+            error!("{:?} invalid for read", self.state);
+            return Err(io::Error::new(io::ErrorKind::Other, "invalid state"));
         }
         let b = self.buffer.tx.take();
         if let Some(buffer) = b {
             let mut buffer = buffer.flip();
+            let buffer_bytes = buffer.remaining();
 
             let mut s = self.stream.take().unwrap();
 
             match s.try_write_buf(&mut buffer) {
-                Ok(Some(_)) => {
+                Ok(Some(bytes)) => {
                     // successful write
+                    trace!("flush {} out of {} bytes", bytes, buffer_bytes);
                     if !buffer.has_remaining() {
-                        self.set_readable();
+                        // write is complete
+                        self.set_state(State::Reading);
                     } else {
-                        debug!("incomplete write to skbuff")
+                        // write is not complete
+                        debug!("connection buffer not flushed completely")
                     }
                     self.stream = Some(s);
                 }
                 Ok(None) => {
                     // socket wasn't ready
                     self.stream = Some(s);
-                    debug!("spurious read");
+                    debug!("spurious call to flush flush");
                 }
                 Err(e) => {
                     // got some write error, abandon
-                    debug!("write error: {:?}", e);
-                    return Err(());
+                    debug!("flush error: {:?}", e);
+                    return Err(e);
                 }
             }
             self.buffer.tx = Some(buffer.flip());
             Ok(())
         } else {
-            error!("read() no buffer");
-            Err(())
+            debug!("connection missing buffer on flush");
+            return Err(io::Error::new(io::ErrorKind::Other, "buffer missing"));
         }
     }
 
-    pub fn write(&mut self, bytes: Vec<u8>) -> Result<(), ()> {
-        if !self.is_writable() {
-            halt!("write() {:?} connection", self.state);
+    /// write bytes into the buffer and call flush
+    pub fn write(&mut self, bytes: Vec<u8>) -> Result<(), io::Error> {
+        if self.state != State::Writing {
+            error!("{:?} invalid for read", self.state);
+            return Err(io::Error::new(io::ErrorKind::Other, "invalid state"));
         }
-        trace!("write(): {:?}", bytes);
+        trace!("write {} bytes", bytes.len());
         let b = self.buffer.tx.take();
         if let Some(mut buffer) = b {
             buffer.clear();
             buffer.write_slice(&bytes);
             self.buffer.tx = Some(buffer);
         } else {
-            halt!("buffer error");
+            error!("connection missing buffer on write");
+            return Err(io::Error::new(io::ErrorKind::Other, "buffer missing"));
         }
         self.flush()
     }
 
-    pub fn set_writable(&mut self) {
-        trace!("connection switch to writable");
-        self.state = State::Writing;
-    }
-
-    pub fn set_readable(&mut self) {
-        trace!("connection switch to readable");
-        self.state = State::Reading;
+    pub fn set_state(&mut self, state: State) {
+        trace!("connection state change {:?} to {:?}", self.state, state);
+        self.state = state;
     }
 
     pub fn is_connecting(&self) -> bool {
@@ -225,12 +207,11 @@ impl Connection {
         self.state == State::Writing
     }
 
-    pub fn read(&mut self) -> Result<Vec<u8>, ()> {
-        if !self.is_readable() {
-            halt!("read() {:?} connection", self.state);
+    pub fn read(&mut self) -> Result<Vec<u8>, io::Error> {
+        if self.state() != State::Reading {
+            error!("{:?} invalid for read", self.state);
+            return Err(io::Error::new(io::ErrorKind::Other, "invalid state"));
         }
-
-        trace!("read()");
 
         let mut response = Vec::<u8>::new();
 
@@ -238,8 +219,8 @@ impl Connection {
             let mut s = self.stream.take().unwrap();
             match s.try_read_buf(&mut buffer) {
                 Ok(Some(0)) => {
-                    error!("read() closed");
-                    return Err(());
+                    trace!("connection closed on read");
+                    return Err(io::Error::new(io::ErrorKind::Other, "connection closed"));
                 }
                 Ok(Some(n)) => {
                     unsafe {
@@ -247,33 +228,35 @@ impl Connection {
                     }
 
                     // read bytes from connection
-                    trace!("read() bytes {}", n);
+                    trace!("read {} bytes", n);
                     let mut buffer = buffer.flip();
                     let _ = buffer.by_ref().take(n as u64).read_to_end(&mut response);
-                    trace!("read: {:?}", response);
                     self.buffer.rx = Some(buffer.flip());
                     self.stream = Some(s);
                 }
                 Ok(None) => {
-                    error!("read() spurious wake-up");
+                    trace!("spurious read");
                     self.buffer.rx = Some(buffer);
                     self.stream = Some(s);
                 }
                 Err(e) => {
-                    error!("read() server has terminated: {}", e);
-                    return Err(());
+                    trace!("connection read error: {}", e);
+                    return Err(e);
                 }
             }
         } else {
-            halt!("read() buffer issue");
+            error!("connection missing buffer on read");
+            return Err(io::Error::new(io::ErrorKind::Other, "missing buffer"));
         }
         Ok(response)
     }
 
     pub fn event_set(&self) -> Ready {
         match self.state {
-            State::Connecting | State::Writing => Ready::writable(),
-            State::Reading => Ready::readable(),
+            State::Connecting | State::Established | State::Writing => {
+                Ready::writable() | UnixReady::hup()
+            }
+            State::Reading => Ready::readable() | UnixReady::hup(),
             _ => Ready::empty(),
         }
     }

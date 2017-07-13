@@ -71,8 +71,12 @@ name = "fuzzer_codec_ping"
 path = "fuzzers/fuzzer_codec_ping.rs"
 
 [[bin]]
-name = "fuzzer_codec_redis"
-path = "fuzzers/fuzzer_codec_redis.rs"
+name = "fuzzer_codec_redis_inline"
+path = "fuzzers/fuzzer_codec_redis_inline.rs"
+
+[[bin]]
+name = "fuzzer_codec_redis_resp"
+path = "fuzzers/fuzzer_codec_redis_resp.rs"
 
 [[bin]]
 name = "fuzzer_codec_thrift"

@@ -69,10 +69,17 @@ matrix:
         - sudo chown -R travis $HOME/.cargo
     - os: linux
       rust: nightly
-      env: TYPE=fuzzer_codec_redis RUST_BACKTRACE=1
+      env: TYPE=fuzzer_codec_redis_inline RUST_BACKTRACE=1
       script:
         - cargo install cargo-fuzz -f
-        - sudo -E $HOME/.cargo/bin/cargo fuzz run -s address fuzzer_codec_redis -- -max_total_time=300
+        - sudo -E $HOME/.cargo/bin/cargo fuzz run -s address fuzzer_codec_redis_inline -- -max_total_time=300
+        - sudo chown -R travis $HOME/.cargo
+    - os: linux
+      rust: nightly
+      env: TYPE=fuzzer_codec_redis_resp RUST_BACKTRACE=1
+      script:
+        - cargo install cargo-fuzz -f
+        - sudo -E $HOME/.cargo/bin/cargo fuzz run -s address fuzzer_codec_redis_resp -- -max_total_time=300
         - sudo chown -R travis $HOME/.cargo
     - os: linux
       rust: nightly
