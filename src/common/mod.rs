@@ -32,14 +32,17 @@ pub const KILOBYTE: usize = 1024;
 #[macro_export]
 macro_rules! halt {
     () => (
+        use std::process;
         error!();
         process::exit(1);
         );
     ($fmt:expr) => (
+        use std::process;
         error!($fmt);
         process::exit(1);
         );
     ($fmt:expr, $($arg:tt)*) => (
+        use std::process;
         error!($fmt, $($arg)*);
         process::exit(1);
         );

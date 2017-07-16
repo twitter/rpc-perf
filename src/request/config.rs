@@ -14,7 +14,7 @@
 //  limitations under the License.
 
 use super::BenchmarkConfig;
-use codec::{echo, memcache, ping, redis, thrift};
+use codec::{echo, memcache, ping, redis_inline, redis_resp, thrift};
 use getopts::Matches;
 use std::collections::BTreeMap;
 use std::fmt::Display;
@@ -102,7 +102,8 @@ fn load_config_table(
     let proto = match protocol.as_str() {
         "memcache" => try!(memcache::load_config(table, matches)),
         "echo" => try!(echo::load_config(table)),
-        "redis" => try!(redis::load_config(table, matches)),
+        "redis" | "redis-resp" | "redis_resp" => try!(redis_resp::load_config(table, matches)),
+        "redis-inline" | "redis_inline" => try!(redis_inline::load_config(table, matches)),
         "ping" => try!(ping::load_config(table)),
         "thrift" => try!(thrift::load_config(table)),
         _ => return Err(format!("Protocol {} not known", protocol)),

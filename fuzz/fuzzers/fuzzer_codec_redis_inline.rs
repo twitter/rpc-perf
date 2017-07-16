@@ -26,7 +26,7 @@ mod cfgtypes;
 mod codec;
 
 use cfgtypes::*;
-use codec::redis::RedisParse;
+use codec::redis_inline::RedisParse;
 
 //ProtocolParseFactory
 fuzz_target!(|data: &[u8]| {
