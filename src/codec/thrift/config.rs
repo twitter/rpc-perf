@@ -195,12 +195,11 @@ fn extract_parameter(i: usize, parameter: &BTreeMap<String, Value>) -> CResult<P
 
 #[test]
 fn test_load_config() {
-    use cfgtypes::Parser;
+    use toml;
 
     let table = {
         let config_str = include_str!("../../../configs/thrift_calc.toml");
-        let mut p = Parser::new(config_str);
-        p.parse().unwrap()
+        toml::from_str(config_str).expect("Failed to load configs/thrift_calc.toml")
     };
 
     let config = load_config(&table).unwrap();

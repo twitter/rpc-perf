@@ -52,6 +52,7 @@ use client::net::InternetProtocol;
 use common::*;
 use request::{config, workload};
 use std::{env, thread};
+use std::sync::Arc;
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
@@ -60,14 +61,11 @@ pub fn main() {
     let program = &args[0];
     let opts = options::opts();
 
-    let matches = match opts.parse(&args[1..]) {
-        Ok(m) => m,
-        Err(f) => {
-            println!("ERROR {}", f);
-            options::print_usage(program, &opts);
-            process::exit(1);
-        }
-    };
+    let matches = opts.parse(&args[1..]).unwrap_or_else(|e| {
+        println!("ERROR {}", e);
+        options::print_usage(program, &opts);
+        process::exit(1);
+    });
 
     if matches.opt_present("help") {
         options::print_usage(program, &opts);
@@ -103,22 +101,15 @@ pub fn main() {
     let trace = matches.opt_str("trace");
 
     // Load workload configuration
-    let config = match config::load_config(&matches) {
-        Ok(c) => c,
-        Err(e) => {
-            halt!("{}", e);
-        }
-    };
+    let config = config::load_config(&matches).unwrap_or_else(|e| {
+        halt!("{}", e);
+    });
 
-    let internet_protocol = match client::net::choose_layer_3(
-        matches.opt_present("ipv4"),
-        matches.opt_present("ipv6"),
-    ) {
-        Ok(i) => i,
-        Err(e) => {
-            halt!("{}", e);
-        }
-    };
+    let internet_protocol =
+        client::net::choose_layer_3(matches.opt_present("ipv4"), matches.opt_present("ipv6"))
+            .unwrap_or_else(|e| {
+                halt!("{}", e);
+            });
 
     print_config(&config, &servers, internet_protocol);
 
@@ -133,7 +124,7 @@ pub fn main() {
         .set_stats(stats_receiver.get_sender().clone())
         .set_clocksource(stats_receiver.get_clocksource().clone())
         .set_protocol_name(config.protocol_name().clone())
-        .set_protocol(config.protocol_config.protocol.clone())
+        .set_protocol(Arc::clone(&config.protocol_config.protocol))
         .set_request_timeout(config.request_timeout())
         .set_connect_timeout(config.connect_timeout())
         .set_rx_buffer_size(config.rx_buffer_size())

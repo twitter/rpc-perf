@@ -20,7 +20,7 @@ use common::*;
 use std::sync::Arc;
 use tic::{Clocksource, Sender};
 
-const MAX_CONNECTIONS: usize = 65536;
+const MAX_CONNECTIONS: usize = 65_536;
 const KILOBYTE: usize = 1024;
 
 #[derive(Clone)]

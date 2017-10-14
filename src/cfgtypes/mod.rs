@@ -16,7 +16,7 @@
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
-pub use toml::{Parser, Value};
+pub use toml::{Deserializer, Value};
 
 pub mod tools;
 

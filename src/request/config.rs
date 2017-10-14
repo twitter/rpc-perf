@@ -21,8 +21,8 @@ use std::fmt::Display;
 use std::fs::File;
 use std::io::Read;
 use std::str::FromStr;
-use toml::{Parser, Value};
-use toml::Value::Table;
+use toml;
+use toml::Value::{self, Table};
 
 /// Helper for extracting non-string values from the `Matches`
 fn parse_opt<F>(name: &str, matches: &Matches) -> Result<Option<F>, String>
@@ -51,29 +51,17 @@ pub fn load_config(matches: &Matches) -> Result<BenchmarkConfig, String> {
             Err(e) => return Err(format!("Error opening config: {}", e)),
         };
 
-        let mut p = Parser::new(&cfg_txt);
-
-        match p.parse() {
-            Some(table) => {
-                debug!("toml parsed successfully. creating config");
-                load_config_table(&table, matches)
-            }
-
-            None => {
-                for err in &p.errors {
-                    let (loline, locol) = p.to_linecol(err.lo);
-                    let (hiline, hicol) = p.to_linecol(err.hi);
-                    println!(
-                        "{}:{}:{}-{}:{} error: {}",
-                        toml,
-                        loline,
-                        locol,
-                        hiline,
-                        hicol,
-                        err.desc
-                    );
+        match toml::from_str(&cfg_txt) {
+            Ok(t) => load_config_table(&t, matches),
+            Err(e) => {
+                if let Some((line, col)) = e.line_col() {
+                    error!("Invalid config file: {}", toml);
+                    error!("caused by: {}", e);
+                    error!("located at: line: {} column: {}", line + 1, col + 1);
+                    Err("Invalid config file".to_owned())
+                } else {
+                    Err("Unknown error in config".to_owned())
                 }
-                Err("failed to load config".to_owned())
             }
         }
     } else {
