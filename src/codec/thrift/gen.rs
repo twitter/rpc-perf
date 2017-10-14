@@ -121,9 +121,7 @@ pub fn generic(method: &str, sequence_id: i32, payload: &mut Vec<Parameter>) -> 
                 let byte = match ttype.as_str() {
                     "string" => consts::STRING,
                     "struct" => consts::STRUCT,
-                    _ => {
-                        panic!("unsupported ttype for list");
-                    }
+                    _ => panic!("unsupported ttype for list"),
                 };
                 buffer.write_bytes(&[byte]);
                 buffer.write_i32(len);

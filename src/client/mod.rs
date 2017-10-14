@@ -31,10 +31,11 @@ use mio::unix::UnixReady;
 use mpmc::Queue;
 use std::collections::VecDeque;
 use std::net::{SocketAddr, ToSocketAddrs};
+use std::sync::Arc;
 use std::time::Duration;
 use tic::{Clocksource, Sample, Sender};
 
-const MAX_CONNECTIONS: usize = 65536;
+const MAX_CONNECTIONS: usize = 65_536;
 const MAX_EVENTS: usize = 1024;
 const MAX_PENDING: usize = 1024;
 const TICK_MS: u64 = 1;
@@ -106,7 +107,7 @@ impl Client {
             stats: config.stats().unwrap(),
             times: vec![clocksource.counter(); MAX_CONNECTIONS],
             rtimes: vec![clocksource.counter(); MAX_CONNECTIONS],
-            protocol: config.protocol().unwrap().clone().new(),
+            protocol: Arc::clone(&config.protocol().unwrap()).new(),
             request_timeout: config.request_timeout(),
             connect_timeout: config.connect_timeout(),
         };

@@ -20,7 +20,7 @@ use cfgtypes;
 use cfgtypes::ProtocolGen;
 use common::stats::Stat;
 use mpmc::Queue;
-use ratelimit::Ratelimit;
+use ratelimit;
 use std::thread;
 use tic::{Clocksource, Sample, Sender};
 
@@ -58,7 +58,7 @@ pub fn launch_workloads(
 
 struct Workload {
     protocol: Box<ProtocolGen>,
-    ratelimit: Option<Ratelimit>,
+    ratelimit: Option<ratelimit::Limiter>,
     queue: Vec<Queue<Vec<u8>>>,
     stats: Sender<Stat>,
     clocksource: Clocksource,
@@ -77,7 +77,7 @@ impl Workload {
         if let Some(r) = rate {
             if r > 0 {
                 ratelimit = Some(
-                    Ratelimit::configure()
+                    ratelimit::Builder::new()
                         .frequency(r as u32)
                         .capacity(BUCKET_SIZE as u32)
                         .build(),
@@ -98,7 +98,7 @@ impl Workload {
         let mut index = 0;
         loop {
             if let Some(ref mut ratelimit) = self.ratelimit {
-                ratelimit.block(1);
+                ratelimit.wait();
             }
             let t0 = self.clocksource.counter();
             let mut msg = Some(self.protocol.generate_message());
