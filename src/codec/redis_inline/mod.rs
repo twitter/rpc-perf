@@ -54,7 +54,7 @@ impl Ptype for RedisData {
 enum Command {
     Get(Param),
     Hget(Param, Param),
-    Set(Param, Param),
+    Set(Param, Param, Option<Param>),
     Hset(Param, Param, Param),
     Del(Param),
     Expire(Param, Param),
@@ -76,10 +76,14 @@ impl Command {
                 p2.regen();
                 gen::hget(p1.value.string.as_str(), p2.value.string.as_str()).into_bytes()
             }
-            Command::Set(ref mut p1, ref mut p2) => {
+            Command::Set(ref mut p1, ref mut p2, ref mut p3) => {
                 p1.regen();
                 p2.regen();
-                gen::set(p1.value.string.as_str(), p2.value.string.as_str()).into_bytes()
+                if let Some(p3_val) = p3 {
+                    gen::set(p1.value.string.as_str(), p2.value.string.as_str(), Some(p3_val.value.string.as_str())).into_bytes()
+                } else {
+                    gen::set(p1.value.string.as_str(), p2.value.string.as_str(), None).into_bytes()
+                }
             }
             Command::Hset(ref mut p1, ref mut p2, ref mut p3) => {
                 p1.regen();
@@ -137,7 +141,7 @@ impl ProtocolGen for Command {
     fn method(&self) -> &str {
         match *self {
             Command::Get(_) => "get",
-            Command::Set(_, _) => "set",
+            Command::Set(_, _, _) => "set",
             Command::Hget(_, _) => "hget",
             Command::Hset(_, _, _) => "hset",
             Command::Del(_) => "del",
@@ -246,11 +250,11 @@ fn extract_workload(workload: &BTreeMap<String, Value>) -> CResult<BenchmarkWork
                 }
             }
         }
-
         let cmd = match method.as_str() {
             "get" if ps.len() == 1 => Command::Get(ps[0].clone()),
             "hget" if ps.len() == 2 => Command::Hget(ps[0].clone(), ps[1].clone()),
-            "set" if ps.len() == 2 => Command::Set(ps[0].clone(), ps[1].clone()),
+            "set" if ps.len() == 2 => Command::Set(ps[0].clone(), ps[1].clone(), None),
+            "set" if ps.len() == 3 => Command::Set(ps[0].clone(), ps[1].clone(), Some(ps[2].clone())),
             "hset" if ps.len() == 3 => Command::Hset(ps[0].clone(), ps[1].clone(), ps[2].clone()),
             "del" if ps.len() == 1 => Command::Del(ps[0].clone()),
             "expire" if ps.len() == 2 => Command::Expire(ps[0].clone(), ps[1].clone()),
