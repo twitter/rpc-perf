@@ -40,7 +40,7 @@ mod tests {
     #[cfg(feature = "unstable")]
     #[bench]
     fn set_benchmark(b: &mut test::Bencher) {
-        b.iter(|| set("key", "value"));
+        b.iter(|| set("key", "value", None));
     }
 
     #[test]
