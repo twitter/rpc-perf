@@ -25,6 +25,7 @@ pub fn mk_param(id: i16, value: Tvalue) -> Parameter {
         id: Some(id),
         seed: 0,
         size: 1,
+        num: 0,
         style: Style::Static,
         regenerate: false,
         value: value,

@@ -90,7 +90,7 @@ pub trait Ptype: Sized {
     /// generate new state
     fn regen(&mut self);
     /// parse a `Ptype` from a toml tree
-    fn parse(seed: usize, size: usize, table: &BTreeMap<String, Value>) -> CResult<Self>;
+    fn parse(seed: usize, size: usize, num: u64, table: &BTreeMap<String, Value>) -> CResult<Self>;
 }
 
 /// `Parameter` generation style
@@ -154,12 +154,25 @@ pub fn extract_parameter<T: Ptype>(
         .and_then(|k| k.as_integer())
         .map_or(1, |i| i as usize);
 
+    let num = parameter.get("num").and_then(|k| k.as_integer()).map_or(
+        0,
+        |i| {
+            i as u64
+        },
+    );
+
+    // size is insufficient to contain num strings
+    if format!("{}", num - 1).len() > size {
+        return Err(format!("size {} insufficient to contain {} strings",
+                           size, num));
+    }
+
     let regenerate = parameter
         .get("regenerate")
         .and_then(|k| k.as_bool())
         .unwrap_or(false);
 
-    let mut value = try!(T::parse(seed, size, parameter));
+    let mut value = try!(T::parse(seed, size, num, parameter));
 
     // initialize with a random value if that is what is needed
     if style == Style::Random {
