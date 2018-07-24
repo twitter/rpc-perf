@@ -16,13 +16,18 @@
 use pad::{Alignment, PadStr};
 use rand::{Rng, thread_rng};
 
-
-pub fn random_string(size: usize) -> String {
-    thread_rng().gen_ascii_chars().take(size).collect()
+pub fn random_string(size: usize, num: u64) -> String {
+    if num == 0 {
+        thread_rng().gen_ascii_chars().take(size).collect()
+    } else {
+        let k: u64 = thread_rng().gen();
+        let s = format!("{}", k % num);
+        s.pad(size, '0', Alignment::Right, true)
+    }
 }
 
 pub fn random_bytes(size: usize) -> Vec<u8> {
-    random_string(size).into_bytes()
+    random_string(size, 0).into_bytes()
 }
 
 pub fn seeded_string(size: usize, seed: usize) -> String {

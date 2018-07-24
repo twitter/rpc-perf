@@ -53,17 +53,19 @@ pub struct MemcacheParser;
 #[derive(Clone, Debug)]
 struct CacheData {
     size: usize,
+    num: u64,
     string: String,
 }
 
 impl Ptype for CacheData {
     fn regen(&mut self) {
-        self.string = tools::random_string(self.size);
+        self.string = tools::random_string(self.size, self.num);
     }
 
-    fn parse(seed: usize, size: usize, _: &BTreeMap<String, Value>) -> CResult<Self> {
+    fn parse(seed: usize, size: usize, num: u64, _: &BTreeMap<String, Value>) -> CResult<Self> {
         Ok(CacheData {
             size: size,
+            num: num,
             string: tools::seeded_string(size, seed),
         })
     }

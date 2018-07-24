@@ -31,17 +31,19 @@ type Param = Parameter<RedisData>;
 #[derive(Clone, Debug)]
 struct RedisData {
     size: usize,
+    num: u64,
     string: String,
 }
 
 impl Ptype for RedisData {
     fn regen(&mut self) {
-        self.string = tools::random_string(self.size);
+        self.string = tools::random_string(self.size, self.num);
     }
 
-    fn parse(seed: usize, size: usize, _: &BTreeMap<String, Value>) -> CResult<Self> {
+    fn parse(seed: usize, size: usize, num: u64, _: &BTreeMap<String, Value>) -> CResult<Self> {
         Ok(RedisData {
             size: size,
+            num: num,
             string: tools::seeded_string(size, seed),
         })
     }

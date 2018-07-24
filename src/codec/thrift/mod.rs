@@ -30,6 +30,7 @@ pub struct Parameter {
     pub id: Option<i16>,
     pub seed: usize,
     pub size: usize,
+    pub num: u64,
     pub style: Style,
     pub regenerate: bool,
     pub value: Tvalue,
@@ -38,7 +39,7 @@ pub struct Parameter {
 impl Parameter {
     pub fn regen(&mut self) {
         if self.regenerate && self.style == Style::Random {
-            self.value.regen(self.size)
+            self.value.regen(self.size, self.num)
         }
     }
 }
@@ -61,7 +62,7 @@ pub enum Tvalue {
 }
 
 impl Tvalue {
-    fn regen(&mut self, size: usize) {
+    fn regen(&mut self, size: usize, num: u64) {
         match *self {
             Tvalue::Bool(ref mut v) => *v = random::<bool>(),
             Tvalue::Byte(ref mut v) => *v = random::<u8>(),
@@ -69,7 +70,7 @@ impl Tvalue {
             Tvalue::Int16(ref mut v) => *v = random::<i16>(),
             Tvalue::Int32(ref mut v) => *v = random::<i32>(),
             Tvalue::Int64(ref mut v) => *v = random::<i64>(),
-            Tvalue::String(ref mut v) => *v = tools::random_string(size),
+            Tvalue::String(ref mut v) => *v = tools::random_string(size, num),
             _ => {}
         }
     }
