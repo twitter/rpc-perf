@@ -14,7 +14,7 @@
 //  limitations under the License.
 
 use pad::{Alignment, PadStr};
-use rand::{Rng, thread_rng};
+use rand::{thread_rng, Rng};
 
 pub fn random_string(size: usize, num: u64) -> String {
     if num == 0 {

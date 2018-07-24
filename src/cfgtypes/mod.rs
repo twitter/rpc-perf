@@ -154,17 +154,17 @@ pub fn extract_parameter<T: Ptype>(
         .and_then(|k| k.as_integer())
         .map_or(1, |i| i as usize);
 
-    let num = parameter.get("num").and_then(|k| k.as_integer()).map_or(
-        0,
-        |i| {
-            i as u64
-        },
-    );
+    let num = parameter
+        .get("num")
+        .and_then(|k| k.as_integer())
+        .map_or(0, |i| i as u64);
 
     // size is insufficient to contain num strings
     if format!("{}", num - 1).len() > size {
-        return Err(format!("size {} insufficient to contain {} strings",
-                           size, num));
+        return Err(format!(
+            "size {} insufficient to contain {} strings",
+            size, num
+        ));
     }
 
     let regenerate = parameter
