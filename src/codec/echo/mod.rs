@@ -46,7 +46,7 @@ impl Ptype for EchoData {
         self.bytes = tools::random_bytes(self.size);
     }
 
-    fn parse(seed: usize, size: usize, _: &BTreeMap<String, Value>) -> CResult<Self> {
+    fn parse(seed: usize, size: usize, _: u64, _: &BTreeMap<String, Value>) -> CResult<Self> {
         let bts = (seed..(seed + size)).map(|i| i as u8).collect();
         Ok(EchoData {
             size: size,

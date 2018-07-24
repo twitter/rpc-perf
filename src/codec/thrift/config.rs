@@ -147,6 +147,11 @@ fn extract_parameter(i: usize, parameter: &BTreeMap<String, Value>) -> CResult<P
         None => 1,
     };
 
+    let num = match parameter.get("num").and_then(|k| k.as_integer()) {
+        Some(s) => s as u64,
+        None => 0,
+    };
+
     let regenerate = match parameter.get("regenerate").and_then(|k| k.as_bool()) {
         Some(s) => s,
         None => false,
@@ -180,13 +185,14 @@ fn extract_parameter(i: usize, parameter: &BTreeMap<String, Value>) -> CResult<P
     };
 
     if style == Style::Random {
-        value.regen(size);
+        value.regen(size, num);
     }
 
     Ok(Parameter {
         id: id,
         seed: seed,
         size: size,
+        num: num,
         style: style,
         regenerate: regenerate,
         value: value,
