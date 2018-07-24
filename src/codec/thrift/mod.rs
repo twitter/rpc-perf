@@ -13,14 +13,14 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-mod testutil;
 mod buffer;
 pub mod config;
 mod consts;
 mod gen;
 mod parse;
+mod testutil;
 
-use cfgtypes::{CResult, ProtocolConfig, Style, tools};
+use cfgtypes::{tools, CResult, ProtocolConfig, Style};
 use rand::random;
 use std::collections::BTreeMap;
 use toml::Value;

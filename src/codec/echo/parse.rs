@@ -19,7 +19,6 @@ use crc;
 use std::mem::transmute;
 
 pub fn parse_response(response: &[u8]) -> ParsedResponse {
-
     if response.len() <= 6 {
         return ParsedResponse::Incomplete;
     }

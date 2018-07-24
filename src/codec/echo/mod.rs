@@ -84,7 +84,6 @@ impl ProtocolParseFactory for EchoParser {
 
 /// Load the echo benchmark configuration from the config toml
 pub fn load_config(table: &BTreeMap<String, Value>) -> CResult<ProtocolConfig> {
-
     let mut ws = Vec::new();
 
     if let Some(&Value::Array(ref workloads)) = table.get("workload") {

@@ -34,15 +34,17 @@ impl Buffer {
     }
 
     pub fn clear(&mut self) {
-        let mut rx = self.rx.take().unwrap_or_else(
-            || ByteBuf::mut_with_capacity(self.rx_bytes),
-        );
+        let mut rx = self
+            .rx
+            .take()
+            .unwrap_or_else(|| ByteBuf::mut_with_capacity(self.rx_bytes));
         rx.clear();
         self.rx = Some(rx);
 
-        let mut tx = self.tx.take().unwrap_or_else(
-            || ByteBuf::mut_with_capacity(self.tx_bytes),
-        );
+        let mut tx = self
+            .tx
+            .take()
+            .unwrap_or_else(|| ByteBuf::mut_with_capacity(self.tx_bytes));
         tx.clear();
         self.tx = Some(tx);
     }

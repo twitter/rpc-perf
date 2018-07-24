@@ -13,8 +13,8 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-extern crate time;
 extern crate log;
+extern crate time;
 
 use log::{LogLevel, LogLevelFilter, LogMetadata, LogRecord};
 use pad::{Alignment, PadStr};

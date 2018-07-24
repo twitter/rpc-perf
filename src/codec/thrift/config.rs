@@ -13,13 +13,14 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-
-use super::{Parameter, Tvalue};
 use super::gen;
 use super::parse;
-use cfgtypes::{BenchmarkWorkload, CResult, ParsedResponse, ProtocolConfig, ProtocolGen,
-               ProtocolParse, ProtocolParseFactory, Style, tools};
+use super::{Parameter, Tvalue};
 use cfgtypes::Value;
+use cfgtypes::{
+    tools, BenchmarkWorkload, CResult, ParsedResponse, ProtocolConfig, ProtocolGen, ProtocolParse,
+    ProtocolParseFactory, Style,
+};
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
@@ -126,10 +127,10 @@ fn extract_workload(workload: &BTreeMap<String, Value>) -> CResult<BenchmarkWork
 }
 
 fn extract_parameter(i: usize, parameter: &BTreeMap<String, Value>) -> CResult<Parameter> {
-
-    let id = parameter.get("id").and_then(|k| k.as_integer()).map(
-        |k| k as i16,
-    );
+    let id = parameter
+        .get("id")
+        .and_then(|k| k.as_integer())
+        .map(|k| k as i16);
 
     let style = match parameter.get("style").and_then(|k| k.as_str()) {
         Some("random") => Style::Random,
@@ -165,16 +166,14 @@ fn extract_parameter(i: usize, parameter: &BTreeMap<String, Value>) -> CResult<P
         Some("struct") => Tvalue::Struct,
         Some("map") => Tvalue::Map,
         Some("set") => Tvalue::Set,
-        Some("list") => {
-            Tvalue::List(
-                parameter
-                    .get("contains")
-                    .and_then(|k| k.as_str())
-                    .unwrap()
-                    .to_owned(),
-                size as i32,
-            )
-        }
+        Some("list") => Tvalue::List(
+            parameter
+                .get("contains")
+                .and_then(|k| k.as_str())
+                .unwrap()
+                .to_owned(),
+            size as i32,
+        ),
         Some(unknown) => return Err(format!("unknown parameter type: {}", unknown)),
         None => return Err("paramter type not specified".to_owned()),
     };

@@ -23,11 +23,11 @@ script:
 matrix:
   include:
     - os: linux
-      rust: stable
+      rust: nightly
       env: TYPE=rustfmt RUST_BACKTRACE=1
       script:
-        - cargo install -f rustfmt || cargo fmt -- --version || exit 0
-        - cargo fmt -- --write-mode=diff
+        - cargo install -f rustfmt-nightly || cargo fmt -- --version || exit 0
+        - cargo fmt -- --check
     - os: linux
       rust: nightly
       env: TYPE=bench RUST_BACKTRACE=1

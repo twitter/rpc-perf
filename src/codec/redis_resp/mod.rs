@@ -17,9 +17,11 @@ mod gen;
 mod parse;
 
 use cfgtypes;
-use cfgtypes::{BenchmarkWorkload, CResult, Parameter, ParsedResponse, ProtocolConfig, ProtocolGen,
-               ProtocolParse, ProtocolParseFactory, Ptype};
 use cfgtypes::tools;
+use cfgtypes::{
+    BenchmarkWorkload, CResult, Parameter, ParsedResponse, ProtocolConfig, ProtocolGen,
+    ProtocolParse, ProtocolParseFactory, Ptype,
+};
 use getopts::Matches;
 use std::collections::BTreeMap;
 use std::str;
@@ -179,7 +181,6 @@ impl ProtocolParse for RedisParse {
 
 /// Load the redis benchmark configuration from the config toml and command line arguments
 pub fn load_config(table: &BTreeMap<String, Value>, matches: &Matches) -> CResult<ProtocolConfig> {
-
     let mut ws = Vec::new();
 
     let database = table
@@ -255,8 +256,8 @@ fn extract_workload(workload: &BTreeMap<String, Value>) -> CResult<BenchmarkWork
             "decr" if ps.len() == 1 => Command::Decr(ps[0].clone()),
             "append" if ps.len() == 2 => Command::Append(ps[0].clone(), ps[1].clone()),
             "prepend" if ps.len() == 1 => Command::Prepend(ps[0].clone(), ps[1].clone()),
-            "get" | "set" | "hset" | "hget" | "del" | "expire" | "incr" | "decr" | "append" |
-            "prepend" => {
+            "get" | "set" | "hset" | "hget" | "del" | "expire" | "incr" | "decr" | "append"
+            | "prepend" => {
                 return Err(format!(
                     "invalid number of params ({}) for method {}",
                     ps.len(),

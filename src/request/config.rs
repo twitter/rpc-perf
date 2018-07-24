@@ -73,7 +73,6 @@ fn load_config_table(
     table: &BTreeMap<String, Value>,
     matches: &Matches,
 ) -> Result<BenchmarkConfig, String> {
-
     let protocol: String = matches
         .opt_str("protocol")
         .or_else(|| {

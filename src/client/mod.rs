@@ -26,8 +26,8 @@ use self::net::InternetProtocol;
 use cfgtypes::*;
 use common::stats::Stat;
 use mio;
-use mio::{Evented, Events, Poll, PollOpt, Token};
 use mio::unix::UnixReady;
+use mio::{Evented, Events, Poll, PollOpt, Token};
 use mpmc::Queue;
 use std::collections::VecDeque;
 use std::net::{SocketAddr, ToSocketAddrs};
@@ -152,13 +152,13 @@ impl Client {
         if self.is_connection(token) {
             if self.connections[token].is_connecting() {
                 if let Some(t) = self.connect_timeout {
-                    let deadline = self.clocksource.counter() +
-                        t * self.clocksource.frequency() as u64 / 1000;
+                    let deadline =
+                        self.clocksource.counter() + t * self.clocksource.frequency() as u64 / 1000;
                     self.connections[token].set_timeout(Some(deadline));
                 }
             } else if let Some(t) = self.request_timeout {
-                let deadline = self.clocksource.counter() +
-                    t * self.clocksource.frequency() as u64 / 1000;
+                let deadline =
+                    self.clocksource.counter() + t * self.clocksource.frequency() as u64 / 1000;
                 self.connections[token].set_timeout(Some(deadline));
             }
         }
@@ -170,23 +170,18 @@ impl Client {
     where
         E: Evented,
     {
-        match self.poll.register(
-            io,
-            token,
-            self.event_set(token),
-            self.poll_opt(token),
-        ) {
+        match self
+            .poll
+            .register(io, token, self.event_set(token), self.poll_opt(token))
+        {
             Ok(_) => {}
             Err(e) => {
                 if !self.poll.deregister(io).is_ok() {
                     debug!("error registering {:?}: {}", token, e);
                 } else {
-                    let _ = self.poll.register(
-                        io,
-                        token,
-                        self.event_set(token),
-                        self.poll_opt(token),
-                    );
+                    let _ =
+                        self.poll
+                            .register(io, token, self.event_set(token), self.poll_opt(token));
                 }
             }
         }
@@ -236,7 +231,6 @@ impl Client {
         self.clear_timer(token);
         let _ = self.connections[token].close();
         self.send_stat(token, Stat::SocketClose);
-
     }
 
     /// resolve host:ip to SocketAddr
@@ -245,15 +239,15 @@ impl Client {
             for addr in result {
                 match addr {
                     SocketAddr::V4(_) => {
-                        if self.config.internet_protocol() == InternetProtocol::Any ||
-                            self.config.internet_protocol() == InternetProtocol::IpV4
+                        if self.config.internet_protocol() == InternetProtocol::Any
+                            || self.config.internet_protocol() == InternetProtocol::IpV4
                         {
                             return Ok(addr);
                         }
                     }
                     SocketAddr::V6(_) => {
-                        if self.config.internet_protocol() == InternetProtocol::Any ||
-                            self.config.internet_protocol() == InternetProtocol::IpV6
+                        if self.config.internet_protocol() == InternetProtocol::Any
+                            || self.config.internet_protocol() == InternetProtocol::IpV6
                         {
                             return Ok(addr);
                         }
@@ -313,7 +307,6 @@ impl Client {
             self.register(s, token);
         }
     }
-
 
     /// read and parse response
     /// - reconnect on failure
@@ -476,9 +469,10 @@ impl Client {
                 }
             }
         }
-        let mut events = self.events.take().unwrap_or_else(
-            || Events::with_capacity(MAX_EVENTS),
-        );
+        let mut events = self
+            .events
+            .take()
+            .unwrap_or_else(|| Events::with_capacity(MAX_EVENTS));
 
         self.poll
             .poll(&mut events, Some(Duration::from_millis(TICK_MS)))

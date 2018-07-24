@@ -46,7 +46,5 @@ pub fn choose_layer_3(ipv4: bool, ipv6: bool) -> Result<InternetProtocol, String
         return Ok(InternetProtocol::IpV6);
     }
 
-    Err(
-        "No InternetProtocols remaining! Bad config/options".to_owned(),
-    )
+    Err("No InternetProtocols remaining! Bad config/options".to_owned())
 }
