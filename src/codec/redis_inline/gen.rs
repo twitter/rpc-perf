@@ -33,13 +33,14 @@ mod tests {
 
     #[test]
     fn test_set() {
-        assert_eq!(set("key", "value"), "set key value\r\n");
+        assert_eq!(set("key", "value", None), "set key value\r\n");
+        assert_eq!(set("key", "value", Some("4")), "set key value EX 4\r\n");
     }
 
     #[cfg(feature = "unstable")]
     #[bench]
     fn set_benchmark(b: &mut test::Bencher) {
-        b.iter(|| set("key", "value"));
+        b.iter(|| set("key", "value", None));
     }
 
     #[test]
@@ -153,8 +154,13 @@ pub fn select(database: &u32) -> String {
 }
 
 /// SET request
-pub fn set(key: &str, value: &str) -> String {
-    format!("set {} {}\r\n", key, value)
+pub fn set(key: &str, value: &str, ttl: Option<&str>) -> String {
+    if let Some(ttl_val) = ttl {
+        format!("set {} {} EX {}\r\n", key, value, ttl_val)
+    } else {
+        format!("set {} {}\r\n", key, value)
+    }
+
 }
 
 /// HSET request
