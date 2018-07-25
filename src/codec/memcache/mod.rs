@@ -212,7 +212,7 @@ pub fn load_config(table: &BTreeMap<String, Value>, matches: &Matches) -> CResul
     if let Some(&Value::Array(ref workloads)) = table.get("workload") {
         for (i, workload) in workloads.iter().enumerate() {
             if let Value::Table(ref workload) = *workload {
-                let w = try!(extract_workload(i, workload));
+                let w = extract_workload(i, workload)?;
                 ws.push(w);
             } else {
                 return Err("malformed config: workload must be a struct".to_owned());
@@ -255,7 +255,7 @@ fn extract_workload(i: usize, workload: &BTreeMap<String, Value>) -> CResult<Ben
         for param in params {
             match *param {
                 Value::Table(ref parameter) => {
-                    let p = try!(extract_parameter(i, parameter));
+                    let p = extract_parameter(i, parameter)?;
                     ps.push(p);
                 }
                 _ => {
