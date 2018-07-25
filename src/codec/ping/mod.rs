@@ -16,8 +16,10 @@
 mod gen;
 mod parse;
 
-use cfgtypes::{BenchmarkWorkload, CResult, ParsedResponse, ProtocolConfig, ProtocolGen,
-               ProtocolParse, ProtocolParseFactory};
+use cfgtypes::{
+    BenchmarkWorkload, CResult, ParsedResponse, ProtocolConfig, ProtocolGen, ProtocolParse,
+    ProtocolParseFactory,
+};
 use std::collections::BTreeMap;
 use std::str;
 use std::sync::Arc;
@@ -57,7 +59,6 @@ impl ProtocolParse for Ping {
 
 /// Load the ping benchmark configuration from the config toml
 pub fn load_config(table: &BTreeMap<String, Value>) -> CResult<ProtocolConfig> {
-
     let mut ws = Vec::new();
 
     if let Some(&Value::Array(ref workloads)) = table.get("workload") {
@@ -79,7 +80,6 @@ pub fn load_config(table: &BTreeMap<String, Value>) -> CResult<ProtocolConfig> {
 }
 
 fn extract_workload(workload: &BTreeMap<String, Value>) -> CResult<BenchmarkWorkload> {
-
     let rate = workload
         .get("rate")
         .and_then(|k| k.as_integer())

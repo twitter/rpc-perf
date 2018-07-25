@@ -31,7 +31,6 @@ pub fn launch_workloads(
     stats: &Sender<Stat>,
     clocksource: &Clocksource,
 ) {
-
     for (i, w) in workloads.into_iter().enumerate() {
         info!(
             "Workload {}: Method: {} Rate: {}",

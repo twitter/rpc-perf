@@ -63,8 +63,7 @@ pub fn stats_receiver_init(
         Stat::ResponseOkHit,
         Stat::ResponseOkMiss,
         Stat::ConnectOk,
-    ]
-    {
+    ] {
         stats_receiver.add_interest(Interest::Percentile(c));
     }
 
@@ -79,13 +78,11 @@ pub fn stats_receiver_init(
     stats_receiver
 }
 
-
 pub fn meters_delta(t0: &Meters<Stat>, t1: &Meters<Stat>, stat: &Stat) -> u64 {
     *t1.count(stat).unwrap_or(&0) - *t0.count(stat).unwrap_or(&0)
 }
 
 pub fn run(mut receiver: Receiver<Stat>, windows: usize, infinite: bool) {
-
     let mut window = 0;
     let mut warmup = true;
     let mut next_window = window + windows;
@@ -108,15 +105,15 @@ pub fn run(mut receiver: Receiver<Stat>, windows: usize, infinite: bool) {
             info!("Warmup complete");
             warmup = false;
         } else {
-            let responses = meters_delta(&m0, &m1, &Stat::ResponseOk) +
-                meters_delta(&m0, &m1, &Stat::ResponseError);
+            let responses = meters_delta(&m0, &m1, &Stat::ResponseOk)
+                + meters_delta(&m0, &m1, &Stat::ResponseError);
 
-            let rate = responses as f64 /
-                ((clocksource.convert(t1) - clocksource.convert(t0)) as f64 / 1_000_000_000.0);
+            let rate = responses as f64
+                / ((clocksource.convert(t1) - clocksource.convert(t0)) as f64 / 1_000_000_000.0);
 
             let success_rate = if responses > 0 {
-                100.0 * (responses - meters_delta(&m0, &m1, &Stat::ResponseError)) as f64 /
-                    (responses + meters_delta(&m0, &m1, &Stat::ResponseTimeout)) as f64
+                100.0 * (responses - meters_delta(&m0, &m1, &Stat::ResponseError)) as f64
+                    / (responses + meters_delta(&m0, &m1, &Stat::ResponseTimeout)) as f64
             } else {
                 0.0
             };
@@ -132,12 +129,12 @@ pub fn run(mut receiver: Receiver<Stat>, windows: usize, infinite: bool) {
 
             info!("-----");
             info!("Window: {}", window);
-            let inflight = *m1.count(&Stat::RequestSent).unwrap_or(&0) as i64 -
-                *m1.count(&Stat::ResponseOk).unwrap_or(&0) as i64 -
-                *m1.count(&Stat::ResponseError).unwrap_or(&0) as i64 -
-                *m1.count(&Stat::ResponseTimeout).unwrap_or(&0) as i64;
-            let open = *m1.count(&Stat::SocketCreate).unwrap_or(&0) as i64 -
-                *m1.count(&Stat::SocketClose).unwrap_or(&0) as i64;
+            let inflight = *m1.count(&Stat::RequestSent).unwrap_or(&0) as i64
+                - *m1.count(&Stat::ResponseOk).unwrap_or(&0) as i64
+                - *m1.count(&Stat::ResponseError).unwrap_or(&0) as i64
+                - *m1.count(&Stat::ResponseTimeout).unwrap_or(&0) as i64;
+            let open = *m1.count(&Stat::SocketCreate).unwrap_or(&0) as i64
+                - *m1.count(&Stat::SocketClose).unwrap_or(&0) as i64;
             info!(
                 "Connections: Ok: {} Error: {} Timeout: {} Open: {}",
                 meters_delta(&m0, &m1, &Stat::ConnectOk),
@@ -169,12 +166,7 @@ pub fn run(mut receiver: Receiver<Stat>, windows: usize, infinite: bool) {
             );
             info!(
                 "Rate: {:.*} rps Success: {:.*} % Hit Rate: {:.*} %",
-                2,
-                rate,
-                2,
-                success_rate,
-                2,
-                hit_rate
+                2, rate, 2, success_rate, 2, hit_rate
             );
             display_percentiles(&m1, &Stat::ResponseOk, "Response OK");
         }
@@ -196,21 +188,36 @@ pub fn run(mut receiver: Receiver<Stat>, windows: usize, infinite: bool) {
 }
 
 fn display_percentiles(meters: &Meters<Stat>, stat: &Stat, label: &str) {
-    info!("Percentiles: {} (us): min: {} p50: {} p90: {} p99: {} p999: {} p9999: {} max: {}",
-                    label,
-                    meters.percentile(stat,
-                        Percentile("min".to_owned(), 0.0)).unwrap_or(&0) / 1000,
-                    meters.percentile(stat,
-                        Percentile("p50".to_owned(), 50.0)).unwrap_or(&0) / 1000,
-                    meters.percentile(stat,
-                        Percentile("p90".to_owned(), 90.0)).unwrap_or(&0) / 1000,
-                    meters.percentile(stat,
-                        Percentile("p99".to_owned(), 99.0)).unwrap_or(&0) / 1000,
-                    meters.percentile(stat,
-                        Percentile("p999".to_owned(), 99.9)).unwrap_or(&0) / 1000,
-                    meters.percentile(stat,
-                        Percentile("p9999".to_owned(), 99.99)).unwrap_or(&0) / 1000,
-                    meters.percentile(stat,
-                        Percentile("max".to_owned(), 100.0)).unwrap_or(&0) / 1000,
-                );
+    info!(
+        "Percentiles: {} (us): min: {} p50: {} p90: {} p99: {} p999: {} p9999: {} max: {}",
+        label,
+        meters
+            .percentile(stat, Percentile("min".to_owned(), 0.0))
+            .unwrap_or(&0)
+            / 1000,
+        meters
+            .percentile(stat, Percentile("p50".to_owned(), 50.0))
+            .unwrap_or(&0)
+            / 1000,
+        meters
+            .percentile(stat, Percentile("p90".to_owned(), 90.0))
+            .unwrap_or(&0)
+            / 1000,
+        meters
+            .percentile(stat, Percentile("p99".to_owned(), 99.0))
+            .unwrap_or(&0)
+            / 1000,
+        meters
+            .percentile(stat, Percentile("p999".to_owned(), 99.9))
+            .unwrap_or(&0)
+            / 1000,
+        meters
+            .percentile(stat, Percentile("p9999".to_owned(), 99.99))
+            .unwrap_or(&0)
+            / 1000,
+        meters
+            .percentile(stat, Percentile("max".to_owned(), 100.0))
+            .unwrap_or(&0)
+            / 1000,
+    );
 }

@@ -16,7 +16,6 @@
 pub use cfgtypes::ParsedResponse;
 
 pub fn parse_response(response: &str) -> ParsedResponse {
-
     let mut lines: Vec<&str> = response.split("\r\n").collect();
 
     // expect an empty line from the split
@@ -61,21 +60,19 @@ pub fn parse_response(response: &str) -> ParsedResponse {
             }
         }
         "$" if msg == "-1" => ParsedResponse::Miss,
-        "$" => {
-            match msg.parse() {
-                Ok(bytes) => {
-                    let data = lines[1..lines.len()].join("\r\n");
-                    if data.len() == bytes {
-                        ParsedResponse::Hit
-                    } else if data.len() < bytes {
-                        ParsedResponse::Incomplete
-                    } else {
-                        ParsedResponse::Invalid
-                    }
+        "$" => match msg.parse() {
+            Ok(bytes) => {
+                let data = lines[1..lines.len()].join("\r\n");
+                if data.len() == bytes {
+                    ParsedResponse::Hit
+                } else if data.len() < bytes {
+                    ParsedResponse::Incomplete
+                } else {
+                    ParsedResponse::Invalid
                 }
-                Err(_) => ParsedResponse::Invalid,
             }
-        }
+            Err(_) => ParsedResponse::Invalid,
+        },
         // arrays
         "*" if msg == "-1" => ParsedResponse::Miss,
         "*" => ParsedResponse::Unknown,

@@ -13,10 +13,10 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-
 use std::collections::BTreeMap;
 use std::sync::Arc;
-pub use toml::{Deserializer, Value};
+pub use toml::de::Deserializer;
+pub use toml::Value;
 
 pub mod tools;
 
@@ -138,38 +138,33 @@ pub fn extract_parameter<T: Ptype>(
     index: usize,
     parameter: &BTreeMap<String, Value>,
 ) -> CResult<Parameter<T>> {
-
     let style = match parameter.get("style").and_then(|k| k.as_str()) {
         Some("random") => Style::Random,
         Some("static") | None => Style::Static,
         Some(other) => return Err(format!("bad parameter style: {}", other)),
     };
 
-    let seed = parameter.get("seed").and_then(|k| k.as_integer()).map_or(
-        index,
-        |i| {
-            i as usize
-        },
-    );
+    let seed = parameter
+        .get("seed")
+        .and_then(|k| k.as_integer())
+        .map_or(index, |i| i as usize);
 
-    let size = parameter.get("size").and_then(|k| k.as_integer()).map_or(
-        1,
-        |i| {
-            i as usize
-        },
-    );
+    let size = parameter
+        .get("size")
+        .and_then(|k| k.as_integer())
+        .map_or(1, |i| i as usize);
 
-    let num = parameter.get("num").and_then(|k| k.as_integer()).map_or(
-        0,
-        |i| {
-            i as u64
-        },
-    );
+    let num = parameter
+        .get("num")
+        .and_then(|k| k.as_integer())
+        .map_or(0, |i| i as u64);
 
     // size is insufficient to contain num strings
     if format!("{}", num - 1).len() > size {
-        return Err(format!("size {} insufficient to contain {} strings",
-                           size, num));
+        return Err(format!(
+            "size {} insufficient to contain {} strings",
+            size, num
+        ));
     }
 
     let regenerate = parameter

@@ -13,9 +13,9 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use super::{Parameter, Tvalue};
 use super::buffer::Buffer;
 use super::consts;
+use super::{Parameter, Tvalue};
 
 /// create a ping request
 pub fn ping() -> Vec<u8> {
@@ -135,9 +135,9 @@ pub fn generic(method: &str, sequence_id: i32, payload: &mut Vec<Parameter>) -> 
 
 #[cfg(test)]
 mod test {
-    use super::*;
     #[allow(unused_imports)]
     use super::super::testutil;
+    use super::*;
     #[cfg(feature = "unstable")]
     use test;
 
@@ -145,29 +145,7 @@ mod test {
     fn test_ping() {
         assert_eq!(
             ping(),
-            [
-                0,
-                0,
-                0,
-                17,
-                128,
-                1,
-                0,
-                1,
-                0,
-                0,
-                0,
-                4,
-                112,
-                105,
-                110,
-                103,
-                0,
-                0,
-                0,
-                0,
-                0,
-            ]
+            [0, 0, 0, 17, 128, 1, 0, 1, 0, 0, 0, 4, 112, 105, 110, 103, 0, 0, 0, 0, 0,]
         );
     }
 
@@ -176,27 +154,7 @@ mod test {
         assert_eq!(
             generic("ping", 0, &mut Vec::new()),
             vec![
-                0,
-                0,
-                0,
-                17,
-                128,
-                1,
-                0,
-                1,
-                0,
-                0,
-                0,
-                4,
-                112,
-                105,
-                110,
-                103,
-                0,
-                0,
-                0,
-                0,
-                0,
+                0, 0, 0, 17, 128, 1, 0, 1, 0, 0, 0, 4, 112, 105, 110, 103, 0, 0, 0, 0, 0,
             ]
         );
     }

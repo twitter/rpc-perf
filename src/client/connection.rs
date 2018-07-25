@@ -20,9 +20,9 @@ use super::net::InternetProtocol;
 
 use bytes::{Buf, MutBuf};
 use client::buffer::Buffer;
-use mio::Ready;
 use mio::tcp::TcpStream;
 use mio::unix::UnixReady;
+use mio::Ready;
 use std::io::{self, Read, Write};
 use std::net::SocketAddr;
 

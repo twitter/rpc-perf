@@ -16,7 +16,6 @@
 pub use cfgtypes::ParsedResponse;
 
 pub fn parse_response(response: &str) -> ParsedResponse {
-
     let mut lines: Vec<&str> = response.split("\r\n").collect();
 
     if lines.len() < 2 {

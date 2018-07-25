@@ -22,37 +22,37 @@ extern crate test;
 #[macro_use]
 extern crate log;
 
-extern crate bytes;
 extern crate byteorder;
+extern crate bytes;
 extern crate crc;
 extern crate getopts;
 extern crate log_panics;
 extern crate mio;
 extern crate mpmc;
 extern crate pad;
-extern crate time;
 extern crate rand;
 extern crate ratelimit;
 extern crate slab;
 extern crate tic;
+extern crate time;
 extern crate toml;
 
 #[macro_use]
 mod common;
 mod cfgtypes;
 mod client;
+mod codec;
 mod logger;
 mod options;
-mod stats;
-mod codec;
 mod request;
+mod stats;
 
-use client::Client;
 use client::net::InternetProtocol;
+use client::Client;
 use common::*;
 use request::{config, workload};
-use std::{env, thread};
 use std::sync::Arc;
+use std::{env, thread};
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
@@ -145,7 +145,9 @@ pub fn main() {
 
         let _ = thread::Builder::new()
             .name(format!("client{}", i).to_string())
-            .spawn(move || { client.run(); });
+            .spawn(move || {
+                client.run();
+            });
     }
 
     info!("-----");

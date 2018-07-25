@@ -63,7 +63,6 @@ mod tests {
         b.iter(|| get("key"));
     }
 
-
     #[test]
     fn test_hget() {
         assert_eq!(hget("hash", "key"), "hget hash key\r\n");

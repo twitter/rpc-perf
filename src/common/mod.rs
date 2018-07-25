@@ -19,10 +19,10 @@ extern crate getopts;
 extern crate mio;
 extern crate mpmc;
 extern crate pad;
-extern crate ratelimit;
-extern crate toml;
 extern crate rand;
+extern crate ratelimit;
 extern crate tic;
+extern crate toml;
 
 pub use self::stats::Stat;
 pub use std::process;
