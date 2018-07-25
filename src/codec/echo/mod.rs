@@ -89,7 +89,7 @@ pub fn load_config(table: &BTreeMap<String, Value>) -> CResult<ProtocolConfig> {
     if let Some(&Value::Array(ref workloads)) = table.get("workload") {
         for workload in workloads {
             if let Value::Table(ref workload) = *workload {
-                let w = try!(extract_workload(workload));
+                let w = extract_workload(workload)?;
                 ws.push(w);
             } else {
                 return Err("malformed config: workload must be a struct".to_owned());
@@ -122,7 +122,7 @@ fn extract_workload(workload: &BTreeMap<String, Value>) -> CResult<BenchmarkWork
             0 => Parameter::default(),
             1 => {
                 if let Value::Table(ref params) = params[0] {
-                    try!(extract_parameter(0, params))
+                    extract_parameter(0, params)?
                 } else {
                     return Err("malformed config: 'parameter' must be a table".to_owned());
                 }

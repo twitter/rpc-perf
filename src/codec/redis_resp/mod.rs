@@ -195,7 +195,7 @@ pub fn load_config(table: &BTreeMap<String, Value>, matches: &Matches) -> CResul
     if let Some(&Value::Array(ref workloads)) = table.get("workload") {
         for workload in workloads.iter() {
             if let Value::Table(ref workload) = *workload {
-                ws.push(try!(extract_workload(workload)));
+                ws.push(extract_workload(workload)?);
             } else {
                 return Err("workload must be table".to_owned());
             }
@@ -238,7 +238,7 @@ fn extract_workload(workload: &BTreeMap<String, Value>) -> CResult<BenchmarkWork
         for (i, param) in params.iter().enumerate() {
             match *param {
                 Value::Table(ref parameter) => {
-                    let p = try!(cfgtypes::extract_parameter(i, parameter));
+                    let p = cfgtypes::extract_parameter(i, parameter)?;
                     ps.push(p);
                 }
                 _ => {

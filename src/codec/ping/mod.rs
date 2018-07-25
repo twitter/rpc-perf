@@ -64,7 +64,7 @@ pub fn load_config(table: &BTreeMap<String, Value>) -> CResult<ProtocolConfig> {
     if let Some(&Value::Array(ref workloads)) = table.get("workload") {
         for workload in workloads.iter() {
             if let Value::Table(ref workload) = *workload {
-                ws.push(try!(extract_workload(workload)));
+                ws.push(extract_workload(workload)?);
             } else {
                 return Err("workload must be a table".to_owned());
             }

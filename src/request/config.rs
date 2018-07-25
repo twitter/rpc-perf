@@ -87,12 +87,12 @@ fn load_config_table(
 
     // Pick a protocol
     let proto = match protocol.as_str() {
-        "memcache" => try!(memcache::load_config(table, matches)),
-        "echo" => try!(echo::load_config(table)),
-        "redis" | "redis-resp" | "redis_resp" => try!(redis_resp::load_config(table, matches)),
-        "redis-inline" | "redis_inline" => try!(redis_inline::load_config(table, matches)),
-        "ping" => try!(ping::load_config(table)),
-        "thrift" => try!(thrift::load_config(table)),
+        "memcache" => memcache::load_config(table, matches)?,
+        "echo" => echo::load_config(table)?,
+        "redis" | "redis-resp" | "redis_resp" => redis_resp::load_config(table, matches)?,
+        "redis-inline" | "redis_inline" => redis_inline::load_config(table, matches)?,
+        "ping" => ping::load_config(table)?,
+        "thrift" => thrift::load_config(table)?,
         _ => return Err(format!("Protocol {} not known", protocol)),
     };
 
@@ -140,34 +140,34 @@ fn load_config_table(
     }
 
     // get any overrides from the command line
-    try!(config_overrides(&mut config, matches));
+    config_overrides(&mut config, matches)?;
 
     Ok(config)
 }
 
 /// Override parameters using command line arguments
 fn config_overrides(config: &mut BenchmarkConfig, matches: &Matches) -> Result<(), String> {
-    if let Some(threads) = try!(parse_opt("threads", matches)) {
+    if let Some(threads) = parse_opt("threads", matches)? {
         config.set_threads(threads);
     }
 
-    if let Some(connections) = try!(parse_opt("connections", matches)) {
+    if let Some(connections) = parse_opt("connections", matches)? {
         config.set_poolsize(connections);
     }
 
-    if let Some(windows) = try!(parse_opt("windows", matches)) {
+    if let Some(windows) = parse_opt("windows", matches)? {
         config.set_windows(windows);
     }
 
-    if let Some(duration) = try!(parse_opt("duration", matches)) {
+    if let Some(duration) = parse_opt("duration", matches)? {
         config.set_duration(duration);
     }
 
-    if let Some(t) = try!(parse_opt("request-timeout", matches)) {
+    if let Some(t) = parse_opt("request-timeout", matches)? {
         config.set_request_timeout(Some(t));
     }
 
-    if let Some(t) = try!(parse_opt("connect-timeout", matches)) {
+    if let Some(t) = parse_opt("connect-timeout", matches)? {
         config.set_connect_timeout(Some(t));
     }
 

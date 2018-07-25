@@ -159,12 +159,11 @@ pub fn extract_parameter<T: Ptype>(
         .and_then(|k| k.as_integer())
         .map_or(0, |i| i as u64);
 
-    // size is insufficient to contain num strings
-    if format!("{}", num - 1).len() > size {
-        return Err(format!(
-            "size {} insufficient to contain {} strings",
-            size, num
-        ));
+    // check that size is sufficiently large to contain num strings
+    let fmtlen = format!("{}", num - 1).len();
+    if  fmtlen > size {
+        return Err(format!("To contain {} strings, you need to specify a \
+                            size >= {}", num, fmtlen))
     }
 
     let regenerate = parameter
@@ -172,7 +171,7 @@ pub fn extract_parameter<T: Ptype>(
         .and_then(|k| k.as_bool())
         .unwrap_or(false);
 
-    let mut value = try!(T::parse(seed, size, num, parameter));
+    let mut value = T::parse(seed, size, num, parameter)?;
 
     // initialize with a random value if that is what is needed
     if style == Style::Random {
