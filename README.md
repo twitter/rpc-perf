@@ -68,7 +68,7 @@ Sample configurations can be found in the `configs` directory of this project. T
 ./target/release/rpc-perf --config configs/hotkey_hit.toml --server 127.0.0.1:11211 --flush
 
 # redis mixed workload
-./target/release/rpc-perf ---config configs/mixed_workload.toml -server 127.0.0.1:6379 --protocol redis
+./target/release/rpc-perf --config configs/mixed_workload.toml -server 127.0.0.1:6379 --protocol redis
 
 # run the same test against memcache and redis
 ./target/release/rpc-perf --config configs/default.toml --server 127.0.0.1:11211 --protocol memcache
