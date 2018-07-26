@@ -160,10 +160,12 @@ pub fn extract_parameter<T: Ptype>(
         .map_or(0, |i| i as u64);
 
     // check that size is sufficiently large to contain num strings
-    let fmtlen = format!("{}", num - 1).len();
-    if  fmtlen > size {
-        return Err(format!("To contain {} strings, you need to specify a \
-                            size >= {}", num, fmtlen))
+    if num > 0 {
+        let fmtlen = format!("{}", num - 1).len();
+        if  fmtlen > size {
+            return Err(format!("To contain {} strings, you need to specify a \
+                                size >= {}", num, fmtlen))
+        }
     }
 
     let regenerate = parameter
