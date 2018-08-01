@@ -53,6 +53,7 @@ use common::*;
 use request::{config, workload};
 use std::sync::Arc;
 use std::{env, thread};
+use std::time::Duration;
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
@@ -115,6 +116,19 @@ pub fn main() {
 
     let stats_receiver = stats::stats_receiver_init(&config, listen, waterfall, trace);
 
+    let connect_ratelimit = {
+        if let Some(rate) = config.connect_ratelimit() {
+            Some(ratelimit::Builder::new()
+                .capacity(1)
+                .quantum(1)
+                .interval(Duration::new(0, (1_000_000_000 / rate) as u32))
+                .build())
+        } else {
+            None
+        }
+    };
+    
+
     let mut send_queues = Vec::new();
 
     let mut client_config = Client::configure();
@@ -126,11 +140,21 @@ pub fn main() {
         .set_protocol_name(config.protocol_name().clone())
         .set_protocol(Arc::clone(&config.protocol_config.protocol))
         .set_request_timeout(config.request_timeout())
+        .set_max_request_timeout(config.max_request_timeout())
+        .set_max_connect_timeout(config.max_connect_timeout())
         .set_connect_timeout(config.connect_timeout())
         .set_rx_buffer_size(config.rx_buffer_size())
         .set_tx_buffer_size(config.tx_buffer_size())
         .set_internet_protocol(internet_protocol);
 
+    if let Some(mut ratelimit) = connect_ratelimit {
+        client_config.set_connect_ratelimit(Some(ratelimit.make_handle()));
+        let _ = thread::Builder::new()
+            .name(format!("limiter"))
+            .spawn(move || {
+                ratelimit.run();
+            });
+    }
     for server in servers {
         client_config.add_server(server);
     }

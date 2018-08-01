@@ -36,10 +36,23 @@ pub fn opts() -> Options {
     );
     opts.optopt(
         "",
+        "max-request-timeout",
+        "max request timeout in milliseconds",
+        "INTEGER",
+    );
+    opts.optopt(
+        "",
         "connect-timeout",
         "connect timeout in milliseconds",
         "INTEGER",
     );
+    opts.optopt(
+        "",
+        "max-connect-timeout",
+        "max connect timeout in milliseconds",
+        "INTEGER",
+    );
+    opts.optopt("", "connect-ratelimit", "connect/s", "INTEGER");
     opts.optopt("p", "protocol", "client protocol", "STRING");
     opts.optopt("", "config", "TOML config file", "FILE");
     opts.optopt("", "listen", "listen address for stats", "HOST:PORT");

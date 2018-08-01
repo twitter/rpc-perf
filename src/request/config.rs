@@ -127,8 +127,17 @@ fn load_config_table(
         if let Some(v) = general.get("request-timeout").and_then(|k| k.as_integer()) {
             config.set_request_timeout(Some(v as u64));
         }
+        if let Some(v) = general.get("max-request-timeout").and_then(|k| k.as_integer()) {
+            config.set_max_request_timeout(Some(v as u64));
+        }
         if let Some(v) = general.get("connect-timeout").and_then(|k| k.as_integer()) {
             config.set_connect_timeout(Some(v as u64));
+        }
+        if let Some(v) = general.get("max-connect-timeout").and_then(|k| k.as_integer()) {
+            config.set_max_connect_timeout(Some(v as u64));
+        }
+        if let Some(v) = general.get("connect-ratelimit").and_then(|k| k.as_integer()) {
+            config.set_connect_ratelimit(Some(v as u64));
         }
         if let Some(v) = general.get("rx-buffer-size").and_then(|k| k.as_integer()) {
             config.set_rx_buffer_size(v as usize);
@@ -167,8 +176,20 @@ fn config_overrides(config: &mut BenchmarkConfig, matches: &Matches) -> Result<(
         config.set_request_timeout(Some(t));
     }
 
+    if let Some(t) = parse_opt("max-request-timeout", matches)? {
+        config.set_max_request_timeout(Some(t));
+    }
+
     if let Some(t) = parse_opt("connect-timeout", matches)? {
         config.set_connect_timeout(Some(t));
+    }
+
+    if let Some(t) = parse_opt("max-connect-timeout", matches)? {
+        config.set_max_connect_timeout(Some(t));
+    }
+
+    if let Some(t) = parse_opt("connect-ratelimit", matches)? {
+        config.set_connect_ratelimit(Some(t));
     }
 
     if matches.opt_present("tcp-nodelay") {

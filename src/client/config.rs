@@ -19,6 +19,7 @@ use cfgtypes::*;
 use common::*;
 use std::sync::Arc;
 use tic::{Clocksource, Sender};
+use ratelimit;
 
 const MAX_CONNECTIONS: usize = 65_536;
 const KILOBYTE: usize = 1024;
@@ -32,8 +33,11 @@ pub struct Config {
     protocol_name: String,
     protocol: Option<Arc<ProtocolParseFactory>>,
     request_timeout: Option<u64>,
+    max_request_timeout: Option<u64>,
     internet_protocol: InternetProtocol,
     connect_timeout: Option<u64>,
+    connect_ratelimit: Option<ratelimit::Handle>,
+    max_connect_timeout: Option<u64>,
     rx_buffer_size: usize,
     tx_buffer_size: usize,
 }
@@ -48,7 +52,10 @@ impl Default for Config {
             protocol_name: "unknown".to_owned(),
             protocol: None,
             request_timeout: None,
+            max_request_timeout: None,
             connect_timeout: None,
+            max_connect_timeout: None,
+            connect_ratelimit: None,
             internet_protocol: InternetProtocol::Any,
             rx_buffer_size: 4 * KILOBYTE,
             tx_buffer_size: 4 * KILOBYTE,
@@ -129,15 +136,48 @@ impl Config {
         self.request_timeout
     }
 
+    /// sets the timeout for responses
+    pub fn set_max_request_timeout(&mut self, milliseconds: Option<u64>) -> &mut Self {
+        self.max_request_timeout = milliseconds;
+        self
+    }
+
+    /// the timeout for responses
+    pub fn max_request_timeout(&self) -> Option<u64> {
+        self.max_request_timeout
+    }
+
     /// sets the timeout for connects
     pub fn set_connect_timeout(&mut self, milliseconds: Option<u64>) -> &mut Self {
         self.connect_timeout = milliseconds;
         self
     }
 
+    /// sets the timeout for connects
+    pub fn set_connect_ratelimit(&mut self, limiter: Option<ratelimit::Handle>) -> &mut Self {
+        self.connect_ratelimit = limiter;
+        self
+    }
+
+    /// sets the timeout for connects
+    pub fn connect_ratelimit(&self) -> Option<ratelimit::Handle> {
+        self.connect_ratelimit.clone()
+    }
+
     /// the timeout for connects
     pub fn connect_timeout(&self) -> Option<u64> {
         self.connect_timeout
+    }
+
+    /// sets the timeout for connects
+    pub fn set_max_connect_timeout(&mut self, milliseconds: Option<u64>) -> &mut Self {
+        self.max_connect_timeout = milliseconds;
+        self
+    }
+
+    /// the max timeout for connects
+    pub fn max_connect_timeout(&self) -> Option<u64> {
+        self.max_connect_timeout
     }
 
     /// sets the rx buffer size in bytes
