@@ -125,24 +125,24 @@ impl Config {
         self
     }
 
-    /// sets the timeout for responses
+    /// sets the base timeout for responses in milliseconds
     pub fn set_request_timeout(&mut self, milliseconds: Option<u64>) -> &mut Self {
         self.request_timeout = milliseconds;
         self
     }
 
-    /// the timeout for responses
+    /// the base timeout for responses in milliseconds
     pub fn request_timeout(&self) -> Option<u64> {
         self.request_timeout
     }
 
-    /// sets the timeout for responses
+    /// sets the timeout for responses in milliseconds
     pub fn set_max_request_timeout(&mut self, milliseconds: Option<u64>) -> &mut Self {
         self.max_request_timeout = milliseconds;
         self
     }
 
-    /// the timeout for responses
+    /// the max timeout for responses in milliseconds
     pub fn max_request_timeout(&self) -> Option<u64> {
         self.max_request_timeout
     }
@@ -153,29 +153,29 @@ impl Config {
         self
     }
 
-    /// sets the timeout for connects
+    /// sets the base timeout for connects in milliseconds
     pub fn set_connect_ratelimit(&mut self, limiter: Option<ratelimit::Handle>) -> &mut Self {
         self.connect_ratelimit = limiter;
         self
     }
 
-    /// sets the timeout for connects
-    pub fn connect_ratelimit(&self) -> Option<ratelimit::Handle> {
-        self.connect_ratelimit.clone()
-    }
-
-    /// the timeout for connects
+    /// the base timeout for connects in milliseconds
     pub fn connect_timeout(&self) -> Option<u64> {
         self.connect_timeout
     }
 
-    /// sets the timeout for connects
+    /// sets a ratelimit for connects/s
+    pub fn connect_ratelimit(&self) -> Option<ratelimit::Handle> {
+        self.connect_ratelimit.clone()
+    }
+
+    /// sets the max timeout for connects in milliseconds
     pub fn set_max_connect_timeout(&mut self, milliseconds: Option<u64>) -> &mut Self {
         self.max_connect_timeout = milliseconds;
         self
     }
 
-    /// the max timeout for connects
+    /// the max timeout for connects in milliseconds
     pub fn max_connect_timeout(&self) -> Option<u64> {
         self.max_connect_timeout
     }
