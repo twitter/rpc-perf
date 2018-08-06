@@ -59,7 +59,6 @@ pub struct Client {
     rtimes: Vec<u64>,
     clocksource: Clocksource,
     protocol: Box<ProtocolParse>,
-    request_timeout: Option<u64>,
     connect_timeout: Option<u64>,
     connect_ratelimit: Option<ratelimit::Handle>,
     events: Option<Events>,
@@ -98,8 +97,8 @@ impl Client {
         let factory = Factory::new(
             config.rx_buffer_size(),
             config.tx_buffer_size(),
-            config.connect_timeout().unwrap_or(0),
-            config.request_timeout().unwrap_or(0),
+            config.base_connect_timeout().unwrap_or(0),
+            config.base_request_timeout().unwrap_or(0),
             config.max_connect_timeout(),
             config.max_request_timeout(),
             );
@@ -117,8 +116,7 @@ impl Client {
             times: vec![clocksource.counter(); MAX_CONNECTIONS],
             rtimes: vec![clocksource.counter(); MAX_CONNECTIONS],
             protocol: Arc::clone(&config.protocol().unwrap()).new(),
-            request_timeout: config.request_timeout(),
-            connect_timeout: config.connect_timeout(),
+            connect_timeout: config.base_connect_timeout(),
             connect_ratelimit: config.connect_ratelimit(),
         };
 

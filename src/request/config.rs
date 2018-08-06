@@ -125,13 +125,19 @@ fn load_config_table(
             config.ipv6 = ipv6;
         }
         if let Some(v) = general.get("request-timeout").and_then(|k| k.as_integer()) {
-            config.set_request_timeout(Some(v as u64));
+            config.set_base_request_timeout(Some(v as u64));
+        }
+        if let Some(v) = general.get("base-request-timeout").and_then(|k| k.as_integer()) {
+            config.set_base_request_timeout(Some(v as u64));
         }
         if let Some(v) = general.get("max-request-timeout").and_then(|k| k.as_integer()) {
             config.set_max_request_timeout(Some(v as u64));
         }
         if let Some(v) = general.get("connect-timeout").and_then(|k| k.as_integer()) {
-            config.set_connect_timeout(Some(v as u64));
+            config.set_base_connect_timeout(Some(v as u64));
+        }
+        if let Some(v) = general.get("base-connect-timeout").and_then(|k| k.as_integer()) {
+            config.set_base_connect_timeout(Some(v as u64));
         }
         if let Some(v) = general.get("max-connect-timeout").and_then(|k| k.as_integer()) {
             config.set_max_connect_timeout(Some(v as u64));
@@ -173,7 +179,11 @@ fn config_overrides(config: &mut BenchmarkConfig, matches: &Matches) -> Result<(
     }
 
     if let Some(t) = parse_opt("request-timeout", matches)? {
-        config.set_request_timeout(Some(t));
+        config.set_base_request_timeout(Some(t));
+    }
+
+    if let Some(t) = parse_opt("base-request-timeout", matches)? {
+        config.set_base_request_timeout(Some(t));
     }
 
     if let Some(t) = parse_opt("max-request-timeout", matches)? {
@@ -181,7 +191,11 @@ fn config_overrides(config: &mut BenchmarkConfig, matches: &Matches) -> Result<(
     }
 
     if let Some(t) = parse_opt("connect-timeout", matches)? {
-        config.set_connect_timeout(Some(t));
+        config.set_base_connect_timeout(Some(t));
+    }
+
+    if let Some(t) = parse_opt("base-connect-timeout", matches)? {
+        config.set_base_connect_timeout(Some(t));
     }
 
     if let Some(t) = parse_opt("max-connect-timeout", matches)? {

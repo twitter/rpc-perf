@@ -139,10 +139,10 @@ pub fn main() {
         .set_clocksource(stats_receiver.get_clocksource().clone())
         .set_protocol_name(config.protocol_name().clone())
         .set_protocol(Arc::clone(&config.protocol_config.protocol))
-        .set_request_timeout(config.request_timeout())
+        .set_base_request_timeout(config.base_request_timeout())
         .set_max_request_timeout(config.max_request_timeout())
+        .set_base_connect_timeout(config.base_connect_timeout())
         .set_max_connect_timeout(config.max_connect_timeout())
-        .set_connect_timeout(config.connect_timeout())
         .set_rx_buffer_size(config.rx_buffer_size())
         .set_tx_buffer_size(config.tx_buffer_size())
         .set_internet_protocol(internet_protocol);
@@ -218,22 +218,8 @@ fn print_config(
         config.windows(),
         config.duration()
     );
-    match config.request_timeout() {
-        Some(v) => {
-            info!("Config: Request Timeout: {} ms", v);
-        }
-        None => {
-            info!("Config: Request Timeout: None");
-        }
-    }
-    match config.connect_timeout() {
-        Some(v) => {
-            info!("Config: Connect Timeout: {} ms", v);
-        }
-        None => {
-            info!("Config: Connect Timeout: None");
-        }
-    }
+    info!("Config: Request Timeout: Base: {} ms Max: {} ms", config.base_request_timeout().unwrap_or(0), config.max_request_timeout().unwrap_or(0));
+    info!("Config: Connect Timeout: Base: {} ms Max: {} ms", config.base_connect_timeout().unwrap_or(0), config.max_connect_timeout().unwrap_or(0));
     info!(
         "Config: Buffer size (bytes): RX: {} TX: {}",
         config.rx_buffer_size(),

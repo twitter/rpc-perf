@@ -27,10 +27,10 @@ pub struct BenchmarkConfig {
     tcp_nodelay: bool,
     ipv4: bool,
     ipv6: bool,
-    connect_timeout: Option<u64>,
+    base_connect_timeout: Option<u64>,
     max_connect_timeout: Option<u64>,
     connect_ratelimit: Option<u64>,
-    request_timeout: Option<u64>,
+    base_request_timeout: Option<u64>,
     max_request_timeout: Option<u64>,
     protocol_name: String,
     pub protocol_config: ProtocolConfig,
@@ -48,10 +48,10 @@ impl BenchmarkConfig {
             tcp_nodelay: false,
             ipv4: true,
             ipv6: true,
-            connect_timeout: None,
+            base_connect_timeout: None,
             connect_ratelimit: None,
             max_connect_timeout: None,
-            request_timeout: None,
+            base_request_timeout: None,
             max_request_timeout: None,
             protocol_name: "unknown".to_owned(),
             protocol_config: protocol,
@@ -105,12 +105,12 @@ impl BenchmarkConfig {
         self
     }
 
-    pub fn connect_timeout(&self) -> Option<u64> {
-        self.connect_timeout
+    pub fn base_connect_timeout(&self) -> Option<u64> {
+        self.base_connect_timeout
     }
 
-    pub fn set_connect_timeout(&mut self, milliseconds: Option<u64>) -> &Self {
-        self.connect_timeout = milliseconds;
+    pub fn set_base_connect_timeout(&mut self, milliseconds: Option<u64>) -> &Self {
+        self.base_connect_timeout = milliseconds;
         self
     }
 
@@ -132,12 +132,12 @@ impl BenchmarkConfig {
         self.connect_ratelimit
     }
 
-    pub fn request_timeout(&self) -> Option<u64> {
-        self.request_timeout
+    pub fn base_request_timeout(&self) -> Option<u64> {
+        self.base_request_timeout
     }
 
-    pub fn set_request_timeout(&mut self, milliseconds: Option<u64>) -> &Self {
-        self.request_timeout = milliseconds;
+    pub fn set_base_request_timeout(&mut self, milliseconds: Option<u64>) -> &Self {
+        self.base_request_timeout = milliseconds;
         self
     }
 

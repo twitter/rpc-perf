@@ -30,8 +30,8 @@ pub fn opts() -> Options {
     opts.optopt("w", "windows", "number of windows in test", "INTEGER");
     opts.optopt(
         "",
-        "request-timeout",
-        "request timeout in milliseconds",
+        "base-request-timeout",
+        "base request timeout in milliseconds",
         "INTEGER",
     );
     opts.optopt(
@@ -42,8 +42,8 @@ pub fn opts() -> Options {
     );
     opts.optopt(
         "",
-        "connect-timeout",
-        "connect timeout in milliseconds",
+        "base-connect-timeout",
+        "base connect timeout in milliseconds",
         "INTEGER",
     );
     opts.optopt(
