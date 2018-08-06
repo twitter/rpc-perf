@@ -36,8 +36,20 @@ pub fn opts() -> Options {
     );
     opts.optopt(
         "",
+        "request-timeout",
+        "base request timeout in milliseconds",
+        "INTEGER",
+    );
+    opts.optopt(
+        "",
         "max-request-timeout",
         "max request timeout in milliseconds",
+        "INTEGER",
+    );
+    opts.optopt(
+        "",
+        "connect-timeout",
+        "base connect timeout in milliseconds",
         "INTEGER",
     );
     opts.optopt(
