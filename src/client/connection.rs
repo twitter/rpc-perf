@@ -106,7 +106,7 @@ impl Connection {
 
     pub fn request_timeout(&self) -> u64 {
         let exponent = 1<<self.request_failures;
-        let timeout = self.request_timeout * exponent;
+        let timeout = self.request_timeout.saturating_mul(exponent);
         if let Some(max_timeout) = self.max_request_timeout {
             if timeout > max_timeout {
                 max_timeout
@@ -120,7 +120,7 @@ impl Connection {
 
     pub fn connect_timeout(&self) -> u64 {
         let exponent = 1<<self.connect_failures;
-        let timeout = self.connect_timeout * exponent;
+        let timeout = self.connect_timeout.saturating_mul(exponent);
         if let Some(max_timeout) = self.max_connect_timeout {
             if timeout > max_timeout {
                 max_timeout

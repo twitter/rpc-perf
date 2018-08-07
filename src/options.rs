@@ -28,12 +28,10 @@ pub fn opts() -> Options {
     opts.optopt("c", "connections", "connections per thread", "INTEGER");
     opts.optopt("d", "duration", "number of seconds per window", "INTEGER");
     opts.optopt("w", "windows", "number of windows in test", "INTEGER");
-    opts.optopt(
-        "",
-        "base-request-timeout",
-        "base request timeout in milliseconds",
-        "INTEGER",
-    );
+    // TODO: In the future we will implement exponential backoff instead of
+    // exponentially increasing timeouts. For now, []-timeout serves as the base
+    // or minimum timeout. Setting max-[]-timeout to the same value ensures old
+    // behavior
     opts.optopt(
         "",
         "request-timeout",
@@ -49,12 +47,6 @@ pub fn opts() -> Options {
     opts.optopt(
         "",
         "connect-timeout",
-        "base connect timeout in milliseconds",
-        "INTEGER",
-    );
-    opts.optopt(
-        "",
-        "base-connect-timeout",
         "base connect timeout in milliseconds",
         "INTEGER",
     );

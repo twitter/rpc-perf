@@ -143,6 +143,7 @@ impl Config {
     }
 
     /// the max timeout for responses in milliseconds
+    // TODO: replace this with actual backoff
     pub fn max_request_timeout(&self) -> Option<u64> {
         if self.max_request_timeout.is_some() {
             self.max_request_timeout
@@ -174,6 +175,7 @@ impl Config {
     }
 
     /// sets the max timeout for connects in milliseconds
+    // TODO: replace this with actual backoff
     pub fn set_max_connect_timeout(&mut self, milliseconds: Option<u64>) -> &mut Self {
         self.max_connect_timeout = milliseconds;
         self

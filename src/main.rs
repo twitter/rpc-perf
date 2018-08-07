@@ -218,8 +218,24 @@ fn print_config(
         config.windows(),
         config.duration()
     );
-    info!("Config: Request Timeout: Base: {} ms Max: {} ms", config.base_request_timeout().unwrap_or(0), config.max_request_timeout().unwrap_or(0));
-    info!("Config: Connect Timeout: Base: {} ms Max: {} ms", config.base_connect_timeout().unwrap_or(0), config.max_connect_timeout().unwrap_or(0));
+    let request_base = match config.base_request_timeout() {
+        Some(v) => format!("{}", v),
+        None => "None".to_string(),
+    };
+    let request_max = match config.max_request_timeout() {
+        Some(v) => format!("{}", v),
+        None => request_base.clone(),
+    };
+    let connect_base = match config.base_connect_timeout() {
+        Some(v) => format!("{}", v),
+        None => "None".to_string(),
+    };
+    let connect_max = match config.max_connect_timeout() {
+        Some(v) => format!("{}", v),
+        None => connect_base.clone(),
+    };
+    info!("Config: Request Timeout: Base: {} ms Max: {} ms", request_base, request_max);
+    info!("Config: Connect Timeout: Base: {} ms Max: {} ms", connect_base, connect_max);
     info!(
         "Config: Buffer size (bytes): RX: {} TX: {}",
         config.rx_buffer_size(),
