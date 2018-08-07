@@ -15,8 +15,8 @@
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
-pub use toml::de::Deserializer;
 pub use toml::Value;
+pub use toml::de::Deserializer;
 
 pub mod tools;
 
@@ -144,27 +144,37 @@ pub fn extract_parameter<T: Ptype>(
         Some(other) => return Err(format!("bad parameter style: {}", other)),
     };
 
-    let seed = parameter
-        .get("seed")
-        .and_then(|k| k.as_integer())
-        .map_or(index, |i| i as usize);
+    let seed = parameter.get("seed").and_then(|k| k.as_integer()).map_or(
+        index,
+        |i| {
+            i as usize
+        },
+    );
 
-    let size = parameter
-        .get("size")
-        .and_then(|k| k.as_integer())
-        .map_or(1, |i| i as usize);
+    let size = parameter.get("size").and_then(|k| k.as_integer()).map_or(
+        1,
+        |i| {
+            i as usize
+        },
+    );
 
-    let num = parameter
-        .get("num")
-        .and_then(|k| k.as_integer())
-        .map_or(0, |i| i as u64);
+    let num = parameter.get("num").and_then(|k| k.as_integer()).map_or(
+        0,
+        |i| {
+            i as u64
+        },
+    );
 
     // check that size is sufficiently large to contain num strings
     if num > 0 {
         let fmtlen = format!("{}", num - 1).len();
-        if  fmtlen > size {
-            return Err(format!("To contain {} strings, you need to specify a \
-                                size >= {}", num, fmtlen))
+        if fmtlen > size {
+            return Err(format!(
+                "To contain {} strings, you need to specify a \
+                                size >= {}",
+                num,
+                fmtlen
+            ));
         }
     }
 

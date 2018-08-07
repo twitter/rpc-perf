@@ -148,39 +148,51 @@ impl ProtocolGen for MemcacheCommand {
                 key.regen();
                 gen::delete(key.value.string.as_str()).into_bytes()
             }
-            MemcacheCommand::Cas(ref mut key, ref mut value, ref mut cas) => gen::cas(
-                key.value.string.as_str(),
-                value.value.string.as_str(),
-                None,
-                None,
-                cas.value.string.parse().unwrap_or(0),
-            ).into_bytes(),
-            MemcacheCommand::Replace(ref mut key, ref mut value) => gen::replace(
-                key.value.string.as_str(),
-                value.value.string.as_str(),
-                None,
-                None,
-            ).into_bytes(),
-            MemcacheCommand::Append(ref mut key, ref mut value) => gen::append(
-                key.value.string.as_str(),
-                value.value.string.as_str(),
-                None,
-                None,
-            ).into_bytes(),
-            MemcacheCommand::Prepend(ref mut key, ref mut value) => gen::prepend(
-                key.value.string.as_str(),
-                value.value.string.as_str(),
-                None,
-                None,
-            ).into_bytes(),
-            MemcacheCommand::Incr(ref mut key, ref mut value) => gen::incr(
-                key.value.string.as_str(),
-                value.value.string.parse().unwrap_or(1),
-            ).into_bytes(),
-            MemcacheCommand::Decr(ref mut key, ref mut value) => gen::decr(
-                key.value.string.as_str(),
-                value.value.string.parse().unwrap_or(1),
-            ).into_bytes(),
+            MemcacheCommand::Cas(ref mut key, ref mut value, ref mut cas) => {
+                gen::cas(
+                    key.value.string.as_str(),
+                    value.value.string.as_str(),
+                    None,
+                    None,
+                    cas.value.string.parse().unwrap_or(0),
+                ).into_bytes()
+            }
+            MemcacheCommand::Replace(ref mut key, ref mut value) => {
+                gen::replace(
+                    key.value.string.as_str(),
+                    value.value.string.as_str(),
+                    None,
+                    None,
+                ).into_bytes()
+            }
+            MemcacheCommand::Append(ref mut key, ref mut value) => {
+                gen::append(
+                    key.value.string.as_str(),
+                    value.value.string.as_str(),
+                    None,
+                    None,
+                ).into_bytes()
+            }
+            MemcacheCommand::Prepend(ref mut key, ref mut value) => {
+                gen::prepend(
+                    key.value.string.as_str(),
+                    value.value.string.as_str(),
+                    None,
+                    None,
+                ).into_bytes()
+            }
+            MemcacheCommand::Incr(ref mut key, ref mut value) => {
+                gen::incr(
+                    key.value.string.as_str(),
+                    value.value.string.parse().unwrap_or(1),
+                ).into_bytes()
+            }
+            MemcacheCommand::Decr(ref mut key, ref mut value) => {
+                gen::decr(
+                    key.value.string.as_str(),
+                    value.value.string.parse().unwrap_or(1),
+                ).into_bytes()
+            }
         }
     }
 
@@ -282,8 +294,8 @@ fn extract_workload(i: usize, workload: &BTreeMap<String, Value>) -> CResult<Ben
             "decr" if ps.len() == 2 => MemcacheCommand::Decr(ps[0].clone(), ps[1].clone()),
             "touch" if ps.len() == 2 => MemcacheCommand::Touch(ps[0].clone(), ps[1].clone()),
             "delete" if ps.len() == 1 => MemcacheCommand::Delete(ps[0].clone()),
-            "get" | "gets" | "set" | "add" | "verbosity" | "version" | "quit" | "cas"
-            | "replace" | "append" | "prepend" | "incr" | "decr" | "touch" | "delete" => {
+            "get" | "gets" | "set" | "add" | "verbosity" | "version" | "quit" | "cas" |
+            "replace" | "append" | "prepend" | "incr" | "decr" | "touch" | "delete" => {
                 return Err(format!(
                     "invalid number of params ({}) for method {}",
                     ps.len(),

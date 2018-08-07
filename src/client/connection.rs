@@ -20,9 +20,9 @@ use super::net::InternetProtocol;
 
 use bytes::{Buf, MutBuf};
 use client::buffer::Buffer;
+use mio::Ready;
 use mio::tcp::TcpStream;
 use mio::unix::UnixReady;
-use mio::Ready;
 use std::io::{self, Read, Write};
 use std::net::SocketAddr;
 
@@ -45,12 +45,34 @@ pub struct Factory {
 }
 
 impl Factory {
-    pub fn new(rx: usize, tx: usize, connect_timeout: u64, request_timeout: u64, max_connect_timeout: Option<u64>, max_request_timeout: Option<u64>) -> Factory {
-        Factory { rx, tx, connect_timeout, request_timeout, max_connect_timeout, max_request_timeout }
+    pub fn new(
+        rx: usize,
+        tx: usize,
+        connect_timeout: u64,
+        request_timeout: u64,
+        max_connect_timeout: Option<u64>,
+        max_request_timeout: Option<u64>,
+    ) -> Factory {
+        Factory {
+            rx,
+            tx,
+            connect_timeout,
+            request_timeout,
+            max_connect_timeout,
+            max_request_timeout,
+        }
     }
 
     pub fn connect(&self, address: SocketAddr) -> Connection {
-        Connection::new(address, self.rx, self.tx, self.connect_timeout, self.request_timeout, self.max_connect_timeout, self.max_request_timeout)
+        Connection::new(
+            address,
+            self.rx,
+            self.tx,
+            self.connect_timeout,
+            self.request_timeout,
+            self.max_connect_timeout,
+            self.max_request_timeout,
+        )
     }
 }
 
@@ -85,7 +107,15 @@ pub struct Connection {
 
 impl Connection {
     /// create connection with specified buffer sizes
-    pub fn new(address: SocketAddr, rx: usize, tx: usize, connect_timeout: u64, request_timeout: u64, max_connect_timeout: Option<u64>, max_request_timeout: Option<u64>) -> Self {
+    pub fn new(
+        address: SocketAddr,
+        rx: usize,
+        tx: usize,
+        connect_timeout: u64,
+        request_timeout: u64,
+        max_connect_timeout: Option<u64>,
+        max_request_timeout: Option<u64>,
+    ) -> Self {
         let mut c = Connection {
             stream: None,
             state: State::Connecting,
@@ -105,7 +135,7 @@ impl Connection {
     }
 
     pub fn request_timeout(&self) -> u64 {
-        let exponent = 1<<self.request_failures;
+        let exponent = 1 << self.request_failures;
         let timeout = self.request_timeout.saturating_mul(exponent);
         if let Some(max_timeout) = self.max_request_timeout {
             if timeout > max_timeout {
@@ -119,7 +149,7 @@ impl Connection {
     }
 
     pub fn connect_timeout(&self) -> u64 {
-        let exponent = 1<<self.connect_failures;
+        let exponent = 1 << self.connect_failures;
         let timeout = self.connect_timeout.saturating_mul(exponent);
         if let Some(max_timeout) = self.max_connect_timeout {
             if timeout > max_timeout {

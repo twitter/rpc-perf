@@ -26,15 +26,15 @@ use self::net::InternetProtocol;
 use cfgtypes::*;
 use common::stats::Stat;
 use mio;
-use mio::unix::UnixReady;
 use mio::{Evented, Events, Poll, PollOpt, Token};
+use mio::unix::UnixReady;
 use mpmc::Queue;
+use ratelimit;
 use std::collections::VecDeque;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::Arc;
 use std::time::Duration;
 use tic::{Clocksource, Sample, Sender};
-use ratelimit;
 
 const MAX_CONNECTIONS: usize = 65_536;
 const MAX_EVENTS: usize = 1024;
@@ -101,7 +101,7 @@ impl Client {
             config.base_request_timeout().unwrap_or(0),
             config.max_connect_timeout(),
             config.max_request_timeout(),
-            );
+        );
 
         let mut client = Client {
             clocksource: clocksource.clone(),
@@ -163,16 +163,16 @@ impl Client {
     fn set_timeout(&mut self, token: Token) {
         if self.is_connection(token) {
             if self.connections[token].is_connecting() {
-               let t = self.connections[token].connect_timeout() as u64;
-               debug!("set connect timeout {:?}: {}", token, t);
-                let deadline =
-                    self.clocksource.counter() + t * self.clocksource.frequency() as u64 / 1000;
+                let t = self.connections[token].connect_timeout() as u64;
+                debug!("set connect timeout {:?}: {}", token, t);
+                let deadline = self.clocksource.counter() +
+                    t * self.clocksource.frequency() as u64 / 1000;
                 self.connections[token].set_timeout(Some(deadline));
             } else {
                 let t = self.connections[token].request_timeout() as u64;
                 debug!("set request timeout {:?}: {}", token, t);
-                let deadline =
-                    self.clocksource.counter() + t * self.clocksource.frequency() as u64 / 1000;
+                let deadline = self.clocksource.counter() +
+                    t * self.clocksource.frequency() as u64 / 1000;
                 self.connections[token].set_timeout(Some(deadline));
             }
         }
@@ -184,18 +184,23 @@ impl Client {
     where
         E: Evented,
     {
-        match self
-            .poll
-            .register(io, token, self.event_set(token), self.poll_opt(token))
-        {
+        match self.poll.register(
+            io,
+            token,
+            self.event_set(token),
+            self.poll_opt(token),
+        ) {
             Ok(_) => {}
             Err(e) => {
                 if !self.poll.deregister(io).is_ok() {
                     debug!("error registering {:?}: {}", token, e);
                 } else {
-                    let _ =
-                        self.poll
-                            .register(io, token, self.event_set(token), self.poll_opt(token));
+                    let _ = self.poll.register(
+                        io,
+                        token,
+                        self.event_set(token),
+                        self.poll_opt(token),
+                    );
                 }
             }
         }
@@ -253,15 +258,15 @@ impl Client {
             for addr in result {
                 match addr {
                     SocketAddr::V4(_) => {
-                        if self.config.internet_protocol() == InternetProtocol::Any
-                            || self.config.internet_protocol() == InternetProtocol::IpV4
+                        if self.config.internet_protocol() == InternetProtocol::Any ||
+                            self.config.internet_protocol() == InternetProtocol::IpV4
                         {
                             return Ok(addr);
                         }
                     }
                     SocketAddr::V6(_) => {
-                        if self.config.internet_protocol() == InternetProtocol::Any
-                            || self.config.internet_protocol() == InternetProtocol::IpV6
+                        if self.config.internet_protocol() == InternetProtocol::Any ||
+                            self.config.internet_protocol() == InternetProtocol::IpV6
                         {
                             return Ok(addr);
                         }
@@ -505,10 +510,9 @@ impl Client {
                 }
             }
         }
-        let mut events = self
-            .events
-            .take()
-            .unwrap_or_else(|| Events::with_capacity(MAX_EVENTS));
+        let mut events = self.events.take().unwrap_or_else(
+            || Events::with_capacity(MAX_EVENTS),
+        );
 
         self.poll
             .poll(&mut events, Some(Duration::from_millis(TICK_MS)))

@@ -17,11 +17,9 @@ mod gen;
 mod parse;
 
 use cfgtypes;
+use cfgtypes::{BenchmarkWorkload, CResult, Parameter, ParsedResponse, ProtocolConfig, ProtocolGen,
+               ProtocolParse, ProtocolParseFactory, Ptype};
 use cfgtypes::tools;
-use cfgtypes::{
-    BenchmarkWorkload, CResult, Parameter, ParsedResponse, ProtocolConfig, ProtocolGen,
-    ProtocolParse, ProtocolParseFactory, Ptype,
-};
 use getopts::Matches;
 use std::collections::BTreeMap;
 use std::str;
@@ -80,7 +78,11 @@ impl Command {
                 p1.regen();
                 p2.regen();
                 if let Some(p3_val) = p3 {
-                    gen::set(p1.value.string.as_str(), p2.value.string.as_str(), Some(p3_val.value.string.as_str())).into_bytes()
+                    gen::set(
+                        p1.value.string.as_str(),
+                        p2.value.string.as_str(),
+                        Some(p3_val.value.string.as_str()),
+                    ).into_bytes()
                 } else {
                     gen::set(p1.value.string.as_str(), p2.value.string.as_str(), None).into_bytes()
                 }
@@ -254,7 +256,9 @@ fn extract_workload(workload: &BTreeMap<String, Value>) -> CResult<BenchmarkWork
             "get" if ps.len() == 1 => Command::Get(ps[0].clone()),
             "hget" if ps.len() == 2 => Command::Hget(ps[0].clone(), ps[1].clone()),
             "set" if ps.len() == 2 => Command::Set(ps[0].clone(), ps[1].clone(), None),
-            "set" if ps.len() == 3 => Command::Set(ps[0].clone(), ps[1].clone(), Some(ps[2].clone())),
+            "set" if ps.len() == 3 => {
+                Command::Set(ps[0].clone(), ps[1].clone(), Some(ps[2].clone()))
+            }
             "hset" if ps.len() == 3 => Command::Hset(ps[0].clone(), ps[1].clone(), ps[2].clone()),
             "del" if ps.len() == 1 => Command::Del(ps[0].clone()),
             "expire" if ps.len() == 2 => Command::Expire(ps[0].clone(), ps[1].clone()),
@@ -262,8 +266,8 @@ fn extract_workload(workload: &BTreeMap<String, Value>) -> CResult<BenchmarkWork
             "decr" if ps.len() == 1 => Command::Decr(ps[0].clone()),
             "append" if ps.len() == 2 => Command::Append(ps[0].clone(), ps[1].clone()),
             "prepend" if ps.len() == 1 => Command::Prepend(ps[0].clone(), ps[1].clone()),
-            "get" | "set" | "hset" | "hget" | "del" | "expire" | "incr" | "decr" | "append"
-            | "prepend" => {
+            "get" | "set" | "hset" | "hget" | "del" | "expire" | "incr" | "decr" | "append" |
+            "prepend" => {
                 return Err(format!(
                     "invalid number of params ({}) for method {}",
                     ps.len(),

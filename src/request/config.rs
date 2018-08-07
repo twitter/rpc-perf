@@ -127,16 +127,25 @@ fn load_config_table(
         if let Some(v) = general.get("request-timeout").and_then(|k| k.as_integer()) {
             config.set_base_request_timeout(Some(v as u64));
         }
-        if let Some(v) = general.get("max-request-timeout").and_then(|k| k.as_integer()) {
+        if let Some(v) = general.get("max-request-timeout").and_then(
+            |k| k.as_integer(),
+        )
+        {
             config.set_max_request_timeout(Some(v as u64));
         }
         if let Some(v) = general.get("connect-timeout").and_then(|k| k.as_integer()) {
             config.set_base_connect_timeout(Some(v as u64));
         }
-        if let Some(v) = general.get("max-connect-timeout").and_then(|k| k.as_integer()) {
+        if let Some(v) = general.get("max-connect-timeout").and_then(
+            |k| k.as_integer(),
+        )
+        {
             config.set_max_connect_timeout(Some(v as u64));
         }
-        if let Some(v) = general.get("connect-ratelimit").and_then(|k| k.as_integer()) {
+        if let Some(v) = general.get("connect-ratelimit").and_then(
+            |k| k.as_integer(),
+        )
+        {
             config.set_connect_ratelimit(Some(v as u64));
         }
         if let Some(v) = general.get("rx-buffer-size").and_then(|k| k.as_integer()) {

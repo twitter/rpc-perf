@@ -16,10 +16,8 @@
 mod gen;
 mod parse;
 
-use cfgtypes::{
-    BenchmarkWorkload, CResult, ParsedResponse, ProtocolConfig, ProtocolGen, ProtocolParse,
-    ProtocolParseFactory,
-};
+use cfgtypes::{BenchmarkWorkload, CResult, ParsedResponse, ProtocolConfig, ProtocolGen,
+               ProtocolParse, ProtocolParseFactory};
 use std::collections::BTreeMap;
 use std::str;
 use std::sync::Arc;

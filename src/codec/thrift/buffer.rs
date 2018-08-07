@@ -141,9 +141,7 @@ mod tests {
 
     #[test]
     fn test_protocol_header() {
-        test_buff(&[0, 0, 0, 0, 128, 1, 0, 1], |b| {
-            b.protocol_header();
-        });
+        test_buff(&[0, 0, 0, 0, 128, 1, 0, 1], |b| { b.protocol_header(); });
     }
 
     #[test]
@@ -163,8 +161,6 @@ mod tests {
 
     #[test]
     fn test_stop() {
-        test_buff(&vec![0, 0, 0, 0, 0], |b| {
-            b.stop();
-        });
+        test_buff(&vec![0, 0, 0, 0, 0], |b| { b.stop(); });
     }
 }

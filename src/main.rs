@@ -47,12 +47,12 @@ mod options;
 mod request;
 mod stats;
 
-use client::net::InternetProtocol;
 use client::Client;
+use client::net::InternetProtocol;
 use common::*;
 use request::{config, workload};
-use std::sync::Arc;
 use std::{env, thread};
+use std::sync::Arc;
 use std::time::Duration;
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
@@ -118,16 +118,18 @@ pub fn main() {
 
     let connect_ratelimit = {
         if let Some(rate) = config.connect_ratelimit() {
-            Some(ratelimit::Builder::new()
-                .capacity(1)
-                .quantum(1)
-                .interval(Duration::new(0, (1_000_000_000 / rate) as u32))
-                .build())
+            Some(
+                ratelimit::Builder::new()
+                    .capacity(1)
+                    .quantum(1)
+                    .interval(Duration::new(0, (1_000_000_000 / rate) as u32))
+                    .build(),
+            )
         } else {
             None
         }
     };
-    
+
 
     let mut send_queues = Vec::new();
 
@@ -149,11 +151,11 @@ pub fn main() {
 
     if let Some(mut ratelimit) = connect_ratelimit {
         client_config.set_connect_ratelimit(Some(ratelimit.make_handle()));
-        let _ = thread::Builder::new()
-            .name(format!("limiter"))
-            .spawn(move || {
+        let _ = thread::Builder::new().name(format!("limiter")).spawn(
+            move || {
                 ratelimit.run();
-            });
+            },
+        );
     }
     for server in servers {
         client_config.add_server(server);
@@ -169,9 +171,7 @@ pub fn main() {
 
         let _ = thread::Builder::new()
             .name(format!("client{}", i).to_string())
-            .spawn(move || {
-                client.run();
-            });
+            .spawn(move || { client.run(); });
     }
 
     info!("-----");
@@ -234,8 +234,16 @@ fn print_config(
         Some(v) => format!("{}", v),
         None => connect_base.clone(),
     };
-    info!("Config: Request Timeout: Base: {} ms Max: {} ms", request_base, request_max);
-    info!("Config: Connect Timeout: Base: {} ms Max: {} ms", connect_base, connect_max);
+    info!(
+        "Config: Request Timeout: Base: {} ms Max: {} ms",
+        request_base,
+        request_max
+    );
+    info!(
+        "Config: Connect Timeout: Base: {} ms Max: {} ms",
+        connect_base,
+        connect_max
+    );
     info!(
         "Config: Buffer size (bytes): RX: {} TX: {}",
         config.rx_buffer_size(),

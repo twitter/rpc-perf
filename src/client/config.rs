@@ -13,13 +13,13 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use super::net::InternetProtocol;
 use super::*;
+use super::net::InternetProtocol;
 use cfgtypes::*;
 use common::*;
+use ratelimit;
 use std::sync::Arc;
 use tic::{Clocksource, Sender};
-use ratelimit;
 
 const MAX_CONNECTIONS: usize = 65_536;
 const KILOBYTE: usize = 1024;
