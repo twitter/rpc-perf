@@ -26,9 +26,10 @@ use self::net::InternetProtocol;
 use cfgtypes::*;
 use common::stats::Stat;
 use mio;
-use mio::unix::UnixReady;
 use mio::{Evented, Events, Poll, PollOpt, Token};
+use mio::unix::UnixReady;
 use mpmc::Queue;
+use ratelimit;
 use std::collections::VecDeque;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::Arc;
@@ -58,8 +59,8 @@ pub struct Client {
     rtimes: Vec<u64>,
     clocksource: Clocksource,
     protocol: Box<ProtocolParse>,
-    request_timeout: Option<u64>,
     connect_timeout: Option<u64>,
+    connect_ratelimit: Option<ratelimit::Handle>,
     events: Option<Events>,
 }
 
@@ -93,7 +94,14 @@ impl Client {
 
         let clocksource = config.clocksource().unwrap();
 
-        let factory = Factory::new(config.rx_buffer_size(), config.tx_buffer_size());
+        let factory = Factory::new(
+            config.rx_buffer_size(),
+            config.tx_buffer_size(),
+            config.base_connect_timeout().unwrap_or(0),
+            config.base_request_timeout().unwrap_or(0),
+            config.max_connect_timeout(),
+            config.max_request_timeout(),
+        );
 
         let mut client = Client {
             clocksource: clocksource.clone(),
@@ -108,13 +116,16 @@ impl Client {
             times: vec![clocksource.counter(); MAX_CONNECTIONS],
             rtimes: vec![clocksource.counter(); MAX_CONNECTIONS],
             protocol: Arc::clone(&config.protocol().unwrap()).new(),
-            request_timeout: config.request_timeout(),
-            connect_timeout: config.connect_timeout(),
+            connect_timeout: config.base_connect_timeout(),
+            connect_ratelimit: config.connect_ratelimit(),
         };
 
         for server in client.config.servers() {
             if let Ok(sock_addr) = client.resolve(server.clone()) {
                 for _ in 0..client.config.pool_size() {
+                    if let Some(mut ratelimit) = client.connect_ratelimit.clone() {
+                        ratelimit.wait();
+                    }
                     let connection = client.factory.connect(sock_addr);
                     match client.connections.insert(connection) {
                         Ok(token) => {
@@ -124,6 +135,7 @@ impl Client {
                                 client.set_timeout(token);
                             } else {
                                 error!("failure creating connection");
+                                client.connections[token].connect_failed();
                             }
                         }
                         Err(_) => {
@@ -151,14 +163,16 @@ impl Client {
     fn set_timeout(&mut self, token: Token) {
         if self.is_connection(token) {
             if self.connections[token].is_connecting() {
-                if let Some(t) = self.connect_timeout {
-                    let deadline =
-                        self.clocksource.counter() + t * self.clocksource.frequency() as u64 / 1000;
-                    self.connections[token].set_timeout(Some(deadline));
-                }
-            } else if let Some(t) = self.request_timeout {
-                let deadline =
-                    self.clocksource.counter() + t * self.clocksource.frequency() as u64 / 1000;
+                let t = self.connections[token].connect_timeout() as u64;
+                debug!("set connect timeout {:?}: {}", token, t);
+                let deadline = self.clocksource.counter() +
+                    t * self.clocksource.frequency() as u64 / 1000;
+                self.connections[token].set_timeout(Some(deadline));
+            } else {
+                let t = self.connections[token].request_timeout() as u64;
+                debug!("set request timeout {:?}: {}", token, t);
+                let deadline = self.clocksource.counter() +
+                    t * self.clocksource.frequency() as u64 / 1000;
                 self.connections[token].set_timeout(Some(deadline));
             }
         }
@@ -170,18 +184,23 @@ impl Client {
     where
         E: Evented,
     {
-        match self
-            .poll
-            .register(io, token, self.event_set(token), self.poll_opt(token))
-        {
+        match self.poll.register(
+            io,
+            token,
+            self.event_set(token),
+            self.poll_opt(token),
+        ) {
             Ok(_) => {}
             Err(e) => {
                 if !self.poll.deregister(io).is_ok() {
                     debug!("error registering {:?}: {}", token, e);
                 } else {
-                    let _ =
-                        self.poll
-                            .register(io, token, self.event_set(token), self.poll_opt(token));
+                    let _ = self.poll.register(
+                        io,
+                        token,
+                        self.event_set(token),
+                        self.poll_opt(token),
+                    );
                 }
             }
         }
@@ -239,15 +258,15 @@ impl Client {
             for addr in result {
                 match addr {
                     SocketAddr::V4(_) => {
-                        if self.config.internet_protocol() == InternetProtocol::Any
-                            || self.config.internet_protocol() == InternetProtocol::IpV4
+                        if self.config.internet_protocol() == InternetProtocol::Any ||
+                            self.config.internet_protocol() == InternetProtocol::IpV4
                         {
                             return Ok(addr);
                         }
                     }
                     SocketAddr::V6(_) => {
-                        if self.config.internet_protocol() == InternetProtocol::Any
-                            || self.config.internet_protocol() == InternetProtocol::IpV6
+                        if self.config.internet_protocol() == InternetProtocol::Any ||
+                            self.config.internet_protocol() == InternetProtocol::IpV6
                         {
                             return Ok(addr);
                         }
@@ -260,18 +279,34 @@ impl Client {
 
     /// reconnect helper
     fn reconnect(&mut self, token: Token) {
-        debug!("reconnect {:?}", token);
-        self.close(token);
-        self.times[token.0] = self.clocksource.counter();
-        self.connections[token].connect();
-        self.send_stat(token, Stat::SocketCreate);
-        if self.connections[token].stream().is_some() {
-            self.register(self.connections[token].stream().unwrap(), token);
-            self.set_timeout(token);
+        let wait = if let Some(ref mut r) = self.connect_ratelimit {
+            if r.try_wait().is_ok() {
+                debug!("connect tokens available");
+                None
+            } else {
+                Some(())
+            }
         } else {
-            debug!("failure reconnecting");
-            self.send_stat(token, Stat::ConnectError);
-            self.set_timeout(token); // set a delay to reconnect
+            None
+        };
+
+        if wait.is_none() {
+            debug!("reconnect {:?}", token);
+            self.close(token);
+            self.times[token.0] = self.clocksource.counter();
+            self.connections[token].connect();
+            self.send_stat(token, Stat::SocketCreate);
+            if self.connections[token].stream().is_some() {
+                self.register(self.connections[token].stream().unwrap(), token);
+                self.set_timeout(token);
+            } else {
+                debug!("failure reconnecting");
+                self.send_stat(token, Stat::ConnectError);
+                self.set_timeout(token); // set a delay to reconnect
+            }
+        } else {
+            debug!("delay reconnect {:?}", token);
+            self.set_timeout(token);
         }
     }
 
@@ -338,6 +373,7 @@ impl Client {
                     self.clear_timer(token);
                     self.set_state(token, State::Established);
                     self.idle(token);
+                    self.connections[token].clear_failures();
                 }
             }
         } else {
@@ -354,6 +390,7 @@ impl Client {
         match self.state(token) {
             State::Connecting => {
                 self.send_stat(token, Stat::ConnectTimeout);
+                self.connections[token].connect_failed();
                 self.reconnect(token);
             }
             State::Closed => {
@@ -362,6 +399,7 @@ impl Client {
             State::Established => error!("timeout for State::Established"),
             State::Reading => {
                 self.send_stat(token, Stat::ResponseTimeout);
+                self.connections[token].request_failed();
                 self.reconnect(token);
             }
             State::Writing => {
@@ -382,6 +420,7 @@ impl Client {
             }
         } else {
             self.send_stat(token, Stat::ConnectError);
+            self.connections[token].connect_failed();
             self.reconnect(token);
         }
     }
@@ -421,7 +460,9 @@ impl Client {
             if UnixReady::from(event.readiness()).is_hup() {
                 debug!("hangup on connect {:?}", token);
                 self.send_stat(token, Stat::ConnectError);
-                self.reconnect(token);
+                if self.connect_timeout.is_none() {
+                    self.reconnect(token);
+                }
                 return;
             } else {
                 trace!("connection established {:?}", token);
@@ -469,10 +510,9 @@ impl Client {
                 }
             }
         }
-        let mut events = self
-            .events
-            .take()
-            .unwrap_or_else(|| Events::with_capacity(MAX_EVENTS));
+        let mut events = self.events.take().unwrap_or_else(
+            || Events::with_capacity(MAX_EVENTS),
+        );
 
         self.poll
             .poll(&mut events, Some(Duration::from_millis(TICK_MS)))

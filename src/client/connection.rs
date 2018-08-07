@@ -20,9 +20,9 @@ use super::net::InternetProtocol;
 
 use bytes::{Buf, MutBuf};
 use client::buffer::Buffer;
+use mio::Ready;
 use mio::tcp::TcpStream;
 use mio::unix::UnixReady;
-use mio::Ready;
 use std::io::{self, Read, Write};
 use std::net::SocketAddr;
 
@@ -38,15 +38,41 @@ pub enum State {
 pub struct Factory {
     rx: usize,
     tx: usize,
+    connect_timeout: u64,
+    max_connect_timeout: Option<u64>,
+    request_timeout: u64,
+    max_request_timeout: Option<u64>,
 }
 
 impl Factory {
-    pub fn new(rx: usize, tx: usize) -> Factory {
-        Factory { rx: rx, tx: tx }
+    pub fn new(
+        rx: usize,
+        tx: usize,
+        connect_timeout: u64,
+        request_timeout: u64,
+        max_connect_timeout: Option<u64>,
+        max_request_timeout: Option<u64>,
+    ) -> Factory {
+        Factory {
+            rx,
+            tx,
+            connect_timeout,
+            request_timeout,
+            max_connect_timeout,
+            max_request_timeout,
+        }
     }
 
     pub fn connect(&self, address: SocketAddr) -> Connection {
-        Connection::new(address, self.rx, self.tx)
+        Connection::new(
+            address,
+            self.rx,
+            self.tx,
+            self.connect_timeout,
+            self.request_timeout,
+            self.max_connect_timeout,
+            self.max_request_timeout,
+        )
     }
 }
 
@@ -55,6 +81,10 @@ impl Default for Factory {
         Factory {
             rx: RX_BUFFER,
             tx: TX_BUFFER,
+            request_timeout: 0,
+            connect_timeout: 0,
+            max_connect_timeout: None,
+            max_request_timeout: None,
         }
     }
 }
@@ -67,11 +97,25 @@ pub struct Connection {
     buffer: Buffer,
     timeout: Option<u64>,
     protocol: InternetProtocol,
+    connect_failures: u64,
+    connect_timeout: u64,
+    max_connect_timeout: Option<u64>,
+    request_failures: u64,
+    request_timeout: u64,
+    max_request_timeout: Option<u64>,
 }
 
 impl Connection {
     /// create connection with specified buffer sizes
-    pub fn new(address: SocketAddr, rx: usize, tx: usize) -> Self {
+    pub fn new(
+        address: SocketAddr,
+        rx: usize,
+        tx: usize,
+        connect_timeout: u64,
+        request_timeout: u64,
+        max_connect_timeout: Option<u64>,
+        max_request_timeout: Option<u64>,
+    ) -> Self {
         let mut c = Connection {
             stream: None,
             state: State::Connecting,
@@ -79,9 +123,56 @@ impl Connection {
             timeout: None,
             protocol: InternetProtocol::Any,
             addr: address,
+            connect_failures: 0,
+            connect_timeout,
+            max_connect_timeout,
+            request_failures: 0,
+            request_timeout,
+            max_request_timeout,
         };
         c.reconnect();
         c
+    }
+
+    pub fn request_timeout(&self) -> u64 {
+        let exponent = 1 << self.request_failures;
+        let timeout = self.request_timeout.saturating_mul(exponent);
+        if let Some(max_timeout) = self.max_request_timeout {
+            if timeout > max_timeout {
+                max_timeout
+            } else {
+                timeout
+            }
+        } else {
+            timeout
+        }
+    }
+
+    pub fn connect_timeout(&self) -> u64 {
+        let exponent = 1 << self.connect_failures;
+        let timeout = self.connect_timeout.saturating_mul(exponent);
+        if let Some(max_timeout) = self.max_connect_timeout {
+            if timeout > max_timeout {
+                max_timeout
+            } else {
+                timeout
+            }
+        } else {
+            timeout
+        }
+    }
+
+    pub fn clear_failures(&mut self) {
+        self.connect_failures = 0;
+        self.request_failures = 0;
+    }
+
+    pub fn connect_failed(&mut self) {
+        self.connect_failures += 1;
+    }
+
+    pub fn request_failed(&mut self) {
+        self.request_failures += 1;
     }
 
     pub fn close(&mut self) -> Option<TcpStream> {
@@ -110,6 +201,11 @@ impl Connection {
 
     /// reconnect the connection in write mode
     pub fn reconnect(&mut self) {
+        if self.state == State::Reading {
+            self.request_failures += 1
+        } else {
+            self.request_failures = 0;
+        }
         let _ = self.close();
         self.connect();
     }

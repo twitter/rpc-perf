@@ -28,18 +28,35 @@ pub fn opts() -> Options {
     opts.optopt("c", "connections", "connections per thread", "INTEGER");
     opts.optopt("d", "duration", "number of seconds per window", "INTEGER");
     opts.optopt("w", "windows", "number of windows in test", "INTEGER");
+    // TODO: In the future we will implement exponential backoff instead of
+    // exponentially increasing timeouts. For now, []-timeout serves as the base
+    // or minimum timeout. Setting max-[]-timeout to the same value ensures old
+    // behavior
     opts.optopt(
         "",
         "request-timeout",
-        "request timeout in milliseconds",
+        "base request timeout in milliseconds",
+        "INTEGER",
+    );
+    opts.optopt(
+        "",
+        "max-request-timeout",
+        "max request timeout in milliseconds",
         "INTEGER",
     );
     opts.optopt(
         "",
         "connect-timeout",
-        "connect timeout in milliseconds",
+        "base connect timeout in milliseconds",
         "INTEGER",
     );
+    opts.optopt(
+        "",
+        "max-connect-timeout",
+        "max connect timeout in milliseconds",
+        "INTEGER",
+    );
+    opts.optopt("", "connect-ratelimit", "connect/s", "INTEGER");
     opts.optopt("p", "protocol", "client protocol", "STRING");
     opts.optopt("", "config", "TOML config file", "FILE");
     opts.optopt("", "listen", "listen address for stats", "HOST:PORT");

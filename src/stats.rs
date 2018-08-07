@@ -63,7 +63,8 @@ pub fn stats_receiver_init(
         Stat::ResponseOkHit,
         Stat::ResponseOkMiss,
         Stat::ConnectOk,
-    ] {
+    ]
+    {
         stats_receiver.add_interest(Interest::Percentile(c));
     }
 
@@ -105,15 +106,15 @@ pub fn run(mut receiver: Receiver<Stat>, windows: usize, infinite: bool) {
             info!("Warmup complete");
             warmup = false;
         } else {
-            let responses = meters_delta(&m0, &m1, &Stat::ResponseOk)
-                + meters_delta(&m0, &m1, &Stat::ResponseError);
+            let responses = meters_delta(&m0, &m1, &Stat::ResponseOk) +
+                meters_delta(&m0, &m1, &Stat::ResponseError);
 
-            let rate = responses as f64
-                / ((clocksource.convert(t1) - clocksource.convert(t0)) as f64 / 1_000_000_000.0);
+            let rate = responses as f64 /
+                ((clocksource.convert(t1) - clocksource.convert(t0)) as f64 / 1_000_000_000.0);
 
             let success_rate = if responses > 0 {
-                100.0 * (responses - meters_delta(&m0, &m1, &Stat::ResponseError)) as f64
-                    / (responses + meters_delta(&m0, &m1, &Stat::ResponseTimeout)) as f64
+                100.0 * (responses - meters_delta(&m0, &m1, &Stat::ResponseError)) as f64 /
+                    (responses + meters_delta(&m0, &m1, &Stat::ResponseTimeout)) as f64
             } else {
                 0.0
             };
@@ -129,12 +130,12 @@ pub fn run(mut receiver: Receiver<Stat>, windows: usize, infinite: bool) {
 
             info!("-----");
             info!("Window: {}", window);
-            let inflight = *m1.count(&Stat::RequestSent).unwrap_or(&0) as i64
-                - *m1.count(&Stat::ResponseOk).unwrap_or(&0) as i64
-                - *m1.count(&Stat::ResponseError).unwrap_or(&0) as i64
-                - *m1.count(&Stat::ResponseTimeout).unwrap_or(&0) as i64;
-            let open = *m1.count(&Stat::SocketCreate).unwrap_or(&0) as i64
-                - *m1.count(&Stat::SocketClose).unwrap_or(&0) as i64;
+            let inflight = *m1.count(&Stat::RequestSent).unwrap_or(&0) as i64 -
+                *m1.count(&Stat::ResponseOk).unwrap_or(&0) as i64 -
+                *m1.count(&Stat::ResponseError).unwrap_or(&0) as i64 -
+                *m1.count(&Stat::ResponseTimeout).unwrap_or(&0) as i64;
+            let open = *m1.count(&Stat::SocketCreate).unwrap_or(&0) as i64 -
+                *m1.count(&Stat::SocketClose).unwrap_or(&0) as i64;
             info!(
                 "Connections: Ok: {} Error: {} Timeout: {} Open: {}",
                 meters_delta(&m0, &m1, &Stat::ConnectOk),
@@ -166,7 +167,12 @@ pub fn run(mut receiver: Receiver<Stat>, windows: usize, infinite: bool) {
             );
             info!(
                 "Rate: {:.*} rps Success: {:.*} % Hit Rate: {:.*} %",
-                2, rate, 2, success_rate, 2, hit_rate
+                2,
+                rate,
+                2,
+                success_rate,
+                2,
+                hit_rate
             );
             display_percentiles(&m1, &Stat::ResponseOk, "Response OK");
         }
