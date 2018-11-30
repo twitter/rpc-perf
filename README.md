@@ -18,7 +18,7 @@ rpc-perf was created to help measure the performance of caching systems. We've f
 
 ## Getting rpc-perf
 
-rpc-perf is built through the `cargo` command which ships with rust. If you don't have rust installed, you can use [rustup][rustup] to manage your rust installation. Otherwise, follow the instructions on [rust-lang.org][rust-lang] to get rust and cargo installed. rpc-perf targets stable rust.
+rpc-perf is built through the `cargo` command which ships with rust. If you don't have rust installed, you can use [rustup][rustup] to manage your rust installation. Otherwise, follow the instructions on [rust-lang.org](https://rust-lang.org) to get rust and cargo installed. rpc-perf targets stable rust.
 
 ### Build from source
 
