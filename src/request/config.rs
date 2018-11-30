@@ -115,6 +115,9 @@ fn load_config_table(
         if let Some(windows) = general.get("windows").and_then(|k| k.as_integer()) {
             config.windows = windows as usize;
         }
+        if let Some(warmup) = general.get("warmup").and_then(|k| k.as_float()) {
+            config.warmup = warmup;
+        }
         if let Some(tcp_nodelay) = general.get("tcp-nodelay").and_then(|k| k.as_bool()) {
             config.tcp_nodelay = tcp_nodelay;
         }
@@ -179,6 +182,10 @@ fn config_overrides(config: &mut BenchmarkConfig, matches: &Matches) -> Result<(
 
     if let Some(duration) = parse_opt("duration", matches)? {
         config.set_duration(duration);
+    }
+
+    if let Some(warmup) = parse_opt("warmup", matches)? {
+        config.set_warmup(warmup);
     }
 
     // TODO: In the future we will implement exponential backoff instead of

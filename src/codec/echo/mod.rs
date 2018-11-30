@@ -23,10 +23,12 @@ use toml::Value;
 
 pub struct EchoParser;
 
+#[derive(Clone)]
 struct EchoGen {
     value: Parameter<EchoData>,
 }
 
+#[derive(Clone)]
 struct EchoData {
     size: usize,
     bytes: Vec<u8>,
@@ -64,6 +66,10 @@ impl ProtocolGen for EchoGen {
     fn method(&self) -> &str {
         "echo"
     }
+
+    fn boxed(&self) -> Box<ProtocolGen> {
+        Box::new(self.clone())
+    }
 }
 
 impl ProtocolParse for EchoParser {
@@ -99,6 +105,7 @@ pub fn load_config(table: &BTreeMap<String, Value>) -> CResult<ProtocolConfig> {
         Ok(ProtocolConfig {
             protocol: Arc::new(EchoParser),
             workloads: ws,
+            warmups: Vec::new(),
         })
     } else {
         Err("memcache: no workloads specified".to_owned())

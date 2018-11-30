@@ -38,10 +38,21 @@ impl BenchmarkWorkload {
     }
 }
 
+impl Clone for BenchmarkWorkload {
+    fn clone(&self) -> BenchmarkWorkload {
+        BenchmarkWorkload {
+            name: self.name.clone(),
+            rate: self.rate,
+            gen: self.gen.boxed(),
+        }
+    }
+}
+
 /// Protocol specific parsing generator and workloads
 pub struct ProtocolConfig {
     pub protocol: Arc<ProtocolParseFactory>,
     pub workloads: Vec<BenchmarkWorkload>,
+    pub warmups: Vec<BenchmarkWorkload>,
 }
 
 #[derive(PartialEq, Debug)]
@@ -63,6 +74,9 @@ pub trait ProtocolGen: Send {
 
     /// The method being called on the server
     fn method(&self) -> &str;
+
+    /// Create a new ProtocolGen Box
+    fn boxed(&self) -> Box<ProtocolGen>;
 }
 
 /// Factory for `ProtocolParse` instances

@@ -55,6 +55,44 @@ pub fn launch_workloads(
     }
 }
 
+pub fn launch_warmup(
+    workloads: Vec<cfgtypes::BenchmarkWorkload>,
+    work_queue: &[Queue<Vec<u8>>],
+    stats: &Sender<Stat>,
+    clocksource: &Clocksource,
+    duration: usize,
+)  -> Vec<thread::JoinHandle<()>> {
+
+    let mut threads = Vec::new();
+
+    for (i, w) in workloads.into_iter().enumerate() {
+        info!(
+            "Workload {}: Method: {} Rate: {}",
+            i,
+            w.gen.method(),
+            w.rate
+        );
+
+        let mut workload = Workload::new(
+            w.gen,
+            Some(w.rate as u64),
+            work_queue.to_vec(),
+            stats.clone(),
+            clocksource.clone(),
+        ).unwrap();
+
+        let t = thread::Builder::new()
+            .name(format!("workload{}", i).to_string())
+            .spawn(move ||
+                workload.warmup(duration)
+            );
+
+        threads.push(t.unwrap());
+    }
+
+    threads
+}
+
 struct Workload {
     protocol: Box<ProtocolGen>,
     ratelimit: Option<ratelimit::Limiter>,
@@ -75,6 +113,7 @@ impl Workload {
         let mut ratelimit = None;
         if let Some(r) = rate {
             if r > 0 {
+
                 ratelimit = Some(
                     ratelimit::Builder::new()
                         .frequency(r as u32)
@@ -101,6 +140,39 @@ impl Workload {
             }
             let t0 = self.clocksource.counter();
             let mut msg = Some(self.protocol.generate_message());
+            loop {
+                match self.queue[index].push(msg.take().unwrap()) {
+                    Ok(_) => {
+                        let t1 = self.clocksource.counter();
+                        let _ = self.stats.send(Sample::new(t0, t1, Stat::RequestPrepared));
+                        break;
+                    }
+                    Err(m) => {
+                        msg = Some(m);
+                    }
+                }
+                index += 1;
+                if index >= self.queue.len() {
+                    index = 0;
+                    break;
+                }
+            }
+        }
+    }
+
+    fn warmup(&mut self, duration: usize) {
+        let mut index = 0;
+        let d = duration as u64;
+        let mut t0 = self.clocksource.counter();
+        let end = t0 + d * 1_000_000_000;
+
+        while t0 < end {
+            if let Some(ref mut ratelimit) = self.ratelimit {
+                ratelimit.wait();
+            }
+            t0 = self.clocksource.counter();
+            let mut msg = Some(self.protocol.generate_message());
+
             loop {
                 match self.queue[index].push(msg.take().unwrap()) {
                     Ok(_) => {

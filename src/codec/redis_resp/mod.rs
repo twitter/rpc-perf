@@ -49,6 +49,7 @@ impl Ptype for RedisData {
     }
 }
 
+#[derive(Clone)]
 enum Command {
     Get(Param),
     Hget(Param, Param),
@@ -146,6 +147,10 @@ impl ProtocolGen for Command {
             Command::Prepend(_, _) => "prepend",
         }
     }
+
+    fn boxed(&self) -> Box<ProtocolGen> {
+        Box::new(self.clone())
+    }
 }
 
 impl ProtocolParseFactory for RedisParseFactory {
@@ -207,6 +212,7 @@ pub fn load_config(table: &BTreeMap<String, Value>, matches: &Matches) -> CResul
         Ok(ProtocolConfig {
             protocol: proto,
             workloads: ws,
+            warmups: Vec::new(), // todo: write warmup extraction
         })
     } else {
         Err("no workloads specified".to_owned())

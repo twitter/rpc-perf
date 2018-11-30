@@ -25,6 +25,7 @@ use std::sync::Arc;
 pub struct ThriftParse;
 struct ThriftParseFactory;
 
+#[derive(Clone)]
 struct ThriftGen {
     method: String,
     parameters: Vec<Parameter>,
@@ -41,6 +42,10 @@ impl ProtocolGen for ThriftGen {
 
     fn method(&self) -> &str {
         &self.method
+    }
+
+    fn boxed(&self) -> Box<ProtocolGen> {
+        Box::new(self.clone())
     }
 }
 
@@ -76,6 +81,7 @@ pub fn load_config(table: &BTreeMap<String, Value>) -> CResult<ProtocolConfig> {
         Ok(ProtocolConfig {
             protocol: Arc::new(ThriftParseFactory),
             workloads: ws,
+            warmups: Vec::new(), // todo: write warmup extraction
         })
     } else {
         Err("no workloads specified".to_owned())
