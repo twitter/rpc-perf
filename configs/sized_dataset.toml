@@ -14,25 +14,51 @@
 [general]
 request-timeout = 200
 connect-timeout = 500
+protocol = "memcache"
+warmup = 95.0
+
+[[warmup]]
+name = "get"
+method = "get"
+rate = 10
+  [[warmup.parameter]]
+  style = "random"
+  size = 6
+  num = 500
+  regenerate = true
+
+[[warmup]]
+name = "warmup"
+method = "set"
+rate = 10
+  [[warmup.parameter]]
+  style = "random"
+  size = 6
+  num = 500
+  regenerate = true
+  [[warmup.parameter]]
+  style = "random"
+  size = 64
+  regenerate = true
 
 [[workload]]
 name = "get"
 method = "get"
-rate = 40000
+rate = 200
   [[workload.parameter]]
   style = "random"
   size = 6
-  num = 500000
+  num = 500
   regenerate = true
 
 [[workload]]
-name = "set"
-method = "set"
-rate = 10000
+name = "add"
+method = "add"
+rate = 200
   [[workload.parameter]]
   style = "random"
   size = 6
-  num = 500000
+  num = 500
   regenerate = true
   [[workload.parameter]]
   style = "random"

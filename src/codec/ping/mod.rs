@@ -23,6 +23,7 @@ use std::str;
 use std::sync::Arc;
 use toml::Value;
 
+#[derive(Clone)]
 pub struct Ping;
 
 impl ProtocolGen for Ping {
@@ -32,6 +33,10 @@ impl ProtocolGen for Ping {
 
     fn method(&self) -> &str {
         "ping"
+    }
+
+    fn boxed(&self) -> Box<ProtocolGen> {
+        Box::new(self.clone())
     }
 }
 
@@ -71,6 +76,7 @@ pub fn load_config(table: &BTreeMap<String, Value>) -> CResult<ProtocolConfig> {
         Ok(ProtocolConfig {
             protocol: Arc::new(Ping),
             workloads: ws,
+            warmups: Vec::new(),
         })
     } else {
         Err("no workload specified".to_owned())

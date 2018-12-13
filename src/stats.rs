@@ -15,7 +15,8 @@
 
 use common::*;
 use request::BenchmarkConfig;
-use tic::{Interest, Meters, Percentile, Receiver};
+use tic::{Clocksource, Interest, Meters, Percentile, Receiver};
+use std::time::Duration;
 
 pub fn stats_receiver_init(
     config: &BenchmarkConfig,
@@ -27,6 +28,7 @@ pub fn stats_receiver_init(
         .batch_size(1024)
         .capacity(4096)
         .duration(config.duration())
+        .poll_delay(Some(Duration::new(0, MILLISECOND)))
         .windows(config.windows());
 
     if let Some(addr) = listen {
@@ -83,9 +85,99 @@ pub fn meters_delta(t0: &Meters<Stat>, t1: &Meters<Stat>, stat: &Stat) -> u64 {
     *t1.count(stat).unwrap_or(&0) - *t0.count(stat).unwrap_or(&0)
 }
 
+fn print_stats(t0: u64, m0: &Meters<Stat>, t1: u64, m1: &Meters<Stat>, clocksource: &Clocksource) -> f64 {
+    let responses = meters_delta(&m0, &m1, &Stat::ResponseOk) +
+        meters_delta(&m0, &m1, &Stat::ResponseError);
+
+    let rate = responses as f64 /
+        ((clocksource.convert(t1) - clocksource.convert(t0)) as f64 / SECOND as f64);
+
+    let success_rate = if responses > 0 {
+        100.0 * (responses - meters_delta(&m0, &m1, &Stat::ResponseError)) as f64 /
+            (responses + meters_delta(&m0, &m1, &Stat::ResponseTimeout)) as f64
+    } else {
+        0.0
+    };
+
+    let hit = meters_delta(&m0, &m1, &Stat::ResponseOkHit);
+    let miss = meters_delta(&m0, &m1, &Stat::ResponseOkMiss);
+
+    let hit_rate = if (hit + miss) > 0 {
+        100.0 * hit as f64 / (hit + miss) as f64
+    } else {
+        0.0
+    };
+
+    let inflight = *m1.count(&Stat::RequestSent).unwrap_or(&0) as i64 -
+        *m1.count(&Stat::ResponseOk).unwrap_or(&0) as i64 -
+        *m1.count(&Stat::ResponseError).unwrap_or(&0) as i64 -
+        *m1.count(&Stat::ResponseTimeout).unwrap_or(&0) as i64;
+    let open = *m1.count(&Stat::SocketCreate).unwrap_or(&0) as i64 -
+        *m1.count(&Stat::SocketClose).unwrap_or(&0) as i64;
+    info!(
+        "Connections: Ok: {} Error: {} Timeout: {} Open: {}",
+        meters_delta(&m0, &m1, &Stat::ConnectOk),
+        meters_delta(&m0, &m1, &Stat::ConnectError),
+        meters_delta(&m0, &m1, &Stat::ConnectTimeout),
+        open
+    );
+    info!(
+        "Sockets: Create: {} Close: {} Read: {} Write: {} Flush: {}",
+        meters_delta(&m0, &m1, &Stat::SocketCreate),
+        meters_delta(&m0, &m1, &Stat::SocketClose),
+        meters_delta(&m0, &m1, &Stat::SocketRead),
+        meters_delta(&m0, &m1, &Stat::SocketWrite),
+        meters_delta(&m0, &m1, &Stat::SocketFlush)
+    );
+    info!(
+        "Requests: Sent: {} Prepared: {} In-Flight: {}",
+        meters_delta(&m0, &m1, &Stat::RequestSent),
+        meters_delta(&m0, &m1, &Stat::RequestPrepared),
+        inflight
+    );
+    info!(
+        "Responses: Ok: {} Error: {} Timeout: {} Hit: {} Miss: {}",
+        meters_delta(&m0, &m1, &Stat::ResponseOk),
+        meters_delta(&m0, &m1, &Stat::ResponseError),
+        meters_delta(&m0, &m1, &Stat::ResponseTimeout),
+        meters_delta(&m0, &m1, &Stat::ResponseOkHit),
+        meters_delta(&m0, &m1, &Stat::ResponseOkMiss)
+    );
+    info!(
+        "Rate: {:.*} rps Success: {:.*} % Hit Rate: {:.*} %",
+        2,
+        rate,
+        2,
+        success_rate,
+        2,
+        hit_rate
+    );
+    display_percentiles(&m1, &Stat::ResponseOk, "Response OK");
+    hit_rate
+}
+
+
+pub fn warmup(receiver: &mut Receiver<Stat>) -> f64 {
+    let clocksource = receiver.get_clocksource().clone();
+    let mut sender = receiver.get_sender().clone();
+    sender.set_batch_size(1);
+
+    let t0 = clocksource.counter();
+    let m0 = receiver.clone_meters();
+
+    debug!("warmup stats: collection ready");
+    receiver.run_once();
+
+    info!("-----");
+    info!("Warmup");
+    let t1 = clocksource.counter();
+    let m1 = receiver.clone_meters();
+
+    print_stats(t0, &m0, t1, &m1, &clocksource)
+}
+
 pub fn run(mut receiver: Receiver<Stat>, windows: usize, infinite: bool) {
     let mut window = 0;
-    let mut warmup = true;
     let mut next_window = window + windows;
 
     let clocksource = receiver.get_clocksource().clone();
@@ -101,81 +193,7 @@ pub fn run(mut receiver: Receiver<Stat>, windows: usize, infinite: bool) {
         let t1 = clocksource.counter();
         let m1 = receiver.clone_meters();
 
-        if warmup {
-            info!("-----");
-            info!("Warmup complete");
-            warmup = false;
-        } else {
-            let responses = meters_delta(&m0, &m1, &Stat::ResponseOk) +
-                meters_delta(&m0, &m1, &Stat::ResponseError);
-
-            let rate = responses as f64 /
-                ((clocksource.convert(t1) - clocksource.convert(t0)) as f64 / 1_000_000_000.0);
-
-            let success_rate = if responses > 0 {
-                100.0 * (responses - meters_delta(&m0, &m1, &Stat::ResponseError)) as f64 /
-                    (responses + meters_delta(&m0, &m1, &Stat::ResponseTimeout)) as f64
-            } else {
-                0.0
-            };
-
-            let hit = meters_delta(&m0, &m1, &Stat::ResponseOkHit);
-            let miss = meters_delta(&m0, &m1, &Stat::ResponseOkMiss);
-
-            let hit_rate = if (hit + miss) > 0 {
-                100.0 * hit as f64 / (hit + miss) as f64
-            } else {
-                0.0
-            };
-
-            info!("-----");
-            info!("Window: {}", window);
-            let inflight = *m1.count(&Stat::RequestSent).unwrap_or(&0) as i64 -
-                *m1.count(&Stat::ResponseOk).unwrap_or(&0) as i64 -
-                *m1.count(&Stat::ResponseError).unwrap_or(&0) as i64 -
-                *m1.count(&Stat::ResponseTimeout).unwrap_or(&0) as i64;
-            let open = *m1.count(&Stat::SocketCreate).unwrap_or(&0) as i64 -
-                *m1.count(&Stat::SocketClose).unwrap_or(&0) as i64;
-            info!(
-                "Connections: Ok: {} Error: {} Timeout: {} Open: {}",
-                meters_delta(&m0, &m1, &Stat::ConnectOk),
-                meters_delta(&m0, &m1, &Stat::ConnectError),
-                meters_delta(&m0, &m1, &Stat::ConnectTimeout),
-                open
-            );
-            info!(
-                "Sockets: Create: {} Close: {} Read: {} Write: {} Flush: {}",
-                meters_delta(&m0, &m1, &Stat::SocketCreate),
-                meters_delta(&m0, &m1, &Stat::SocketClose),
-                meters_delta(&m0, &m1, &Stat::SocketRead),
-                meters_delta(&m0, &m1, &Stat::SocketWrite),
-                meters_delta(&m0, &m1, &Stat::SocketFlush)
-            );
-            info!(
-                "Requests: Sent: {} Prepared: {} In-Flight: {}",
-                meters_delta(&m0, &m1, &Stat::RequestSent),
-                meters_delta(&m0, &m1, &Stat::RequestPrepared),
-                inflight
-            );
-            info!(
-                "Responses: Ok: {} Error: {} Timeout: {} Hit: {} Miss: {}",
-                meters_delta(&m0, &m1, &Stat::ResponseOk),
-                meters_delta(&m0, &m1, &Stat::ResponseError),
-                meters_delta(&m0, &m1, &Stat::ResponseTimeout),
-                meters_delta(&m0, &m1, &Stat::ResponseOkHit),
-                meters_delta(&m0, &m1, &Stat::ResponseOkMiss)
-            );
-            info!(
-                "Rate: {:.*} rps Success: {:.*} % Hit Rate: {:.*} %",
-                2,
-                rate,
-                2,
-                success_rate,
-                2,
-                hit_rate
-            );
-            display_percentiles(&m1, &Stat::ResponseOk, "Response OK");
-        }
+        print_stats(t0, &m0, t1, &m1, &clocksource);
 
         m0 = m1;
         t0 = t1;

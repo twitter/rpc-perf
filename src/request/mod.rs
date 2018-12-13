@@ -24,6 +24,7 @@ pub struct BenchmarkConfig {
     threads: usize,
     duration: usize,
     windows: usize,
+    warmup: f64,
     tcp_nodelay: bool,
     ipv4: bool,
     ipv6: bool,
@@ -45,6 +46,7 @@ impl BenchmarkConfig {
             threads: 1,
             duration: 60,
             windows: 5,
+            warmup: 0.0,
             tcp_nodelay: false,
             ipv4: true,
             ipv6: true,
@@ -93,6 +95,15 @@ impl BenchmarkConfig {
 
     pub fn set_windows(&mut self, count: usize) -> &Self {
         self.windows = count;
+        self
+    }
+
+    pub fn warmup(&self) -> f64 {
+        self.warmup
+    }
+
+    pub fn set_warmup(&mut self, warmup: f64) -> &Self {
+        self.warmup = warmup;
         self
     }
 

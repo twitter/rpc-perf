@@ -215,11 +215,30 @@ impl ProtocolGen for MemcacheCommand {
             MemcacheCommand::Delete(_) => "delete",
         }
     }
+
+    fn boxed(&self) -> Box<ProtocolGen> {
+        Box::new(self.clone())
+    }
 }
 
 /// Load the memcache benchmark configuration from the config toml and command line arguments
 pub fn load_config(table: &BTreeMap<String, Value>, matches: &Matches) -> CResult<ProtocolConfig> {
     let mut ws = Vec::new();
+    let mut wu = Vec::new();
+
+    if let Some(&Value::Array(ref warmups)) = table.get("warmup") {
+        for (i, warmup) in warmups.iter().enumerate() {
+            if let Value::Table(ref warmup) = *warmup {
+                let w = extract_workload(i, warmup)?;
+                wu.push(w);
+            } else {
+                return Err("malformed config: warmup must be a struct".to_owned());
+            }
+        }
+    } else {
+        // no warmup
+        info!("no warmup workloads given");
+    }
 
     if let Some(&Value::Array(ref workloads)) = table.get("workload") {
         for (i, workload) in workloads.iter().enumerate() {
@@ -238,6 +257,7 @@ pub fn load_config(table: &BTreeMap<String, Value>, matches: &Matches) -> CResul
         Ok(ProtocolConfig {
             protocol: protocol,
             workloads: ws,
+            warmups: wu,
         })
     } else {
         Err("memcache: no workloads specified".to_owned())

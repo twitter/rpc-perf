@@ -114,7 +114,7 @@ pub fn main() {
 
     print_config(&config, &servers, internet_protocol);
 
-    let stats_receiver = stats::stats_receiver_init(&config, listen, waterfall, trace);
+    let mut stats_receiver = stats::stats_receiver_init(&config, listen.clone(), waterfall.clone(), trace.clone());
 
     let connect_ratelimit = {
         if let Some(rate) = config.connect_ratelimit() {
@@ -149,6 +149,8 @@ pub fn main() {
         .set_tx_buffer_size(config.tx_buffer_size())
         .set_internet_protocol(internet_protocol);
 
+    info!("clocksource frequency: {}", stats_receiver.get_clocksource().clone().frequency());
+
     if let Some(mut ratelimit) = connect_ratelimit {
         client_config.set_connect_ratelimit(Some(ratelimit.make_handle()));
         let _ = thread::Builder::new().name(format!("limiter")).spawn(
@@ -174,9 +176,37 @@ pub fn main() {
             .spawn(move || { client.run(); });
     }
 
+    if !config.protocol_config.warmups.is_empty() {
+        info!("-----");
+        info!("Launching warmup workload");
+
+        let mut hit_rate = 0.0;
+        let target = config.warmup();
+
+        while hit_rate < target {
+            // loop until hit rate is sufficient
+            let threads = workload::launch_warmup(
+                config.protocol_config.warmups.clone(),
+                &send_queues,
+                &stats_receiver.get_sender(),
+                &stats_receiver.get_clocksource(),
+                config.duration(),
+            );
+
+            hit_rate = stats::warmup(&mut stats_receiver);
+
+            info!("hit_rate: {:.*} target: {:.*}", 2, hit_rate, 2, target);
+
+            for t in threads {
+                t.join().unwrap();
+            }
+        }
+    } else if config.warmup() > 0.0 {
+        info!("warning: warmup target > 0.0 but no warmup workloads specified. skipping warmup.");
+    }
+
     info!("-----");
     info!("Workload:");
-
     let windows = config.windows();
 
     workload::launch_workloads(
@@ -217,6 +247,10 @@ fn print_config(
         "Config: Windows: {} Duration: {}",
         config.windows(),
         config.duration()
+    );
+    info!(
+        "Config: Warmup: {}",
+        config.warmup()
     );
     let request_base = match config.base_request_timeout() {
         Some(v) => format!("{}", v),
