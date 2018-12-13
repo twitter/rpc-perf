@@ -25,7 +25,7 @@ use toml::Value;
 
 type Param = Parameter<CacheData>;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum MemcacheCommand {
     Get(Param),
     Gets(Param),

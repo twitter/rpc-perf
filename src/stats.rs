@@ -28,7 +28,7 @@ pub fn stats_receiver_init(
         .batch_size(1024)
         .capacity(4096)
         .duration(config.duration())
-        .poll_delay(Some(Duration::new(0/*config.duration() as u64, 0*/, 1000000)))
+        .poll_delay(Some(Duration::new(0, MILLISECOND)))
         .windows(config.windows());
 
     if let Some(addr) = listen {
@@ -36,7 +36,6 @@ pub fn stats_receiver_init(
     }
 
     let mut stats_receiver = stats_config.build();
-    //stats_receiver.window_duration = config.duration() as u64;
 
     let counts = vec![
         Stat::Window,
@@ -91,7 +90,7 @@ fn print_stats(t0: u64, m0: &Meters<Stat>, t1: u64, m1: &Meters<Stat>, clocksour
         meters_delta(&m0, &m1, &Stat::ResponseError);
 
     let rate = responses as f64 /
-        ((clocksource.convert(t1) - clocksource.convert(t0)) as f64 / 1_000_000_000.0);
+        ((clocksource.convert(t1) - clocksource.convert(t0)) as f64 / SECOND as f64);
 
     let success_rate = if responses > 0 {
         100.0 * (responses - meters_delta(&m0, &m1, &Stat::ResponseError)) as f64 /

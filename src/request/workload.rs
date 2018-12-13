@@ -19,6 +19,7 @@ use cfgtypes;
 
 use cfgtypes::ProtocolGen;
 use common::stats::Stat;
+use common::SECOND;
 use mpmc::Queue;
 use ratelimit;
 use std::thread;
@@ -164,7 +165,7 @@ impl Workload {
         let mut index = 0;
         let d = duration as u64;
         let mut t0 = self.clocksource.counter();
-        let end = t0 + d * 1_000_000_000;
+        let end = t0 + d * SECOND;
 
         while t0 < end {
             if let Some(ref mut ratelimit) = self.ratelimit {

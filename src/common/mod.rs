@@ -28,6 +28,8 @@ pub use self::stats::Stat;
 pub use std::process;
 
 pub const KILOBYTE: usize = 1024;
+pub const SECOND: u64 = 1_000_000_000;
+pub const MILLISECOND: u32 = 1_000_000;
 
 #[macro_export]
 macro_rules! halt {
