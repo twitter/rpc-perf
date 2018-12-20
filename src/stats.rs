@@ -86,6 +86,7 @@ pub fn meters_delta(t0: &Meters<Stat>, t1: &Meters<Stat>, stat: &Stat) -> u64 {
 }
 
 fn print_stats(t0: u64, m0: &Meters<Stat>, t1: u64, m1: &Meters<Stat>, clocksource: &Clocksource) -> f64 {
+    info!("-----");
     let responses = meters_delta(&m0, &m1, &Stat::ResponseOk) +
         meters_delta(&m0, &m1, &Stat::ResponseError);
 
@@ -199,7 +200,7 @@ pub fn run(mut receiver: Receiver<Stat>, windows: usize, infinite: bool) {
         t0 = t1;
         window += 1;
 
-        if window > next_window {
+        if window >= next_window {
             receiver.save_files();
             if infinite {
                 next_window += windows;
