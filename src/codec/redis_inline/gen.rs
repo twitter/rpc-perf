@@ -141,6 +141,23 @@ mod tests {
         b.iter(|| prepend("key", "value"));
     }
 
+    #[test]
+    fn test_eval() {
+        assert_eq!(
+            eval("redis.call(\"set\", KEYS[1], ARGV[1])", vec!["foo", "bar"]),
+            "eval \"redis.call(\\\"set\\\", KEYS[1], ARGV[1])\" 1 foo bar\r\n"
+        );
+        assert_eq!(
+            eval("redis.call(\"set\", KEYS[1], ARGV[1])\r\nredis.call(\"set\", KEYS[2], ARGV[2])", vec!["foo", "bar", "baz", "toto"]),
+            "eval \"redis.call(\\\"set\\\", KEYS[1], ARGV[1])\r\nredis.call(\\\"set\\\", KEYS[2], ARGV[2])\" 2 foo bar baz toto\r\n"
+        );
+    }
+
+    #[cfg(feature = "unstable")]
+    #[bench]
+    fn eval_benchmark(b: &mut test::Bencher) {
+        b.iter(|| eval("redis.call(\"set\", KEYS[1], ARGV[1])", vec!["foo", "bar"]));
+    }
 }
 
 /// FLUSHALL request
@@ -206,4 +223,13 @@ pub fn append(key: &str, value: &str) -> String {
 /// PREPEND request
 pub fn prepend(key: &str, value: &str) -> String {
     format!("prepend {} {}\r\n", key, value)
+}
+
+pub fn eval(script: &str, keys: Vec<&str>) -> String {
+    format!(
+        "eval \"{}\" {} {}\r\n",
+        script.replace("\"", "\\\""),
+        keys.len() / 2,
+        keys.join(" ")
+    )
 }

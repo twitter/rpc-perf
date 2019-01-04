@@ -1,0 +1,21 @@
+# this example is testing redis eval and evalsha commands
+[general]
+threads = 1
+connections = 1
+duration = 60
+windows = 5
+protocol = "redis"
+tcp-nodelay = false
+ipv4 = true
+ipv6 = true
+database = 0
+
+[[workload]]
+name = "eval"
+method = "eval"
+rate = 0
+script-body = "redis.call('set', KEYS[1])"
+  [[workload.parameter]]
+  style = "static"
+  size = 1
+  seed = 0

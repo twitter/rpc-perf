@@ -61,6 +61,12 @@ enum Command {
     Decr(Param),
     Append(Param, Param),
     Prepend(Param, Param),
+    Eval(Script, Vec<Param>),
+}
+
+#[derive(Clone)]
+struct Script {
+    body: String,
 }
 
 impl Command {
@@ -125,6 +131,13 @@ impl Command {
                 p1.regen();
                 gen::prepend(p1.value.string.as_str(), p2.value.string.as_str()).into_bytes()
             }
+            Command::Eval(ref p1, ref mut p2) => {
+                let keys = p2.iter_mut().map(|key| {
+                    key.regen();
+                    key.value.string.as_str()
+                }).collect();
+                gen::eval(p1.body.as_str(), keys).into_bytes()
+            }
         }
     }
 }
@@ -153,6 +166,7 @@ impl ProtocolGen for Command {
             Command::Decr(_) => "decr",
             Command::Append(_, _) => "append",
             Command::Prepend(_, _) => "prepend",
+            Command::Eval(_, _) => "eval",
         }
     }
 
@@ -272,6 +286,29 @@ fn extract_workload(workload: &BTreeMap<String, Value>) -> CResult<BenchmarkWork
             "decr" if ps.len() == 1 => Command::Decr(ps[0].clone()),
             "append" if ps.len() == 2 => Command::Append(ps[0].clone(), ps[1].clone()),
             "prepend" if ps.len() == 1 => Command::Prepend(ps[0].clone(), ps[1].clone()),
+            "eval" if ps.len() >= 2 && ps.len() % 2 == 0 && workload.get("script-body").is_some() => {
+                let script = Script {
+                    body: workload
+                        .get("script-body")
+                        .and_then(|k| k.as_str())
+                        .unwrap()
+                        .to_owned(),
+                };
+                Command::Eval(script, ps.iter().skip(1).map(|v| v.clone()).collect())
+            },
+            "eval" if workload.get("script-body").is_none() => {
+                return Err(format!(
+                    "workload.script-body is mandatory for {}",
+                    method
+                ));
+            }
+            "eval" => {
+                return Err(format!(
+                    "invalid number of params ({}, mandatory: 1) for method {}",
+                    ps.len(),
+                    method
+                ));
+            }
             "get" | "set" | "hset" | "hget" | "del" | "expire" | "incr" | "decr" | "append" |
             "prepend" => {
                 return Err(format!(

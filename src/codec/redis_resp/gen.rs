@@ -170,6 +170,23 @@ mod tests {
         b.iter(|| prepend("key", "value"));
     }
 
+    #[test]
+    fn test_eval() {
+        assert_eq!(
+            eval("redis.call(\"set\", KEYS[1], ARGV[1])", vec!["foo", "bar"]),
+            "*5\r\n$4\r\neval\r\n$39\r\n\"redis.call(\\\"set\\\", KEYS[1], ARGV[1])\"\r\n$1\r\n1\r\n$3\r\nfoo\r\n$3\r\nbar\r\n"
+        );
+        assert_eq!(
+            eval("redis.call(\"set\", KEYS[1], ARGV[1])\r\nredis.call(\"set\", KEYS[2], ARGV[2])", vec!["foo", "bar", "baz", "toto"]),
+            "*7\r\n$4\r\neval\r\n$78\r\n\"redis.call(\\\"set\\\", KEYS[1], ARGV[1])\r\nredis.call(\\\"set\\\", KEYS[2], ARGV[2])\"\r\n$2\r\n2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n$3\r\nbaz\r\n$4\r\ntoto\r\n"
+        );
+    }
+
+    #[cfg(feature = "unstable")]
+    #[bench]
+    fn eval_benchmark(b: &mut test::Bencher) {
+        b.iter(|| eval("redis.call(\"set\", KEYS[1], ARGV[1])", vec!["foo", "bar"]))
+    }
 }
 
 /// FLUSHALL request
@@ -273,5 +290,22 @@ pub fn prepend(key: &str, value: &str) -> String {
         key,
         value.len(),
         value
+    )
+}
+
+pub fn eval(script: &str, keys: Vec<&str>) -> String {
+    let escaped_script = format!("\"{}\"", script.replace("\"", "\\\""));
+
+    format!(
+        "*{}\r\n$4\r\neval\r\n${}\r\n{}\r\n${}\r\n{}\r\n{}",
+        3 + keys.len(),
+        escaped_script.len(),
+        escaped_script,
+        keys.len() / 2 % 10,
+        keys.len() / 2,
+        keys.iter()
+            .map(|k| format!("${}\r\n{}\r\n", k.len(), k))
+            .collect::<Vec<String>>()
+            .join(""),
     )
 }
