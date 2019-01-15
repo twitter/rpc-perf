@@ -36,6 +36,7 @@ extern crate slab;
 extern crate tic;
 extern crate time;
 extern crate toml;
+extern crate crypto;
 
 #[macro_use]
 mod common;

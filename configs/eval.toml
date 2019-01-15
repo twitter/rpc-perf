@@ -14,7 +14,17 @@ database = 0
 name = "eval"
 method = "eval"
 rate = 0
-script-body = "redis.call('set', KEYS[1])"
+script-body = "redis.call('set', KEYS[1], ARGV[1])"
+  [[workload.parameter]]
+  style = "static"
+  size = 1
+  seed = 0
+
+[[workload]]
+name = "evalsha"
+method = "evalsha"
+rate = 0
+script-body = "redis.call('set', KEYS[1], ARGV[1])"
   [[workload.parameter]]
   style = "static"
   size = 1

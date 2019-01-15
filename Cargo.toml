@@ -54,6 +54,7 @@ simple_logger = "=0.4.0"
 tic = "=0.2.4"
 time = "=0.1.38"
 toml = "=0.4.6"
+rust-crypto = "=0.2.36"
 
 [features]
 asm = [ "tic/asm" ]
