@@ -170,6 +170,69 @@ mod tests {
         b.iter(|| prepend("key", "value"));
     }
 
+    #[test]
+    fn test_eval() {
+        assert_eq!(
+            eval("redis.call(\"set\", KEYS[1], ARGV[1])", vec!["foo", "bar"]),
+            "*5\r\n$4\r\neval\r\n$39\r\n\"redis.call(\\\"set\\\", KEYS[1], ARGV[1])\"\r\n$1\r\n1\r\n$3\r\nfoo\r\n$3\r\nbar\r\n"
+        );
+        assert_eq!(
+            eval("redis.call(\"set\", KEYS[1], ARGV[1])\r\nredis.call(\"set\", KEYS[2], ARGV[2])", vec!["foo", "bar", "baz", "toto"]),
+            "*7\r\n$4\r\neval\r\n$78\r\n\"redis.call(\\\"set\\\", KEYS[1], ARGV[1])\r\nredis.call(\\\"set\\\", KEYS[2], ARGV[2])\"\r\n$2\r\n2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n$3\r\nbaz\r\n$4\r\ntoto\r\n"
+        );
+    }
+
+    #[cfg(feature = "unstable")]
+    #[bench]
+    fn eval_benchmark(b: &mut test::Bencher) {
+        b.iter(|| eval("redis.call(\"set\", KEYS[1], ARGV[1])", vec!["foo", "bar"]))
+    }
+
+    #[test]
+    fn test_script_load() {
+        assert_eq!(
+            script_load("redis.call(\"set\", KEYS[1], ARGV[1])"),
+            "*3\r\n$6\r\nscript\r\n$4\r\nload\r\n$39\r\n\"redis.call(\\\"set\\\", KEYS[1], ARGV[1])\"\r\n"
+        );
+    }
+
+    #[cfg(feature = "unstable")]
+    #[bench]
+    fn script_load_benchmark(b: &mut test::Bencher) {
+        b.iter(|| script_load("redis.call(\"set\", KEYS[1], ARGV[1])"));
+    }
+
+    #[test]
+    fn test_script_flush() {
+        assert_eq!(
+            script_flush(),
+            "*2\r\n$6\r\nscript\r\n$5\r\nflush\r\n",
+        );
+    }
+
+    #[cfg(feature = "unstable")]
+    #[bench]
+    fn script_flush_benchmark(b: &mut test::Bencher) {
+        b.iter(|| script_flush());
+    }
+
+    #[test]
+    fn test_evalsha() {
+        assert_eq!(
+            evalsha("MYSTERIOUS_SHA", vec!["foo", "bar"]),
+            "*5\r\n$7\r\nevalsha\r\n$14\r\nMYSTERIOUS_SHA\r\n$1\r\n1\r\n$3\r\nfoo\r\n$3\r\nbar\r\n"
+        );
+        assert_eq!(
+            evalsha("MYSTERIOUS_SHA", vec!["foo", "bar", "baz", "toto"]),
+            "*7\r\n$7\r\nevalsha\r\n$14\r\nMYSTERIOUS_SHA\r\n$2\r\n2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n$3\r\nbaz\r\n$4\r\ntoto\r\n"
+        );
+    }
+
+    #[cfg(feature = "unstable")]
+    #[bench]
+    fn evalsha_benchmark(b: &mut test::Bencher) {
+        b.iter(|| evalsha("MYSTERIOUS_SHA", vec!["foo", "bar"]));
+    }
 }
 
 /// FLUSHALL request
@@ -274,4 +337,53 @@ pub fn prepend(key: &str, value: &str) -> String {
         value.len(),
         value
     )
+}
+
+/// EVAL request
+pub fn eval(script: &str, keys: Vec<&str>) -> String {
+    let escaped_script = format!("\"{}\"", script.replace("\"", "\\\""));
+
+    format!(
+        "*{}\r\n$4\r\neval\r\n${}\r\n{}\r\n${}\r\n{}\r\n{}",
+        3 + keys.len(),
+        escaped_script.len(),
+        escaped_script,
+        keys.len() / 2 % 10,
+        keys.len() / 2,
+        keys.iter()
+            .map(|k| format!("${}\r\n{}\r\n", k.len(), k))
+            .collect::<Vec<String>>()
+            .join(""),
+    )
+}
+
+/// EVALSHA request
+pub fn evalsha(sha: &str, keys: Vec<&str>) -> String {
+    format!(
+        "*{}\r\n$7\r\nevalsha\r\n${}\r\n{}\r\n${}\r\n{}\r\n{}",
+        3 + keys.len(),
+        sha.len(),
+        sha,
+        keys.len() / 2 % 10,
+        keys.len() / 2,
+        keys.iter()
+            .map(|k| format!("${}\r\n{}\r\n", k.len(), k))
+            .collect::<Vec<String>>()
+            .join(""),
+    )
+}
+
+/// SCRIPT LOAD request
+pub fn script_load(script: &str) -> String {
+    let escaped_script = format!("\"{}\"", script.replace("\"", "\\\""));
+    format!(
+        "*3\r\n$6\r\nscript\r\n$4\r\nload\r\n${}\r\n{}\r\n",
+        escaped_script.len(),
+        escaped_script
+    )
+}
+
+/// SCRIPT FLUSH request
+pub fn script_flush() -> String {
+    format!("*2\r\n$6\r\nscript\r\n$5\r\nflush\r\n")
 }

@@ -25,6 +25,8 @@ use std::collections::BTreeMap;
 use std::str;
 use std::sync::Arc;
 use toml::Value;
+use crypto::digest::Digest;
+use crypto::sha1::Sha1;
 
 type Param = Parameter<RedisData>;
 
@@ -61,6 +63,8 @@ enum Command {
     Decr(Param),
     Append(Param, Param),
     Prepend(Param, Param),
+    Eval(String, Vec<Param>),
+    Evalsha(String, Vec<Param>),
 }
 
 impl Command {
@@ -125,8 +129,25 @@ impl Command {
                 p1.regen();
                 gen::prepend(p1.value.string.as_str(), p2.value.string.as_str()).into_bytes()
             }
+            Command::Eval(ref p1, ref mut p2) => {
+                let keys = regen_keys(p2);
+                gen::eval(p1.as_str(), keys).into_bytes()
+            }
+            Command::Evalsha(ref p1, ref mut p2) => {
+                let keys = regen_keys(p2);
+                gen::evalsha(p1.as_str(), keys).into_bytes()
+            }
         }
     }
+}
+
+fn regen_keys(keys: &mut Vec<Param>) -> Vec<&str> {
+    keys.iter_mut()
+        .map(|key| {
+            key.regen();
+            key.value.string.as_str()
+        })
+        .collect()
 }
 
 pub struct RedisParse;
@@ -134,6 +155,7 @@ pub struct RedisParse;
 struct RedisParseFactory {
     flush: bool,
     database: u32,
+    preload_scripts: Vec<String>,
 }
 
 impl ProtocolGen for Command {
@@ -153,6 +175,8 @@ impl ProtocolGen for Command {
             Command::Decr(_) => "decr",
             Command::Append(_, _) => "append",
             Command::Prepend(_, _) => "prepend",
+            Command::Eval(_, _) => "eval",
+            Command::Evalsha(_, _) => "evalsha",
         }
     }
 
@@ -167,14 +191,23 @@ impl ProtocolParseFactory for RedisParseFactory {
     }
 
     fn prepare(&self) -> CResult<Vec<Vec<u8>>> {
-        Ok(if self.flush {
-            vec![
-                gen::flushall().into_bytes(),
-                gen::select(&self.database).into_bytes(),
-            ]
-        } else {
-            vec![gen::select(&self.database).into_bytes()]
-        })
+        let mut ops = Vec::new();
+        if self.flush {
+            ops.push(gen::flushall().into_bytes());
+            ops.push(gen::select(&self.database).into_bytes());
+        }
+
+        if !self.preload_scripts.is_empty() {
+            ops.push(gen::script_flush().into_bytes());
+        }
+
+        ops.push(gen::select(&self.database).into_bytes());
+
+        for script in self.preload_scripts.iter() {
+            ops.push(gen::script_load(script.as_str()).into_bytes());
+        }
+
+        Ok(ops)
     }
 
     fn name(&self) -> &str {
@@ -204,8 +237,21 @@ pub fn load_config(table: &BTreeMap<String, Value>, matches: &Matches) -> CResul
         .unwrap_or(0) as u32;
 
     if let Some(&Value::Array(ref workloads)) = table.get("workload") {
+        let mut preload_scripts = Vec::new();
+
         for workload in workloads.iter() {
             if let Value::Table(ref workload) = *workload {
+                let method = workload
+                    .get("method")
+                    .and_then(|k| k.as_str());
+                let script = workload
+                    .get("script-body")
+                    .and_then(|k| k.as_str());
+
+                if let (Some("evalsha"), Some(script)) = (method, script) {
+                    preload_scripts.push(script.to_owned());
+                }
+
                 ws.push(extract_workload(workload)?);
             } else {
                 return Err("workload must be table".to_owned());
@@ -215,6 +261,7 @@ pub fn load_config(table: &BTreeMap<String, Value>, matches: &Matches) -> CResul
         let proto = Arc::new(RedisParseFactory {
             flush: matches.opt_present("flush"),
             database: database,
+            preload_scripts: preload_scripts,
         });
 
         Ok(ProtocolConfig {
@@ -272,6 +319,44 @@ fn extract_workload(workload: &BTreeMap<String, Value>) -> CResult<BenchmarkWork
             "decr" if ps.len() == 1 => Command::Decr(ps[0].clone()),
             "append" if ps.len() == 2 => Command::Append(ps[0].clone(), ps[1].clone()),
             "prepend" if ps.len() == 1 => Command::Prepend(ps[0].clone(), ps[1].clone()),
+            "eval" if ps.len() >= 4 && ps.len() % 2 == 0 && workload.get("script-body").is_some() => {
+                let body = workload
+                    .get("script-body")
+                    .and_then(|k| k.as_str())
+                    .unwrap();
+
+                Command::Eval(
+                    body.to_owned(),
+                    ps.iter().skip(1).map(|v| v.clone()).collect(),
+                )
+            }
+            "evalsha" if ps.len() >= 4 && ps.len() % 2 == 0 && workload.get("script-body").is_some() => {
+                let body = workload
+                    .get("script-body")
+                    .and_then(|k| k.as_str())
+                    .unwrap();
+
+                let mut hasher = Sha1::new();
+                hasher.input_str(body);
+
+                Command::Evalsha(
+                    hasher.result_str(),
+                    ps.iter().skip(1).map(|v| v.clone()).collect(),
+                )
+            }
+            "eval" | "evalsha" if workload.get("script-body").is_none() => {
+                return Err(format!(
+                    "workload.script-body is mandatory for method {}",
+                    method
+                ));
+            }
+            "eval" | "evalsha" => {
+                return Err(format!(
+                    "invalid number of params ({}) for method {}",
+                    ps.len(),
+                    method
+                ));
+            }
             "get" | "set" | "hset" | "hget" | "del" | "expire" | "incr" | "decr" | "append" |
             "prepend" => {
                 return Err(format!(

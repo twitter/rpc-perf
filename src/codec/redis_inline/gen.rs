@@ -141,6 +141,69 @@ mod tests {
         b.iter(|| prepend("key", "value"));
     }
 
+    #[test]
+    fn test_eval() {
+        assert_eq!(
+            eval("redis.call(\"set\", KEYS[1], ARGV[1])", vec!["foo", "bar"]),
+            "eval \"redis.call(\\\"set\\\", KEYS[1], ARGV[1])\" 1 foo bar\r\n"
+        );
+        assert_eq!(
+            eval("redis.call(\"set\", KEYS[1], ARGV[1])\r\nredis.call(\"set\", KEYS[2], ARGV[2])", vec!["foo", "bar", "baz", "toto"]),
+            "eval \"redis.call(\\\"set\\\", KEYS[1], ARGV[1])\r\nredis.call(\\\"set\\\", KEYS[2], ARGV[2])\" 2 foo bar baz toto\r\n"
+        );
+    }
+
+    #[cfg(feature = "unstable")]
+    #[bench]
+    fn eval_benchmark(b: &mut test::Bencher) {
+        b.iter(|| eval("redis.call(\"set\", KEYS[1], ARGV[1])", vec!["foo", "bar"]));
+    }
+
+    #[test]
+    fn test_script_load() {
+        assert_eq!(
+            script_load("redis.call(\"set\", KEYS[1], ARGV[1])"),
+            "script load \"redis.call(\\\"set\\\", KEYS[1], ARGV[1])\"\r\n"
+        );
+    }
+
+    #[cfg(feature = "unstable")]
+    #[bench]
+    fn script_load_benchmark(b: &mut test::Bencher) {
+        b.iter(|| script_load("redis.call(\"set\", KEYS[1], ARGV[1])"));
+    }
+
+    #[test]
+    fn test_script_flush() {
+        assert_eq!(
+            script_flush(),
+            "script flush\r\n",
+        );
+    }
+
+    #[cfg(feature = "unstable")]
+    #[bench]
+    fn script_flush_benchmark(b: &mut test::Bencher) {
+        b.iter(|| script_flush());
+    }
+
+    #[test]
+    fn test_evalsha() {
+        assert_eq!(
+            evalsha("MYSTERIOUS_SHA", vec!["foo", "bar"]),
+            "evalsha MYSTERIOUS_SHA 1 foo bar\r\n"
+        );
+        assert_eq!(
+            evalsha("MYSTERIOUS_SHA", vec!["foo", "bar", "baz", "toto"]),
+            "evalsha MYSTERIOUS_SHA 2 foo bar baz toto\r\n"
+        );
+    }
+
+    #[cfg(feature = "unstable")]
+    #[bench]
+    fn evalsha_benchmark(b: &mut test::Bencher) {
+        b.iter(|| evalsha("MYSTERIOUS_SHA", vec!["foo", "bar"]));
+    }
 }
 
 /// FLUSHALL request
@@ -206,4 +269,34 @@ pub fn append(key: &str, value: &str) -> String {
 /// PREPEND request
 pub fn prepend(key: &str, value: &str) -> String {
     format!("prepend {} {}\r\n", key, value)
+}
+
+/// EVAL request
+pub fn eval(script: &str, keys: Vec<&str>) -> String {
+    format!(
+        "eval \"{}\" {} {}\r\n",
+        script.replace("\"", "\\\""),
+        keys.len() / 2,
+        keys.join(" ")
+    )
+}
+
+/// EVALSHA request
+pub fn evalsha(sha: &str, keys: Vec<&str>) -> String {
+    format!(
+        "evalsha {} {} {}\r\n",
+        sha,
+        keys.len() / 2,
+        keys.join(" ")
+    )
+}
+
+/// SCRIPT LOAD request
+pub fn script_load(script: &str) -> String {
+    format!("script load \"{}\"\r\n", script.replace("\"", "\\\""))
+}
+
+/// SCRIPT FLUSH request
+pub fn script_flush() -> String {
+    "script flush\r\n".to_owned()
 }
