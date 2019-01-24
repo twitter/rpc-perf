@@ -77,6 +77,6 @@ mod wrapper;
 
 pub use crate::bool::Bool;
 pub use crate::counter::Counter;
-pub use crate::heatmap::{Heatmap, Config as HeatmapBuilder};
-pub use crate::histogram::{Histogram, Config as HistogramConfig};
+pub use crate::heatmap::{Config as HeatmapBuilder, Heatmap};
+pub use crate::histogram::{Config as HistogramConfig, Histogram};
 pub use crate::wrapper::{RwWrapper, Wrapper};

@@ -12,18 +12,22 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use datastructures::histogram::{Latched as Histogram, Histogram as HistogramTrait};
-use libc::{uintptr_t, c_float};
+use datastructures::histogram::{Histogram as HistogramTrait, Latched as Histogram};
+use libc::{c_float, uintptr_t};
 
 /// Create a new `histogram`
 #[no_mangle]
-pub extern fn histogram_new(min: uintptr_t, max: uintptr_t, precision: uintptr_t) -> *mut Histogram {
+pub extern "C" fn histogram_new(
+    min: uintptr_t,
+    max: uintptr_t,
+    precision: uintptr_t,
+) -> *mut Histogram {
     Box::into_raw(Box::new(Histogram::new(min, max, precision)))
 }
 
 /// Clear the count stored in the `histogram`
 #[no_mangle]
-pub extern fn histogram_clear(ptr: *mut Histogram) {
+pub extern "C" fn histogram_clear(ptr: *mut Histogram) {
     let histogram = unsafe {
         assert!(!ptr.is_null());
         &mut *ptr
@@ -33,7 +37,7 @@ pub extern fn histogram_clear(ptr: *mut Histogram) {
 
 /// Get the count stored in the `histogram` for value
 #[no_mangle]
-pub extern fn histogram_count(ptr: *mut Histogram, value: uintptr_t) -> uintptr_t {
+pub extern "C" fn histogram_count(ptr: *mut Histogram, value: uintptr_t) -> uintptr_t {
     let histogram = unsafe {
         assert!(!ptr.is_null());
         &mut *ptr
@@ -43,7 +47,7 @@ pub extern fn histogram_count(ptr: *mut Histogram, value: uintptr_t) -> uintptr_
 
 /// Decrement the value of the `Histogram` by count
 #[no_mangle]
-pub extern fn histogram_decr(ptr: *mut Histogram, value: uintptr_t, count: uintptr_t) {
+pub extern "C" fn histogram_decr(ptr: *mut Histogram, value: uintptr_t, count: uintptr_t) {
     let histogram = unsafe {
         assert!(!ptr.is_null());
         &mut *ptr
@@ -53,14 +57,18 @@ pub extern fn histogram_decr(ptr: *mut Histogram, value: uintptr_t, count: uintp
 
 /// Free the `Histogram`
 #[no_mangle]
-pub extern fn histogram_free(ptr: *mut Histogram) {
-    if ptr.is_null() { return }
-    unsafe { Box::from_raw(ptr); }
+pub extern "C" fn histogram_free(ptr: *mut Histogram) {
+    if ptr.is_null() {
+        return;
+    }
+    unsafe {
+        Box::from_raw(ptr);
+    }
 }
 
 /// Increment the value of the `Histogram` by count
 #[no_mangle]
-pub extern fn histogram_incr(ptr: *mut Histogram, value: uintptr_t, count: uintptr_t) {
+pub extern "C" fn histogram_incr(ptr: *mut Histogram, value: uintptr_t, count: uintptr_t) {
     let histogram = unsafe {
         assert!(!ptr.is_null());
         &mut *ptr
@@ -70,7 +78,7 @@ pub extern fn histogram_incr(ptr: *mut Histogram, value: uintptr_t, count: uintp
 
 /// Increment the value of the `Histogram` by count
 #[no_mangle]
-pub extern fn histogram_percentile(ptr: *mut Histogram, percentile: c_float) -> uintptr_t {
+pub extern "C" fn histogram_percentile(ptr: *mut Histogram, percentile: c_float) -> uintptr_t {
     let histogram = unsafe {
         assert!(!ptr.is_null());
         &mut *ptr
@@ -80,7 +88,7 @@ pub extern fn histogram_percentile(ptr: *mut Histogram, percentile: c_float) -> 
 
 /// Get the total of all counts for the `histogram`
 #[no_mangle]
-pub extern fn histogram_samples(ptr: *mut Histogram) -> uintptr_t {
+pub extern "C" fn histogram_samples(ptr: *mut Histogram) -> uintptr_t {
     let histogram = unsafe {
         assert!(!ptr.is_null());
         &mut *ptr
@@ -89,7 +97,11 @@ pub extern fn histogram_samples(ptr: *mut Histogram) -> uintptr_t {
 }
 
 #[allow(dead_code)]
-pub extern fn fix_linking_when_not_using_stdlib() { panic!() }
+pub extern "C" fn fix_linking_when_not_using_stdlib() {
+    panic!()
+}
 
 #[allow(dead_code)]
-fn spare() { println!(""); }
+fn spare() {
+    println!("");
+}

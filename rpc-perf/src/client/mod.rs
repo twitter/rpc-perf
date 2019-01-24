@@ -17,9 +17,9 @@ mod plain_client;
 #[cfg(feature = "tls")]
 mod tls_client;
 
-use rand::rngs::ThreadRng;
 use crate::codec::*;
 use crate::stats::Simple;
+use rand::rngs::ThreadRng;
 
 pub use crate::client::common::Common;
 pub use crate::client::plain_client::PlainClient;
@@ -252,7 +252,8 @@ pub trait Client: Send {
         self.stat_increment(Stat::ConnectionsTotal);
         if self.session_mut(token).connect().is_ok() {
             trace!("socket opened: client {} {:?}", self.id(), token);
-            self.session_mut(token).set_timestamp(Some(time::precise_time_ns()));
+            self.session_mut(token)
+                .set_timestamp(Some(time::precise_time_ns()));
             self.set_session_state(token, State::Connecting);
             // TODO: use a configurable timeout value w/ policy here
             self.set_timeout(token, self.common().connect_timeout());
@@ -307,7 +308,7 @@ pub trait Client: Send {
                         self.stat_interval(
                             Stat::ConnectionsOpened,
                             t0 as usize,
-                            time::precise_time_ns() as usize
+                            time::precise_time_ns() as usize,
                         );
                     }
                     self.do_established(token);
@@ -350,7 +351,7 @@ pub trait Client: Send {
                         self.stat_interval(
                             Stat::ConnectionsOpened,
                             t0 as usize,
-                            time::precise_time_ns() as usize
+                            time::precise_time_ns() as usize,
                         );
                     }
                     self.do_established(token);

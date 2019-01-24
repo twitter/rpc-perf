@@ -12,8 +12,8 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use datastructures::HistogramConfig;
 use crate::*;
+use datastructures::HistogramConfig;
 
 use datastructures::{Counter, Histogram, RwWrapper};
 
@@ -77,7 +77,7 @@ impl PartialEq for Channel {
     }
 }
 
-impl Eq for Channel { }
+impl Eq for Channel {}
 
 impl Channel {
     pub fn new(name: String, source: Source, histogram_config: Option<HistogramConfig>) -> Self {

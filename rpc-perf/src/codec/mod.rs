@@ -12,8 +12,8 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use crate::config::Generator;
 use crate::config::Config;
+use crate::config::Generator;
 use crate::stats::Simple;
 use bytes::BytesMut;
 use rand::rngs::ThreadRng;
@@ -62,23 +62,15 @@ impl Command {
 
     pub fn key(&self) -> Option<&[u8]> {
         match &self.key {
-            Some(key) => {
-                Some(key.as_bytes())
-            }
-            None => {
-                None
-            }
+            Some(key) => Some(key.as_bytes()),
+            None => None,
         }
     }
 
     pub fn value(&self) -> Option<&[u8]> {
         match &self.value {
-            Some(value) => {
-                Some(value.as_bytes())
-            }
-            None => {
-                None
-            }
+            Some(value) => Some(value.as_bytes()),
+            None => None,
         }
     }
 }

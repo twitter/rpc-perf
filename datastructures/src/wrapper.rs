@@ -12,9 +12,9 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use std::cell::UnsafeCell;
-use std::sync::{Arc};
 use parking_lot::RwLock;
+use std::cell::UnsafeCell;
+use std::sync::Arc;
 
 /// `Wrapper` can be used to wrap a thread-safe datatype, such as an atomic it
 /// provides for interior mutability for multiple writers

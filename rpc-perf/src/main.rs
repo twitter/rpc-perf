@@ -24,9 +24,9 @@ use crate::config::Config;
 use crate::config::Protocol;
 use crate::stats::*;
 
-use metrics::Reading;
 use datastructures::Bool;
 pub(crate) use logger::*;
+use metrics::Reading;
 use ratelimiter::Ratelimiter;
 
 use rand::thread_rng;

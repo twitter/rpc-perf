@@ -16,7 +16,9 @@ pub mod counter;
 pub mod histogram;
 
 #[allow(dead_code)]
-pub extern fn fix_linking_when_not_using_stdlib() { panic!() }
+pub extern "C" fn fix_linking_when_not_using_stdlib() {
+    panic!()
+}
 
 #[cfg(test)]
 mod tests {

@@ -14,18 +14,23 @@
 
 use hsl::HSL;
 use png::HasParameters;
-use rusttype::{FontCollection, Scale, PositionedGlyph, point};
+use rusttype::{point, FontCollection, PositionedGlyph, Scale};
 
 use datastructures::histogram::{Histogram, Latched};
 use datastructures::Heatmap;
 use logger::*;
 
 use std::collections::HashMap;
-use std::path::Path;
 use std::fs::File;
 use std::io::BufWriter;
+use std::path::Path;
 
-pub fn save_waterfall(heatmap: &Heatmap, file: &str, labels: HashMap<usize, String>, interval: usize) {
+pub fn save_waterfall(
+    heatmap: &Heatmap,
+    file: &str,
+    labels: HashMap<usize, String>,
+    interval: usize,
+) {
     debug!("saving waterfall");
     let height = heatmap.slices();
     let width = heatmap.buckets();
@@ -41,7 +46,6 @@ pub fn save_waterfall(heatmap: &Heatmap, file: &str, labels: HashMap<usize, Stri
             if magnitude > 0 {
                 histogram.incr(magnitude, 1);
             }
-            
         }
     }
 
@@ -51,7 +55,10 @@ pub fn save_waterfall(heatmap: &Heatmap, file: &str, labels: HashMap<usize, Stri
     let high = histogram.percentile(0.99).unwrap();
     let max = histogram.percentile(1.0).unwrap();
 
-    debug!("min: {} low: {} mid: {} high: {} max: {}", min, low, mid, high, max);
+    debug!(
+        "min: {} low: {} mid: {} high: {} max: {}",
+        min, low, mid, high, max
+    );
 
     let mut values: Vec<usize> = labels.keys().map(|v| *v).collect();
     values.sort();
@@ -59,14 +66,14 @@ pub fn save_waterfall(heatmap: &Heatmap, file: &str, labels: HashMap<usize, Stri
     for slice in heatmap {
         let mut x = 0;
         for bucket in slice.histogram() {
-            let value = color_from_value(bucket.count()/ bucket.width(), low, mid, high);
+            let value = color_from_value(bucket.count() / bucket.width(), low, mid, high);
             buffer.set_pixel(x, y, value);
             x += 1;
         }
         y += 1;
     }
 
-    if ! values.is_empty() {
+    if !values.is_empty() {
         let mut x = 0;
         let y = 0;
         let slice = heatmap.into_iter().next().unwrap();
@@ -76,7 +83,14 @@ pub fn save_waterfall(heatmap: &Heatmap, file: &str, labels: HashMap<usize, Stri
                 if let Some(label) = labels.get(&values[l]) {
                     let overlay = string_buffer(label, 25.0);
                     buffer.overlay(&overlay, x, y);
-                    buffer.vertical_line(x, ColorRgb { r: 255, g: 255, b: 255 });
+                    buffer.vertical_line(
+                        x,
+                        ColorRgb {
+                            r: 255,
+                            g: 255,
+                            b: 255,
+                        },
+                    );
                 }
                 l += 1;
                 if l >= values.len() {
@@ -95,7 +109,14 @@ pub fn save_waterfall(heatmap: &Heatmap, file: &str, labels: HashMap<usize, Stri
             let label = format!("{}", slice_begin.rfc3339());
             let overlay = string_buffer(&label, 25.0);
             buffer.overlay(&overlay, 0, y + 2);
-            buffer.horizontal_line(y, ColorRgb { r: 255, g: 255, b: 255});
+            buffer.horizontal_line(
+                y,
+                ColorRgb {
+                    r: 255,
+                    g: 255,
+                    b: 255,
+                },
+            );
             begin = slice_begin;
         }
         y += 1;
@@ -126,7 +147,10 @@ fn string_buffer(string: &str, size: f32) -> ImageBuffer<ColorRgb> {
     // size and scaling
     let height: f32 = size;
     let pixel_height = height.ceil() as usize;
-    let scale = Scale { x: height * 1.0, y: height };
+    let scale = Scale {
+        x: height * 1.0,
+        y: height,
+    };
 
     let v_metrics = font.v_metrics(scale);
     let offset = point(0.0, v_metrics.ascent);
@@ -185,13 +209,13 @@ fn color_from_value(value: usize, low: usize, mid: usize, high: usize) -> ColorR
         HSL {
             h: 250.0 - (250.0 * (value - mid) as f64 / high as f64),
             s: 1.0,
-            l: 0.5
+            l: 0.5,
         }
     } else {
         HSL {
             h: 0.0,
             s: 1.0,
-            l: 0.5
+            l: 0.5,
         }
     };
 
@@ -257,8 +281,8 @@ impl ImageBuffer<ColorRgb> {
         let ignore = ColorRgb { r: 0, g: 0, b: 0 };
         for sx in 0..other.width {
             for sy in 0..other.height {
-                if (other.buffer[sy][sx] != ignore) &&
-                    (((sy + y) < self.height) && ((sx + x) < self.width))
+                if (other.buffer[sy][sx] != ignore)
+                    && (((sy + y) < self.height) && ((sx + x) < self.width))
                 {
                     self.buffer[(sy + y)][(sx + x)] = other.buffer[sy][sx];
                 }

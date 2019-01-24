@@ -12,12 +12,12 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use rand::rngs::ThreadRng;
 use crate::client::common::Common;
 use crate::client::Client;
 use crate::codec::Codec;
 use crate::session::PlainSession;
 use crate::session::Session;
+use rand::rngs::ThreadRng;
 
 use logger::*;
 use mio::Token;
@@ -74,6 +74,7 @@ impl Client for PlainClient {
     }
 
     fn prepare_request(&mut self, token: Token, rng: &mut ThreadRng) {
-        self.common.encode(self.sessions[token.into()].write_buf(), rng)
+        self.common
+            .encode(self.sessions[token.into()].write_buf(), rng)
     }
 }

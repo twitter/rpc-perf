@@ -80,10 +80,20 @@ impl OuterBucket {
 
     fn index(&self, value: usize) -> usize {
         if value < self.min() {
-            error!("value: {} is below outer bucket: {} -> {}", value, self.min(), self.max());
+            error!(
+                "value: {} is below outer bucket: {} -> {}",
+                value,
+                self.min(),
+                self.max()
+            );
         }
         if value >= self.max() {
-            error!("value: {} is above outer bucket: {} -> {}", value, self.min(), self.max());
+            error!(
+                "value: {} is above outer bucket: {} -> {}",
+                value,
+                self.min(),
+                self.max()
+            );
         }
         let tmp = ((value - self.min()) as f64 / unsafe { *self.step.get() }).floor() as usize;
         if value < self.buckets[tmp].min() {
@@ -97,30 +107,63 @@ impl OuterBucket {
 
     pub fn incr(&self, value: usize, count: usize) {
         if value < self.min() {
-            error!("value: {} is below outer bucket: {} -> {}", value, self.min(), self.max());
+            error!(
+                "value: {} is below outer bucket: {} -> {}",
+                value,
+                self.min(),
+                self.max()
+            );
         }
         if value >= self.max() {
-            error!("value: {} is above outer bucket: {} -> {}", value, self.min(), self.max());
+            error!(
+                "value: {} is above outer bucket: {} -> {}",
+                value,
+                self.min(),
+                self.max()
+            );
         }
         debug_assert!(value >= self.min());
         debug_assert!(value < self.max());
         if let Some(bucket) = self.buckets.get(self.index(value)) {
             if value < bucket.min() {
-                error!("value: {} is below bucket: {} -> {}", value, bucket.min(), bucket.max());
+                error!(
+                    "value: {} is below bucket: {} -> {}",
+                    value,
+                    bucket.min(),
+                    bucket.max()
+                );
                 error!("outer bucket: {} -> {}", self.min(), self.max());
-                error!("step: {} buckets: {}", unsafe { *self.step.get() }, self.buckets.len());
+                error!(
+                    "step: {} buckets: {}",
+                    unsafe { *self.step.get() },
+                    self.buckets.len()
+                );
             }
             if value >= bucket.max() {
-                error!("value: {} is above bucket: {} -> {}", value, bucket.min(), bucket.max());
+                error!(
+                    "value: {} is above bucket: {} -> {}",
+                    value,
+                    bucket.min(),
+                    bucket.max()
+                );
                 error!("outer bucket: {} -> {}", self.min(), self.max());
-                error!("step: {} buckets: {}", unsafe { *self.step.get() }, self.buckets.len());
+                error!(
+                    "step: {} buckets: {}",
+                    unsafe { *self.step.get() },
+                    self.buckets.len()
+                );
             }
             debug_assert!(value >= bucket.min());
             debug_assert!(value < bucket.max());
             bucket.incr(count);
             self.inner.incr(count);
         } else {
-            error!("index out of bounds! value: {} outer bucket: {} -> {}", value, self.min(), self.max());
+            error!(
+                "index out of bounds! value: {} outer bucket: {} -> {}",
+                value,
+                self.min(),
+                self.max()
+            );
         }
     }
 

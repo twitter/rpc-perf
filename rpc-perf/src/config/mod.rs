@@ -14,17 +14,17 @@
 
 mod general;
 
+pub use self::general::Protocol;
+use rand::distributions::Alphanumeric;
+use rand::distributions::Distribution;
 use rand::distributions::Uniform;
 use rand::rngs::ThreadRng;
-use rand::distributions::Alphanumeric;
-pub use self::general::Protocol;
-use rand::distributions::Distribution;
 
 use crate::config::general::General;
 
-use rand::Rng;
-use rand::seq::SliceRandom;
 use crate::*;
+use rand::seq::SliceRandom;
+use rand::Rng;
 
 use clap::{App, Arg, ArgMatches};
 use serde_derive::*;
@@ -95,7 +95,10 @@ pub struct Generator {
 
 impl Generator {
     pub fn generate(&self, rng: &mut ThreadRng) -> crate::codec::Command {
-        let keyspace = self.keyspaces.choose_weighted(rng, |keyspace| keyspace.weight()).unwrap();
+        let keyspace = self
+            .keyspaces
+            .choose_weighted(rng, |keyspace| keyspace.weight())
+            .unwrap();
         let action = keyspace.choose_action(rng);
         match action {
             Action::Get => {
@@ -125,17 +128,27 @@ impl KeyspaceGenerator {
     }
 
     pub fn choose_action(&self, rng: &mut ThreadRng) -> Action {
-        self.commands.choose_weighted(rng, |command| command.weight()).unwrap().action()
+        self.commands
+            .choose_weighted(rng, |command| command.weight())
+            .unwrap()
+            .action()
     }
 
     pub fn choose_key(&self, rng: &mut ThreadRng) -> String {
-        format!("{:0width$}", self.distribution.sample(rng), width = self.length)
+        format!(
+            "{:0width$}",
+            self.distribution.sample(rng),
+            width = self.length
+        )
     }
 
     pub fn choose_value(&self, rng: &mut ThreadRng) -> String {
-        let length = self.values.choose_weighted(rng, |value| value.weight()).unwrap().length();
-        rng
-            .sample_iter(&Alphanumeric)
+        let length = self
+            .values
+            .choose_weighted(rng, |value| value.weight())
+            .unwrap()
+            .length();
+        rng.sample_iter(&Alphanumeric)
             .take(length)
             .collect::<String>()
     }
@@ -145,7 +158,10 @@ impl Keyspace {
     pub fn generator(&self) -> KeyspaceGenerator {
         let count = if let Some(count) = self.count {
             if 10_usize.pow(self.length as u32) < count {
-                error!("Keyspace with length: {} has count that exceeds key length", self.length);
+                error!(
+                    "Keyspace with length: {} has count that exceeds key length",
+                    self.length
+                );
                 10_usize.pow(self.length as u32)
             } else {
                 count
@@ -153,9 +169,8 @@ impl Keyspace {
         } else {
             10_usize.pow(self.length as u32)
         };
-        
-        let distribution = 
-                Uniform::from(0..count);
+
+        let distribution = Uniform::from(0..count);
         KeyspaceGenerator {
             length: self.length,
             weight: self.weight,
@@ -292,7 +307,7 @@ impl Config {
                     .long("request-timeout")
                     .value_name("Microseconds")
                     .help("Base timeout for requests")
-                    .takes_value(true)
+                    .takes_value(true),
             )
             .arg(
                 Arg::with_name("connect-ratelimit")
@@ -306,7 +321,7 @@ impl Config {
                     .long("connect-timeout")
                     .value_name("Microseconds")
                     .help("Base timeout for connects")
-                    .takes_value(true)
+                    .takes_value(true),
             )
             .arg(
                 Arg::with_name("tcp-nodelay")
@@ -388,7 +403,9 @@ impl Config {
         }
 
         if let Some(request_ratelimit) = parse_numeric_arg(&matches, "request-ratelimit") {
-            config.general.set_request_ratelimit(Some(request_ratelimit));
+            config
+                .general
+                .set_request_ratelimit(Some(request_ratelimit));
         }
 
         if let Some(request_timeout) = parse_numeric_arg(&matches, "request-timeout") {
@@ -396,7 +413,9 @@ impl Config {
         }
 
         if let Some(connect_ratelimit) = parse_numeric_arg(&matches, "connect-ratelimit") {
-            config.general.set_connect_ratelimit(Some(connect_ratelimit));
+            config
+                .general
+                .set_connect_ratelimit(Some(connect_ratelimit));
         }
 
         if let Some(connect_timeout) = parse_numeric_arg(&matches, "connect-timeout") {
@@ -427,16 +446,17 @@ impl Config {
                 std::process::exit(1);
             });
             endpoints.push(endpoint.to_string());
-            
         }
 
         config.general.set_endpoints(Some(endpoints));
 
-        config.general.set_logging(match matches.occurrences_of("verbose") {
-            0 => Level::Info,
-            1 => Level::Debug,
-            _ => Level::Trace,
-        });
+        config
+            .general
+            .set_logging(match matches.occurrences_of("verbose") {
+                0 => Level::Info,
+                1 => Level::Debug,
+                _ => Level::Trace,
+            });
 
         if matches.is_present("service") {
             config.general.set_windows(None);
@@ -501,7 +521,9 @@ impl Config {
 
     /// get listen address
     pub fn listen(&self) -> Option<SocketAddr> {
-        self.general.listen().map(|v| v.to_socket_addrs().unwrap().next().unwrap())
+        self.general
+            .listen()
+            .map(|v| v.to_socket_addrs().unwrap().next().unwrap())
     }
 
     /// get logging level
@@ -578,9 +600,7 @@ impl Config {
         for keyspace in &self.keyspace {
             keyspaces.push(keyspace.generator());
         }
-        Generator {
-            keyspaces
-        }
+        Generator { keyspaces }
     }
 
     pub fn print(&self) {
@@ -604,8 +624,12 @@ impl Config {
         );
         info!(
             "Config: Ratelimit (/s): Connect: {} Request: {}",
-            self.connect_ratelimit().map(|v| format!("{}", v)).unwrap_or("Unlimited".to_string()),
-            self.request_ratelimit().map(|v| format!("{}", v)).unwrap_or("Unlimited".to_string()),
+            self.connect_ratelimit()
+                .map(|v| format!("{}", v))
+                .unwrap_or("Unlimited".to_string()),
+            self.request_ratelimit()
+                .map(|v| format!("{}", v))
+                .unwrap_or("Unlimited".to_string()),
         );
         info!(
             "Config: Timeout (us): Connect: {} Request: {}",
@@ -628,7 +652,12 @@ impl Config {
             runtime
         );
         for keyspace in &self.keyspace {
-            info!("Config: Keyspace: Length: {} Commands: {} Value Sizes: {}", keyspace.length, keyspace.commands.len(), keyspace.values.len());
+            info!(
+                "Config: Keyspace: Length: {} Commands: {} Value Sizes: {}",
+                keyspace.length,
+                keyspace.commands.len(),
+                keyspace.values.len()
+            );
         }
     }
 }

@@ -12,9 +12,9 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use crate::histogram::latched::Iter;
 use crate::histogram::bucket::Bucket;
-use crate::histogram::{Latched, Histogram};
+use crate::histogram::latched::Iter;
+use crate::histogram::{Histogram, Latched};
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 use std::time;

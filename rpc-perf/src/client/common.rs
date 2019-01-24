@@ -12,13 +12,13 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use crate::client::{SECOND, MILLISECOND, MICROSECOND};
-use rand::thread_rng;
-use rand::rngs::ThreadRng;
-use rand::seq::SliceRandom;
+use crate::client::{MICROSECOND, MILLISECOND, SECOND};
 use crate::codec::Codec;
 use crate::stats::Simple;
 use crate::stats::Stat;
+use rand::rngs::ThreadRng;
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 
 use bytes::BytesMut;
 use mio::{Events, Poll, Token};
@@ -133,7 +133,6 @@ impl Common {
         for token in tmp {
             self.connect_queue.push_back(token);
         }
-
     }
 
     pub fn ready_enqueue(&mut self, token: Token) {

@@ -14,10 +14,10 @@
 
 pub mod http;
 
-use crate::config::Config;
-use datastructures::Heatmap;
 use crate::client::SECOND;
+use crate::config::Config;
 pub use crate::stats::http::Http;
+use datastructures::Heatmap;
 
 use metrics::*;
 
@@ -299,9 +299,16 @@ impl Simple {
     pub fn new(config: &Config) -> Self {
         let heatmap = if config.waterfall().is_some() {
             if let Some(windows) = config.windows() {
-                Some(datastructures::HeatmapBuilder::new(
-                    0, SECOND, 2, SECOND, windows * config.interval() * SECOND,
-                ).build())
+                Some(
+                    datastructures::HeatmapBuilder::new(
+                        0,
+                        SECOND,
+                        2,
+                        SECOND,
+                        windows * config.interval() * SECOND,
+                    )
+                    .build(),
+                )
             } else {
                 warn!("Unable to initialize waterfall output without fixed duration");
                 None
@@ -316,7 +323,6 @@ impl Simple {
     }
 
     pub fn add_counter_channel<T: ToString>(&self, label: T) {
-
         self.inner
             .add_channel(label.to_string(), Source::Counter, None);
         self.inner.add_output(label.to_string(), Output::Counter);
@@ -458,7 +464,7 @@ impl Simple {
             labels.insert(100_000_000, "100ms".to_string());
             labels.insert(200_000_000, "200ms".to_string());
             labels.insert(400_000_000, "400ms".to_string());
-            waterfall::save_waterfall(&heatmap, &file, labels, 60*SECOND);
+            waterfall::save_waterfall(&heatmap, &file, labels, 60 * SECOND);
         }
     }
 }

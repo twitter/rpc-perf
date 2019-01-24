@@ -44,7 +44,6 @@ pub struct General {
     #[serde(default = "default_connect_timeout")]
     connect_timeout: usize,
     waterfall: Option<String>,
-
 }
 
 impl General {
@@ -280,4 +279,3 @@ enum LevelDef {
 fn default_logging_level() -> Level {
     Level::Info
 }
-

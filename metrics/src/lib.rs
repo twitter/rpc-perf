@@ -193,7 +193,11 @@ mod tests {
             Measurement::Counter { time: 1, value: 2 },
         );
         assert_eq!(recorder.counter("test".to_string()), 2);
-        assert!(approx_eq(recorder.percentile("test".to_string(), 0.0).unwrap(), 0, 3));
+        assert!(approx_eq(
+            recorder.percentile("test".to_string(), 0.0).unwrap(),
+            0,
+            3
+        ));
         assert!(approx_eq(
             recorder.percentile("test".to_string(), 0.5).unwrap(),
             1_000_000_000,

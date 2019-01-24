@@ -13,10 +13,10 @@
 //  limitations under the License.
 
 use core::fmt::Debug;
-use std::collections::HashMap;
-use std::hash::Hash;
-use std::collections::HashSet;
 use logger::*;
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::hash::Hash;
 
 pub struct Wheel<T> {
     tick: usize,
@@ -24,7 +24,10 @@ pub struct Wheel<T> {
     timers: HashMap<T, Timer<T>>,
 }
 
-impl<T> Wheel<T> where T: Copy + Clone + Eq + Hash + Debug {
+impl<T> Wheel<T>
+where
+    T: Copy + Clone + Eq + Hash + Debug,
+{
     pub fn new(buckets: usize) -> Self {
         let mut wheel = Self {
             tick: 0,
@@ -69,10 +72,7 @@ impl<T> Wheel<T> where T: Copy + Clone + Eq + Hash + Debug {
             self.cancel(token);
         }
         let bucket = (ticks + self.tick) % self.buckets.len();
-        let timer = Timer {
-            token,
-            bucket,
-        };
+        let timer = Timer { token, bucket };
         self.timers.insert(token, timer);
         self.buckets[bucket].timers.insert(token);
     }
@@ -93,7 +93,10 @@ pub struct Bucket<T> {
     timers: HashSet<T>,
 }
 
-impl<T> Bucket<T> where T: Copy + Clone + Eq + Hash + Debug {
+impl<T> Bucket<T>
+where
+    T: Copy + Clone + Eq + Hash + Debug,
+{
     pub fn new() -> Self {
         Self {
             timers: HashSet::new(),
@@ -107,7 +110,10 @@ pub struct Timer<T> {
     token: T,
 }
 
-impl<T> Timer<T> where T: Copy + Clone + Eq + Hash + Debug {
+impl<T> Timer<T>
+where
+    T: Copy + Clone + Eq + Hash + Debug,
+{
     pub fn token(&self) -> T {
         self.token
     }

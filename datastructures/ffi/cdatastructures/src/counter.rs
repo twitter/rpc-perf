@@ -17,13 +17,13 @@ use libc::uintptr_t;
 
 /// Create a new `Counter`
 #[no_mangle]
-pub extern fn counter_new() -> *mut Counter {
+pub extern "C" fn counter_new() -> *mut Counter {
     Box::into_raw(Box::new(Counter::new(0)))
 }
 
 /// Clear the count stored in the `Counter`
 #[no_mangle]
-pub extern fn counter_clear(ptr: *mut Counter) {
+pub extern "C" fn counter_clear(ptr: *mut Counter) {
     let counter = unsafe {
         assert!(!ptr.is_null());
         &mut *ptr
@@ -33,7 +33,7 @@ pub extern fn counter_clear(ptr: *mut Counter) {
 
 /// Get the count stored in the `Counter`
 #[no_mangle]
-pub extern fn counter_count(ptr: *mut Counter) -> uintptr_t {
+pub extern "C" fn counter_count(ptr: *mut Counter) -> uintptr_t {
     let counter = unsafe {
         assert!(!ptr.is_null());
         &mut *ptr
@@ -43,7 +43,7 @@ pub extern fn counter_count(ptr: *mut Counter) -> uintptr_t {
 
 /// Decrement the value of the `Counter` by count
 #[no_mangle]
-pub extern fn counter_decr(ptr: *mut Counter, count: uintptr_t) {
+pub extern "C" fn counter_decr(ptr: *mut Counter, count: uintptr_t) {
     let counter = unsafe {
         assert!(!ptr.is_null());
         &mut *ptr
@@ -53,14 +53,18 @@ pub extern fn counter_decr(ptr: *mut Counter, count: uintptr_t) {
 
 /// Free the `Counter`
 #[no_mangle]
-pub extern fn counter_free(ptr: *mut Counter) {
-    if ptr.is_null() { return }
-    unsafe { Box::from_raw(ptr); }
+pub extern "C" fn counter_free(ptr: *mut Counter) {
+    if ptr.is_null() {
+        return;
+    }
+    unsafe {
+        Box::from_raw(ptr);
+    }
 }
 
 /// Increment the value of the `Counter` by count
 #[no_mangle]
-pub extern fn counter_incr(ptr: *mut Counter, count: uintptr_t) {
+pub extern "C" fn counter_incr(ptr: *mut Counter, count: uintptr_t) {
     let counter = unsafe {
         assert!(!ptr.is_null());
         &mut *ptr
@@ -69,4 +73,6 @@ pub extern fn counter_incr(ptr: *mut Counter, count: uintptr_t) {
 }
 
 #[allow(dead_code)]
-pub extern fn fix_linking_when_not_using_stdlib() { panic!() }
+pub extern "C" fn fix_linking_when_not_using_stdlib() {
+    panic!()
+}

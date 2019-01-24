@@ -65,8 +65,7 @@ impl Codec for Redis {
                     recorder.distribution("keys/size", key.len());
                     recorder.distribution("values/size", value.len());
                 }
-                self.codec
-                    .set(buf, key, value);
+                self.codec.set(buf, key, value);
             }
         }
     }

@@ -121,7 +121,8 @@ impl Client for TLSClient {
     }
 
     fn prepare_request(&mut self, token: Token, rng: &mut ThreadRng) {
-        self.common.encode(self.sessions[token.into()].write_buf(), rng)
+        self.common
+            .encode(self.sessions[token.into()].write_buf(), rng)
     }
 }
 

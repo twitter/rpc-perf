@@ -12,16 +12,16 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
+use crate::*;
 use datastructures::HistogramConfig;
-use std::sync::Arc;
 use datastructures::RwWrapper;
 use std::collections::HashSet;
-use crate::*;
+use std::sync::Arc;
 
 use datastructures::Wrapper;
 
-use std::collections::HashMap;
 use evmap::{ReadHandle, WriteHandle};
+use std::collections::HashMap;
 
 #[derive(Clone)]
 pub struct Recorder {
@@ -41,27 +41,41 @@ impl Recorder {
     }
 
     pub fn record(&self, channel: String, measurement: Measurement) {
-            self.data_read.get_and(&channel, |channel| (*channel)[0].record(measurement));
+        self.data_read
+            .get_and(&channel, |channel| (*channel)[0].record(measurement));
     }
 
     pub fn counter(&self, channel: String) -> usize {
-        self.data_read.get_and(&channel, |channel| (*channel)[0].counter()).unwrap_or(0)
+        self.data_read
+            .get_and(&channel, |channel| (*channel)[0].counter())
+            .unwrap_or(0)
     }
 
     pub fn percentile(&self, channel: String, percentile: f64) -> Option<usize> {
-        self.data_read.get_and(&channel, |channel| (*channel)[0].percentile(percentile)).unwrap_or(None)
+        self.data_read
+            .get_and(&channel, |channel| (*channel)[0].percentile(percentile))
+            .unwrap_or(None)
     }
 
-    pub fn add_channel(&self, name: String, source: Source, histogram_config: Option<HistogramConfig>) {
+    pub fn add_channel(
+        &self,
+        name: String,
+        source: Source,
+        histogram_config: Option<HistogramConfig>,
+    ) {
         debug!("add channel: {} source: {:?}", name, source);
         let channel = Channel::new(name.clone(), source, histogram_config);
-        if self.data_read.get_and(&name, |channel| channel.len()).unwrap_or(0) == 0 {
+        if self
+            .data_read
+            .get_and(&name, |channel| channel.len())
+            .unwrap_or(0)
+            == 0
+        {
             unsafe {
                 (*self.data_write.get()).insert(name.clone(), Arc::new(channel));
                 (*self.data_write.get()).refresh();
                 (*self.labels.lock()).insert(name);
             }
-            
         }
     }
 
@@ -78,7 +92,9 @@ impl Recorder {
         let mut result = Vec::new();
         unsafe {
             for label in &*self.labels.get() {
-                let readings = self.data_read.get_and(label, |channel| (*channel)[0].readings());
+                let readings = self
+                    .data_read
+                    .get_and(label, |channel| (*channel)[0].readings());
                 if let Some(readings) = readings {
                     result.extend(readings);
                 }
@@ -91,7 +107,9 @@ impl Recorder {
         let mut result = HashMap::new();
         unsafe {
             for label in &*self.labels.get() {
-                let readings = self.data_read.get_and(label, |channel| (*channel)[0].hash_map());
+                let readings = self
+                    .data_read
+                    .get_and(label, |channel| (*channel)[0].hash_map());
                 if let Some(readings) = readings {
                     result.insert(label.to_owned(), readings);
                 }
@@ -104,23 +122,28 @@ impl Recorder {
     pub fn save_files(&self) {
         unsafe {
             for label in &*self.labels.get() {
-                let readings = self.data_read.get_and(label, |channel| (*channel)[0].save_files());
+                let readings = self
+                    .data_read
+                    .get_and(label, |channel| (*channel)[0].save_files());
             }
         }
     }
 
     pub fn add_output(&self, name: String, output: Output) {
-        self.data_read.get_and(&name, |channel| (*channel)[0].add_output(output));
+        self.data_read
+            .get_and(&name, |channel| (*channel)[0].add_output(output));
     }
 
     pub fn delete_output(&self, name: String, output: Output) {
-        self.data_read.get_and(&name, |channel| (*channel)[0].delete_output(output));
+        self.data_read
+            .get_and(&name, |channel| (*channel)[0].delete_output(output));
     }
 
     pub fn latch(&self) {
         unsafe {
             for label in &*self.labels.get() {
-                self.data_read.get_and(label, |channel| (*channel)[0].latch());
+                self.data_read
+                    .get_and(label, |channel| (*channel)[0].latch());
             }
         }
     }
@@ -128,7 +151,8 @@ impl Recorder {
     pub fn clear(&self) {
         unsafe {
             for label in &*self.labels.get() {
-                self.data_read.get_and(label, |channel| (*channel)[0].clear());
+                self.data_read
+                    .get_and(label, |channel| (*channel)[0].clear());
             }
         }
     }

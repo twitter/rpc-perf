@@ -12,8 +12,8 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use crate::histogram::bucket::Bucket;
 use crate::counter::Counter;
+use crate::histogram::bucket::Bucket;
 use crate::histogram::bucket::OuterBucket;
 use crate::histogram::Histogram;
 
@@ -115,7 +115,11 @@ pub struct Iter<'a> {
 
 impl<'a> Iter<'a> {
     fn new(inner: &'a Latched) -> Iter<'a> {
-        Iter { inner, outer_index: 0, inner_index: 0 }
+        Iter {
+            inner,
+            outer_index: 0,
+            inner_index: 0,
+        }
     }
 }
 
@@ -275,7 +279,6 @@ impl Histogram for Latched {
             }
             Some((sum as f64 / self.samples() as f64).ceil() as usize)
         }
-        
     }
 
     fn std_dev(&self) -> Option<usize> {

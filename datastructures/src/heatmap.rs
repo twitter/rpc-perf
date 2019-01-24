@@ -12,10 +12,10 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use crate::histogram::Latched;
 use crate::counter::Counter;
+use crate::histogram::Histogram;
+use crate::histogram::Latched;
 use crate::wrapper::RwWrapper;
-use crate::histogram::{Histogram};
 
 use time::Tm;
 
@@ -63,18 +63,20 @@ impl Slice {
 pub struct Heatmap {
     oldest_begin_precise: Counter, // this is the start time of oldest slice
     newest_begin_precise: Counter, // start time of newest slice
-    newest_end_precise: Counter, // end time of the oldest slice
+    newest_end_precise: Counter,   // end time of the oldest slice
     oldest_begin_utc: RwWrapper<Tm>, // relates start time of oldest slice to wall-clock
-    resolution: Counter, // number of NS per slice
-    slices: Vec<Latched>, // stores the `Histogram`s
-    offset: Counter, // indicates which `Histogram` is the oldest
+    resolution: Counter,           // number of NS per slice
+    slices: Vec<Latched>,          // stores the `Histogram`s
+    offset: Counter,               // indicates which `Histogram` is the oldest
 }
 
 impl Heatmap {
     // internal function to calculate the index for a time
     fn get_index(&self, time: usize) -> Option<usize> {
         if self.oldest_begin_precise.get() < time && time < self.newest_end_precise.get() {
-            let mut index = ((time - self.oldest_begin_precise.get()) / self.resolution.get()) as usize + self.offset.get();
+            let mut index = ((time - self.oldest_begin_precise.get()) / self.resolution.get())
+                as usize
+                + self.offset.get();
             if index >= self.slices.len() {
                 index -= self.slices.len();
             }
@@ -123,7 +125,8 @@ impl Heatmap {
         self.newest_begin_precise.incr(self.resolution.get());
         self.newest_end_precise.incr(self.resolution.get());
         unsafe {
-            (*self.oldest_begin_utc.lock()) = (*self.oldest_begin_utc.get()) + time::Duration::nanoseconds(self.resolution.get() as i64);
+            (*self.oldest_begin_utc.lock()) = (*self.oldest_begin_utc.get())
+                + time::Duration::nanoseconds(self.resolution.get() as i64);
         }
     }
 
@@ -157,9 +160,7 @@ impl Heatmap {
     }
 
     pub fn begin_utc(&self) -> Tm {
-        unsafe {
-            (*self.oldest_begin_utc.get())
-        }
+        unsafe { (*self.oldest_begin_utc.get()) }
     }
 }
 
@@ -187,13 +188,18 @@ impl<'a> Iterator for Iter<'a> {
             }
             let heatmap_begin_precise = self.inner.oldest_begin_precise.get();
             let begin_precise = heatmap_begin_precise + self.index * self.inner.resolution.get();
-            let heatmap_begin_utc = unsafe{ (*self.inner.oldest_begin_utc.get()) };
+            let heatmap_begin_utc = unsafe { (*self.inner.oldest_begin_utc.get()) };
             self.index += 1;
             Some(Slice {
                 begin_precise,
                 end_precise: begin_precise + self.inner.resolution.get(),
-                begin_utc: heatmap_begin_utc + time::Duration::nanoseconds((begin_precise - heatmap_begin_precise) as i64),
-                end_utc: heatmap_begin_utc + time::Duration::nanoseconds((begin_precise + self.inner.resolution.get() - heatmap_begin_precise) as i64),
+                begin_utc: heatmap_begin_utc
+                    + time::Duration::nanoseconds((begin_precise - heatmap_begin_precise) as i64),
+                end_utc: heatmap_begin_utc
+                    + time::Duration::nanoseconds(
+                        (begin_precise + self.inner.resolution.get() - heatmap_begin_precise)
+                            as i64,
+                    ),
                 histogram: self.inner.slices[index].clone(),
             })
         }
@@ -231,12 +237,16 @@ impl Config {
         // get time and align with previous top of minute
         let now_utc = time::now_utc();
         let now_precise = time::precise_time_ns();
-        let adjusted_precise = now_precise - now_utc.tm_nsec as u64 - now_utc.tm_sec as u64 * SECOND; // set backward to top of minute
-        let adjusted_utc = now_utc - time::Duration::nanoseconds((now_precise - adjusted_precise) as i64); // set backward to top of minute
+        let adjusted_precise =
+            now_precise - now_utc.tm_nsec as u64 - now_utc.tm_sec as u64 * SECOND; // set backward to top of minute
+        let adjusted_utc =
+            now_utc - time::Duration::nanoseconds((now_precise - adjusted_precise) as i64); // set backward to top of minute
 
         Heatmap {
             oldest_begin_precise: Counter::new(adjusted_precise as usize),
-            newest_begin_precise: Counter::new(adjusted_precise as usize + self.span - self.resolution),
+            newest_begin_precise: Counter::new(
+                adjusted_precise as usize + self.span - self.resolution,
+            ),
             newest_end_precise: Counter::new(adjusted_precise as usize + self.span),
             oldest_begin_utc: RwWrapper::new(adjusted_utc),
             offset: Counter::new(0),

@@ -16,9 +16,9 @@ mod bucket;
 mod latched;
 mod moving;
 
-use std::time::Duration;
 pub use self::latched::Latched;
 pub use self::moving::Moving;
+use std::time::Duration;
 
 /// A set of common functions for all `Histogram` types
 pub trait Histogram {
