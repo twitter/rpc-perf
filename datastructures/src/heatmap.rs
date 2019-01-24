@@ -304,6 +304,8 @@ mod tests {
             thread.join().expect("Failed to join child thread");
         }
 
+        std::thread::sleep(std::time::Duration::new(1, 0));
+
         assert_eq!(heatmap.samples(), 2_000_000);
     }
 }
