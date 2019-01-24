@@ -23,8 +23,8 @@ pub extern "C" fn counter_new() -> *mut Counter {
 
 /// Clear the count stored in the `Counter`
 #[no_mangle]
-pub extern "C" fn counter_clear(ptr: *mut Counter) {
-    let counter = unsafe {
+pub unsafe extern "C" fn counter_clear(ptr: *mut Counter) {
+    let counter = {
         assert!(!ptr.is_null());
         &mut *ptr
     };
@@ -33,8 +33,8 @@ pub extern "C" fn counter_clear(ptr: *mut Counter) {
 
 /// Get the count stored in the `Counter`
 #[no_mangle]
-pub extern "C" fn counter_count(ptr: *mut Counter) -> uintptr_t {
-    let counter = unsafe {
+pub unsafe extern "C" fn counter_count(ptr: *mut Counter) -> uintptr_t {
+    let counter = {
         assert!(!ptr.is_null());
         &mut *ptr
     };
@@ -43,8 +43,8 @@ pub extern "C" fn counter_count(ptr: *mut Counter) -> uintptr_t {
 
 /// Decrement the value of the `Counter` by count
 #[no_mangle]
-pub extern "C" fn counter_decr(ptr: *mut Counter, count: uintptr_t) {
-    let counter = unsafe {
+pub unsafe extern "C" fn counter_decr(ptr: *mut Counter, count: uintptr_t) {
+    let counter = {
         assert!(!ptr.is_null());
         &mut *ptr
     };
@@ -53,19 +53,17 @@ pub extern "C" fn counter_decr(ptr: *mut Counter, count: uintptr_t) {
 
 /// Free the `Counter`
 #[no_mangle]
-pub extern "C" fn counter_free(ptr: *mut Counter) {
+pub unsafe extern "C" fn counter_free(ptr: *mut Counter) {
     if ptr.is_null() {
         return;
     }
-    unsafe {
-        Box::from_raw(ptr);
-    }
+    Box::from_raw(ptr);
 }
 
 /// Increment the value of the `Counter` by count
 #[no_mangle]
-pub extern "C" fn counter_incr(ptr: *mut Counter, count: uintptr_t) {
-    let counter = unsafe {
+pub unsafe extern "C" fn counter_incr(ptr: *mut Counter, count: uintptr_t) {
+    let counter = {
         assert!(!ptr.is_null());
         &mut *ptr
     };

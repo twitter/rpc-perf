@@ -626,10 +626,10 @@ impl Config {
             "Config: Ratelimit (/s): Connect: {} Request: {}",
             self.connect_ratelimit()
                 .map(|v| format!("{}", v))
-                .unwrap_or("Unlimited".to_string()),
+                .unwrap_or_else(|| "Unlimited".to_string()),
             self.request_ratelimit()
                 .map(|v| format!("{}", v))
-                .unwrap_or("Unlimited".to_string()),
+                .unwrap_or_else(|| "Unlimited".to_string()),
         );
         info!(
             "Config: Timeout (us): Connect: {} Request: {}",

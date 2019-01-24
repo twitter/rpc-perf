@@ -25,10 +25,10 @@ use std::fs::File;
 use std::io::BufWriter;
 use std::path::Path;
 
-pub fn save_waterfall(
+pub fn save_waterfall<S: ::std::hash::BuildHasher>(
     heatmap: &Heatmap,
     file: &str,
-    labels: HashMap<usize, String>,
+    labels: HashMap<usize, String, S>,
     interval: usize,
 ) {
     debug!("saving waterfall");
@@ -60,7 +60,7 @@ pub fn save_waterfall(
         min, low, mid, high, max
     );
 
-    let mut values: Vec<usize> = labels.keys().map(|v| *v).collect();
+    let mut values: Vec<usize> = labels.keys().cloned().collect();
     values.sort();
     let mut l = 0;
     for slice in heatmap {
@@ -221,7 +221,7 @@ fn color_from_value(value: usize, low: usize, mid: usize, high: usize) -> ColorR
 
     let (r, g, b) = hsl.to_rgb();
 
-    ColorRgb { r: r, g: g, b: b }
+    ColorRgb { r, g, b }
 }
 
 impl ImageBuffer<ColorRgb> {
@@ -236,9 +236,9 @@ impl ImageBuffer<ColorRgb> {
             buffer.push(row.clone());
         }
         ImageBuffer {
-            buffer: buffer,
-            height: height,
-            width: width,
+            buffer,
+            height,
+            width,
         }
     }
 

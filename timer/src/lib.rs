@@ -104,6 +104,15 @@ where
     }
 }
 
+impl<T> Default for Bucket<T>
+where
+    T: Copy + Clone + Eq + Hash + Debug,
+{
+    fn default() -> Bucket<T> {
+        Bucket::new()
+    }
+}
+
 #[derive(Clone, Copy, Eq, PartialEq, Hash)]
 pub struct Timer<T> {
     bucket: usize,
