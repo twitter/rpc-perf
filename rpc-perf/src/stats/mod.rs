@@ -118,7 +118,7 @@ impl<'a> StandardOut<'a> {
             delta_count(&self.previous, &current, Stat::ConnectionsError).unwrap_or(0),
             delta_count(&self.previous, &current, Stat::ConnectionsTimeout).unwrap_or(0),
             self.recorder.counter(Stat::ConnectionsOpened)
-                - self.recorder.counter(Stat::ConnectionsClosed),
+                .saturating_sub(self.recorder.counter(Stat::ConnectionsClosed)),
         );
 
         info!(

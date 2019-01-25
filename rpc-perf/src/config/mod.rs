@@ -279,7 +279,6 @@ impl Config {
                     .long("endpoint")
                     .value_name("HOST:PORT or IP:PORT")
                     .help("Provide a server endpoint to test")
-                    .required(true)
                     .multiple(true)
                     .takes_value(true),
             )
@@ -434,21 +433,23 @@ impl Config {
             config.general.set_warmup_hitrate(Some(warmup_hitrate));
         }
 
-        let mut endpoints = Vec::new();
+        if matches.is_present("endpoint") {
+            let mut endpoints = Vec::new();
 
-        for endpoint in matches.values_of("endpoint").unwrap() {
-            let mut addrs = endpoint.to_socket_addrs().unwrap_or_else(|_| {
-                println!("ERROR: endpoint address is malformed: {}", endpoint);
-                std::process::exit(1);
-            });
-            addrs.next().unwrap_or_else(|| {
-                println!("ERROR: failed to resolve address: {}", endpoint);
-                std::process::exit(1);
-            });
-            endpoints.push(endpoint.to_string());
+            for endpoint in matches.values_of("endpoint").unwrap() {
+                let mut addrs = endpoint.to_socket_addrs().unwrap_or_else(|_| {
+                    println!("ERROR: endpoint address is malformed: {}", endpoint);
+                    std::process::exit(1);
+                });
+                addrs.next().unwrap_or_else(|| {
+                    println!("ERROR: failed to resolve address: {}", endpoint);
+                    std::process::exit(1);
+                });
+                endpoints.push(endpoint.to_string());
+            }
+
+            config.general.set_endpoints(Some(endpoints));
         }
-
-        config.general.set_endpoints(Some(endpoints));
 
         config
             .general
