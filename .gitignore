@@ -1,2 +1,4 @@
 target
+vendor
+.cargo
 **/*.rs.bk

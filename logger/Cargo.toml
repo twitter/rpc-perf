@@ -1,0 +1,14 @@
+[package]
+name = "logger"
+version = "0.1.0"
+authors = ["Brian Martin <bmartin@twitter.com>"]
+edition = "2018"
+license = "Apache-2.0"
+description = "Logging library"
+homepage = "https://github.com/twitter/rpc-perf"
+repository = "https://github.com/twitter/rpc-perf"
+publish = false
+
+[dependencies]
+log = { version = "0.4.6", features = ["std"] }
+time = "0.1.40"

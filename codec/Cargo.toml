@@ -1,0 +1,19 @@
+[package]
+name = "codec"
+version = "0.1.0"
+authors = ["Brian Martin <bmartin@twitter.com>"]
+edition = "2018"
+license = "Apache-2.0"
+description = "Codecs and generators"
+homepage = "https://github.com/twitter/rpc-perf"
+repository = "https://github.com/twitter/rpc-perf"
+publish = false
+
+[dependencies]
+bytes = "=0.4.11"
+crc = "1.8.1"
+datastructures = { path = "../datastructures" }
+rand = "0.6.4"
+logger = { path = "../logger" }
+metrics = { path = "../metrics" }
+time = "0.1.42"

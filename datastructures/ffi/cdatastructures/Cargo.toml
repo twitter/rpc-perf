@@ -1,0 +1,17 @@
+[package]
+name = "cdatastructures"
+version = "0.1.0"
+authors = ["Brian Martin <bmartin@twitter.com>"]
+edition = "2018"
+license = "Apache-2.0"
+description = "Shared datastructures C wrapper"
+homepage = "https://github.com/twitter/rpc-perf"
+repository = "https://github.com/twitter/rpc-perf"
+publish = false
+
+[dependencies]
+libc = "0.2.48"
+datastructures = { path = "../../"}
+
+[lib]
+crate-type = ["cdylib","staticlib"]

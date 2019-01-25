@@ -12,9 +12,6 @@ cache:
   - $HOME/.cargo
   - $TRAVIS_BUILD_DIR/target/debug
   - $TRAVIS_BUILD_DIR/target/release
-  - $TRAVIS_BUILD_DIR/target/benchcmp/target
-  - $TRAVIS_BUILD_DIR/fuzz/target
-  - $TRAVIS_BUILD_DIR/fuzz/corpus
 script:
 - cargo build --verbose
 - cargo test --verbose
@@ -26,67 +23,18 @@ matrix:
       rust: nightly
       env: TYPE=rustfmt RUST_BACKTRACE=1
       script:
-        - cargo install -f rustfmt-nightly || cargo fmt -- --version || exit 0
+        - cargo install -f rustfmt-nightly
         - cargo fmt -- --check
     - os: linux
       rust: nightly
-      env: TYPE=bench RUST_BACKTRACE=1
-      script: cargo bench --features unstable
-    - os: linux
-      rust: nightly
-      env: TYPE=benchcmp RUST_BACKTRACE=1
-      script: cargo bench --features benchcmp
-    - os: linux
-      rust: nightly
-      env: TYPE=features RUST_BACKTRACE=1
-      script: cargo build --features asm --release
+      env: TYPE=tls RUST_BACKTRACE=1
+      script:
+        - cargo build --features tls --release
     - os: linux
       rust: nightly
       env: TYPE=clippy RUST_BACKTRACE=1
       script:
-        - cargo install -f clippy || cargo clippy -- --version || exit 0
+        - rustup component add clippy-preview
         - cargo clippy
-    - os: linux
-      rust: nightly
-      env: TYPE=fuzzer_codec_echo RUST_BACKTRACE=1
-      script:
-        - cargo install cargo-fuzz -f
-        - sudo -E $HOME/.cargo/bin/cargo fuzz run -s address fuzzer_codec_echo -- -max_total_time=300
-        - sudo chown -R travis $HOME/.cargo
-    - os: linux
-      rust: nightly
-      env: TYPE=fuzzer_codec_memcache RUST_BACKTRACE=1
-      script:
-        - cargo install cargo-fuzz -f
-        - sudo -E $HOME/.cargo/bin/cargo fuzz run -s address fuzzer_codec_memcache -- -max_total_time=300
-        - sudo chown -R travis $HOME/.cargo
-    - os: linux
-      rust: nightly
-      env: TYPE=fuzzer_codec_ping RUST_BACKTRACE=1
-      script:
-        - cargo install cargo-fuzz -f
-        - sudo -E $HOME/.cargo/bin/cargo fuzz run -s address fuzzer_codec_ping -- -max_total_time=300
-        - sudo chown -R travis $HOME/.cargo
-    - os: linux
-      rust: nightly
-      env: TYPE=fuzzer_codec_redis_inline RUST_BACKTRACE=1
-      script:
-        - cargo install cargo-fuzz -f
-        - sudo -E $HOME/.cargo/bin/cargo fuzz run -s address fuzzer_codec_redis_inline -- -max_total_time=300
-        - sudo chown -R travis $HOME/.cargo
-    - os: linux
-      rust: nightly
-      env: TYPE=fuzzer_codec_redis_resp RUST_BACKTRACE=1
-      script:
-        - cargo install cargo-fuzz -f
-        - sudo -E $HOME/.cargo/bin/cargo fuzz run -s address fuzzer_codec_redis_resp -- -max_total_time=300
-        - sudo chown -R travis $HOME/.cargo
-    - os: linux
-      rust: nightly
-      env: TYPE=fuzzer_codec_thrift RUST_BACKTRACE=1
-      script:
-        - cargo install cargo-fuzz -f
-        - sudo -E $HOME/.cargo/bin/cargo fuzz run -s address fuzzer_codec_thrift -- -max_total_time=300
-        - sudo chown -R travis $HOME/.cargo
   allow_failures:
     - rust: nightly

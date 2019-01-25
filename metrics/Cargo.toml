@@ -1,0 +1,16 @@
+[package]
+name = "metrics"
+version = "0.1.0"
+authors = ["Brian Martin <bmartin@twitter.com>"]
+edition = "2018"
+license = "Apache-2.0"
+description = "Metrics library"
+homepage = "https://github.com/twitter/rpc-perf"
+repository = "https://github.com/twitter/rpc-perf"
+publish = false
+
+[dependencies]
+evmap = "*"
+datastructures = { path = "../datastructures" }
+logger = { path = "../logger" }
+time = "0.1.41"

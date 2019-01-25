@@ -1,16 +1,16 @@
-[package]
-name = "rpc-perf"
-version = "2.1.0"
-authors = ["Brian Martin <bmartin@twitter.com>"]
-
-license = "Apache-2.0"
-
-description = "RPC Performance Testing"
-
-homepage = "https://github.com/twitter/rpc-perf"
-repository = "https://github.com/twitter/rpc-perf"
-
-readme = "README.md"
+[workspace]
+members = [
+    "buffer",
+    "codec",
+    "datastructures",
+    "datastructures/ffi/cdatastructures",
+    "logger",
+    "metrics",
+    "ratelimiter",
+    "rpc-perf",
+    "timer",
+    "waterfall",
+]
 
 [profile.dev]
 opt-level = 0
@@ -35,29 +35,3 @@ rpath = false
 lto = true
 debug-assertions = false
 codegen-units = 1
-
-[dependencies]
-byteorder = "=1.1.0"
-bytes = "=0.3.0"
-crc = "=1.5.0"
-getopts = "=0.2.15"
-log = "0.3.8"
-log-panics = "=1.1.0"
-mio = "=0.6.10"
-mpmc = "=0.1.2"
-pad = "=0.1.4"
-rand = "=0.3.17"
-ratelimit = "=0.4.2"
-shuteye = "=0.3.2"
-slab = "=0.3.0"
-simple_logger = "=0.4.0"
-tic = "=0.2.4"
-time = "=0.1.38"
-toml = "=0.4.6"
-rust-crypto = "=0.2.36"
-
-[features]
-asm = [ "tic/asm" ]
-default = []
-unstable = []
-benchcmp = []
