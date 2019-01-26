@@ -11,5 +11,5 @@ publish = false
 
 [dependencies]
 logger = { path = "../logger" }
-parking_lot = "*"
-time = "*"
+parking_lot = "0.7.1"
+time = "0.1.42"
