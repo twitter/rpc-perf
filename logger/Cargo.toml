@@ -11,4 +11,4 @@ publish = false
 
 [dependencies]
 log = { version = "0.4.6", features = ["std"] }
-time = "0.1.40"
+time = "0.1.42"

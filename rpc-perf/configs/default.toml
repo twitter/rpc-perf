@@ -5,8 +5,8 @@ windows = 5 # run for 5 intervals
 clients = 1 # use a single client thread
 poolsize = 1 # each client has 1 connection per endpoint
 tcp_nodelay = false # do not enable tcp_nodelay
-request_timeout = 200 # milliseconds
-connect_timeout = 200 # milliseconds
+request_timeout = 200_000 # microseconds
+connect_timeout = 200_000 # microseconds
 
 [[keyspace]]
 length = 8 # 8 byte keys

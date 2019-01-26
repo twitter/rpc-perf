@@ -11,4 +11,4 @@ publish = false
 
 [dependencies]
 datastructures = { path = "../datastructures" }
-time = "*"
+time = "0.1.42"
