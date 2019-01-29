@@ -189,8 +189,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "evmap"
-version = "4.0.1"
+version = "4.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "hashbrown 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "smallvec 0.6.8 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "fuchsia-zircon"
@@ -212,6 +216,15 @@ version = "0.2.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "unicode-width 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "hashbrown"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "byteorder 1.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "scopeguard 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -305,7 +318,7 @@ name = "metrics"
 version = "0.1.0"
 dependencies = [
  "datastructures 0.1.0",
- "evmap 4.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "evmap 4.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "logger 0.1.0",
  "time 0.1.42 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -593,7 +606,7 @@ dependencies = [
  "timer 0.1.0",
  "tiny_http 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "toml 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)",
- "waterfall 0.1.0",
+ "waterfall 0.1.1",
  "webpki 0.18.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -833,13 +846,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "waterfall"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "datastructures 0.1.0",
  "dejavu 2.37.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "hsl 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "logger 0.1.0",
  "png 0.14.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand 0.6.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "rusttype 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.42 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -913,10 +927,11 @@ dependencies = [
 "checksum crc 1.8.1 (registry+https://github.com/rust-lang/crates.io-index)" = "d663548de7f5cca343f1e0a48d14dcfb0e9eb4e079ec58883b7251539fa10aeb"
 "checksum deflate 0.7.19 (registry+https://github.com/rust-lang/crates.io-index)" = "8a6abb26e16e8d419b5c78662aa9f82857c2386a073da266840e474d5055ec86"
 "checksum dejavu 2.37.0 (registry+https://github.com/rust-lang/crates.io-index)" = "017b75b5fbc5806d490da36acc5c4d0e4ae1b69890d02f24c268da971813fbc1"
-"checksum evmap 4.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "9a77aa885ad8f918dfd1e2100d1f985a37e21e76d3c0c1613419ce6e89875813"
+"checksum evmap 4.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "aebbb5e7fe3137db2059823622c5f386637a9a6afc9184af533577257097295f"
 "checksum fuchsia-zircon 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "2e9763c69ebaae630ba35f74888db465e49e259ba1bc0eda7d06f4a067615d82"
 "checksum fuchsia-zircon-sys 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "3dcaa9ae7725d12cdb85b3ad99a434db70b468c09ded17e012d86b5c1010f7a7"
 "checksum getopts 0.2.18 (registry+https://github.com/rust-lang/crates.io-index)" = "0a7292d30132fb5424b354f5dc02512a86e4c516fe544bb7a25e7f266951b797"
+"checksum hashbrown 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)" = "3bae29b6653b3412c2e71e9d486db9f9df5d701941d86683005efb9f2d28e3da"
 "checksum hsl 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "575fb7f1167f3b88ed825e90eb14918ac460461fdeaa3965c6a50951dee1c970"
 "checksum idna 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "38f09e0f0b1fb55fdee1f17470ad800da77af5186a1a76c026b679358b7e844e"
 "checksum inflate 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)" = "84c683bde2d8413b8f1be3e459c30e4817672b6e7a31d9212b0323154e76eba7"
