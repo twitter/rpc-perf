@@ -27,6 +27,7 @@ rpath = false
 lto = true
 debug-assertions = false
 codegen-units = 1
+incremental = false
 
 [profile.release]
 opt-level = 3
@@ -35,3 +36,4 @@ rpath = false
 lto = true
 debug-assertions = false
 codegen-units = 1
+incremental = false
