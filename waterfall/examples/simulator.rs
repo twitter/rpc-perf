@@ -13,10 +13,10 @@
 //  limitations under the License.
 
 #![allow(unused_imports)]
-use logger::*;
-use datastructures::Histogram;
-use datastructures::HeatmapBuilder;
 use datastructures::histogram::Latched as FixedHistogram;
+use datastructures::HeatmapBuilder;
+use datastructures::Histogram;
+use logger::*;
 use rand::distributions::{Alphanumeric, Distribution, Gamma, LogNormal, Normal, Pareto, Uniform};
 use rand::{thread_rng, Rng};
 use std::collections::HashMap;
@@ -51,7 +51,8 @@ fn main() {
         heatmap.incr(time::precise_time_ns() as usize, value, 1);
     }
 
-    info!("data: samples: {} too_low: {} too_high: {} mean: {:?} mode: {:?} std_dev: {:?}",
+    info!(
+        "data: samples: {} too_low: {} too_high: {} mean: {:?} mode: {:?} std_dev: {:?}",
         histogram.samples(),
         histogram.too_low(),
         histogram.too_high(),
