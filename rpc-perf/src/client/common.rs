@@ -29,6 +29,7 @@ use std::collections::VecDeque;
 
 pub struct Common {
     id: usize,
+    close_rate: Option<Ratelimiter>,
     connect_ratelimiter: Option<Ratelimiter>,
     connect_queue: VecDeque<Token>,
     connect_timeout: usize,
@@ -49,6 +50,7 @@ impl Common {
     pub fn new(id: usize, codec: Box<Codec>) -> Self {
         Self {
             id,
+            close_rate: None,
             connect_ratelimiter: None,
             connect_queue: VecDeque::new(),
             connect_timeout: 200 * MILLISECOND / MICROSECOND,
@@ -107,6 +109,18 @@ impl Common {
             ratelimiter.try_wait()
         } else {
             Ok(())
+        }
+    }
+
+    pub fn set_close_rate(&mut self, rate: Option<Ratelimiter>) {
+        self.close_rate = rate;
+    }
+
+    pub fn should_close(&self) -> bool {
+        if let Some(ref ratelimiter) = self.close_rate {
+            ratelimiter.try_wait().map(|_| true).unwrap_or(false)
+        } else {
+            false
         }
     }
 

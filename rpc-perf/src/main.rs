@@ -164,6 +164,12 @@ fn launch_clients(config: &Config, recorder: &stats::Simple, control: Bool) {
         None
     };
 
+    let close_rate = if let Some(rate) = config.close_rate() {
+       Some(Ratelimiter::new(config.clients(), 1, rate))
+   } else {
+       None
+   };
+
     for i in 0..config.clients() {
         let mut codec: Box<Codec> = match config.protocol() {
             Protocol::Echo => Box::new(crate::codec::Echo::new()),
@@ -184,6 +190,7 @@ fn launch_clients(config: &Config, recorder: &stats::Simple, control: Bool) {
         let mut client = make_client(i, codec, config);
         client.set_poolsize(config.poolsize());
         client.set_tcp_nodelay(config.tcp_nodelay());
+        client.set_close_rate(close_rate.clone());
         client.set_connect_ratelimit(connect_ratelimiter.clone());
         client.set_request_ratelimit(request_ratelimiter.clone());
         client.set_stats(recorder.clone());

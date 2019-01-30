@@ -70,6 +70,9 @@ pub trait Client: Send {
     fn set_stats(&mut self, recorder: Simple) {
         self.common_mut().set_stats(recorder);
     }
+    fn set_close_rate(&mut self, ratelimiter: Option<Ratelimiter>) {
+        self.common_mut().set_close_rate(ratelimiter);
+    }
 
     // implementation specific
     fn common(&self) -> &Common;
@@ -292,6 +295,10 @@ pub trait Client: Send {
         self.common().try_request_wait()
     }
 
+    fn should_close(&self) -> bool {
+        self.common().should_close()
+    }
+
     // protocol helpers
     fn decode(&self, buf: &[u8]) -> Result<Response, Error> {
         self.common().decode(buf)
@@ -405,6 +412,7 @@ pub trait Client: Send {
         if UnixReady::from(event.readiness()).is_hup() {
             trace!("hangup on connect {:?}", token);
             self.stat_increment(Stat::ConnectionsError);
+            self.stat_increment(Stat::ConnectionsServerClosed);
             self.set_state(token, State::Closed);
         } else {
             let read_result = if event.readiness().is_readable() {
@@ -432,6 +440,7 @@ pub trait Client: Send {
         if UnixReady::from(event.readiness()).is_hup() {
             trace!("hangup on connect {:?}", token);
             self.stat_increment(Stat::ConnectionsError);
+            self.stat_increment(Stat::ConnectionsServerClosed);
             self.set_state(token, State::Closed);
         } else if self.does_negotiate() {
             self.set_state(token, State::Negotiating);
@@ -442,9 +451,12 @@ pub trait Client: Send {
 
     fn handle_established(&mut self, token: Token, event: Event) {
         trace!("Got event on established connection");
-        if UnixReady::from(event.readiness()).is_hup() {
+        if self.should_close() {
+            self.stat_increment(Stat::ConnectionsClientClosed);
+            self.set_state(token, State::Closed);
+        } else if UnixReady::from(event.readiness()).is_hup() {
             trace!("hangup on established {:?}", token);
-            self.stat_increment(Stat::ConnectionsError);
+            self.stat_increment(Stat::ConnectionsServerClosed);
             self.set_state(token, State::Closed);
         } else {
             self.set_state(token, State::Established);
@@ -458,8 +470,11 @@ pub trait Client: Send {
             token,
             event
         );
-        if UnixReady::from(event.readiness()).is_hup() {
-            self.stat_increment(Stat::ConnectionsError);
+        if self.should_close() {
+            self.stat_increment(Stat::ConnectionsClientClosed);
+            self.set_state(token, State::Closed);
+        } else if UnixReady::from(event.readiness()).is_hup() {
+            self.stat_increment(Stat::ConnectionsServerClosed);
             self.set_state(token, State::Closed);
         } else {
             let _result = self.session_mut(token).read_to();
@@ -516,8 +531,11 @@ pub trait Client: Send {
 
     fn handle_writing(&mut self, token: Token, event: Event) {
         trace!("Got event on writing connection");
-        if UnixReady::from(event.readiness()).is_hup() {
-            self.stat_increment(Stat::ConnectionsError);
+        if self.should_close() {
+            self.stat_increment(Stat::ConnectionsClientClosed);
+            self.set_state(token, State::Closed);
+        } else if UnixReady::from(event.readiness()).is_hup() {
+            self.stat_increment(Stat::ConnectionsServerClosed);
             self.set_state(token, State::Closed);
         } else {
             match self.session_mut(token).flush() {
@@ -563,6 +581,9 @@ pub trait Client: Send {
         // send requests
         self.do_requests(rng);
 
+        // close connections
+        self.do_client_terminations();
+
         // open connections
         self.do_connects();
     }
@@ -594,6 +615,17 @@ pub trait Client: Send {
                 self.stat_increment(Stat::RequestsEnqueued);
             } else {
                 self.ready_requeue(token);
+            }
+        }
+    }
+
+    // client connection terminations connection
+    fn do_client_terminations(&mut self) {
+        if self.should_close() {
+            if let Some(token) = self.ready_dequeue() {
+                trace!("closing");
+                self.stat_increment(Stat::ConnectionsClientClosed);
+                self.do_close(token);
             }
         }
     }
