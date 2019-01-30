@@ -49,55 +49,57 @@ pub fn save_waterfall<S: ::std::hash::BuildHasher>(
         }
     }
 
-    let min = histogram.percentile(0.0).unwrap();
-    let low = histogram.percentile(0.01).unwrap();
-    let mid = histogram.percentile(0.50).unwrap();
-    let high = histogram.percentile(0.99).unwrap();
-    let max = histogram.percentile(1.0).unwrap();
+    if let Some(min) = histogram.percentile(0.0) {
+        // let min = histogram.percentile(0.0).unwrap();
+        let low = histogram.percentile(0.01).unwrap();
+        let mid = histogram.percentile(0.50).unwrap();
+        let high = histogram.percentile(0.99).unwrap();
+        let max = histogram.percentile(1.0).unwrap();
 
-    debug!(
-        "min: {} low: {} mid: {} high: {} max: {}",
-        min, low, mid, high, max
-    );
+        debug!(
+            "min: {} low: {} mid: {} high: {} max: {}",
+            min, low, mid, high, max
+        );
 
-    let mut values: Vec<usize> = labels.keys().cloned().collect();
-    values.sort();
-    let mut l = 0;
-    for slice in heatmap {
-        let mut x = 0;
-        for bucket in slice.histogram() {
-            let value = color_from_value(bucket.count() / bucket.width(), low, mid, high);
-            buffer.set_pixel(x, y, value);
-            x += 1;
-        }
-        y += 1;
-    }
-
-    if !values.is_empty() {
-        let mut x = 0;
-        let y = 0;
-        let slice = heatmap.into_iter().next().unwrap();
-        for bucket in slice.histogram() {
-            let value = bucket.max();
-            if value >= values[l] {
-                if let Some(label) = labels.get(&values[l]) {
-                    let overlay = string_buffer(label, 25.0);
-                    buffer.overlay(&overlay, x, y);
-                    buffer.vertical_line(
-                        x,
-                        ColorRgb {
-                            r: 255,
-                            g: 255,
-                            b: 255,
-                        },
-                    );
-                }
-                l += 1;
-                if l >= values.len() {
-                    break;
-                }
+        let mut values: Vec<usize> = labels.keys().cloned().collect();
+        values.sort();
+        let mut l = 0;
+        for slice in heatmap {
+            let mut x = 0;
+            for bucket in slice.histogram() {
+                let value = color_from_value(bucket.count() / bucket.width(), low, mid, high);
+                buffer.set_pixel(x, y, value);
+                x += 1;
             }
-            x += 1;
+            y += 1;
+        }
+
+        if !values.is_empty() {
+            let mut x = 0;
+            let y = 0;
+            let slice = heatmap.into_iter().next().unwrap();
+            for bucket in slice.histogram() {
+                let value = bucket.max();
+                if value >= values[l] {
+                    if let Some(label) = labels.get(&values[l]) {
+                        let overlay = string_buffer(label, 25.0);
+                        buffer.overlay(&overlay, x, y);
+                        buffer.vertical_line(
+                            x,
+                            ColorRgb {
+                                r: 255,
+                                g: 255,
+                                b: 255,
+                            },
+                        );
+                    }
+                    l += 1;
+                    if l >= values.len() {
+                        break;
+                    }
+                }
+                x += 1;
+            }
         }
     }
 
