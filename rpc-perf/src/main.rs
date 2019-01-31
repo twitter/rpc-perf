@@ -165,10 +165,10 @@ fn launch_clients(config: &Config, recorder: &stats::Simple, control: Bool) {
     };
 
     let close_rate = if let Some(rate) = config.close_rate() {
-       Some(Ratelimiter::new(config.clients(), 1, rate))
-   } else {
-       None
-   };
+        Some(Ratelimiter::new(config.clients(), 1, rate))
+    } else {
+        None
+    };
 
     for i in 0..config.clients() {
         let mut codec: Box<Codec> = match config.protocol() {

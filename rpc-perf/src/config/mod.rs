@@ -429,9 +429,7 @@ impl Config {
         }
 
         if let Some(close_rate) = parse_numeric_arg(&matches, "close-rate") {
-            config
-                .general
-                .set_close_rate(Some(close_rate));
+            config.general.set_close_rate(Some(close_rate));
         }
 
         if let Some(warmup_hitrate) = parse_float_arg(&matches, "warmup-hitrate") {
