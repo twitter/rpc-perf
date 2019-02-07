@@ -52,18 +52,24 @@ where
     }
 
     pub fn do_tick(&mut self) -> Vec<T> {
-        let mut timers = Vec::with_capacity(self.buckets[self.tick].timers.len());
-        for token in self.buckets[self.tick].timers.drain() {
-            timers.push(token);
-            self.timers.remove(&token);
+        let mut expired = Vec::with_capacity(self.buckets[self.tick].timers.len());
+        let mut remaining = HashSet::new();
+        for token in &self.buckets[self.tick].timers {
+            if self.timers[&token].remaining == 0 {
+                expired.push(*token);
+                self.timers.remove(&token);
+            } else {
+                remaining.insert(*token);
+                self.timers.get_mut(token).unwrap().remaining -= 1;
+            }
         }
-        self.buckets[self.tick].timers.shrink_to_fit();
+        self.buckets[self.tick].timers = remaining;
         if self.tick == (self.buckets.len() - 1) {
             self.tick = 0;
         } else {
             self.tick += 1;
         }
-        timers
+        expired
     }
 
     pub fn add(&mut self, token: T, ticks: usize) {
@@ -72,7 +78,8 @@ where
             self.cancel(token);
         }
         let bucket = (ticks + self.tick) % self.buckets.len();
-        let timer = Timer { token, bucket };
+        let remaining = ticks / self.buckets.len();
+        let timer = Timer { token, remaining, bucket };
         self.timers.insert(token, timer);
         self.buckets[bucket].timers.insert(token);
     }
@@ -116,6 +123,7 @@ where
 #[derive(Clone, Copy, Eq, PartialEq, Hash)]
 pub struct Timer<T> {
     bucket: usize,
+    remaining: usize,
     token: T,
 }
 
@@ -168,6 +176,25 @@ mod tests {
             let timers = wheel.tick(1);
             assert_eq!(timers.len(), 1);
             assert_eq!(timers[0], i);
+        }
+        assert_eq!(wheel.pending(), 0);
+    }
+
+    #[test]
+    fn wrap() {
+        let mut wheel = Wheel::new(1000);
+        for i in 0..2000 {
+            wheel.add(i, i);
+        }
+        assert_eq!(wheel.pending(), 2000);
+        for _ in 0..1000 {
+            let timers = wheel.tick(1);
+            assert_eq!(timers.len(), 1);
+        }
+        assert_eq!(wheel.pending(), 1000);
+        for _ in 0..1000 {
+            let timers = wheel.tick(1);
+            assert_eq!(timers.len(), 1);
         }
         assert_eq!(wheel.pending(), 0);
     }
