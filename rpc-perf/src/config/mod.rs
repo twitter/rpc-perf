@@ -323,6 +323,13 @@ impl Config {
                     .takes_value(true),
             )
             .arg(
+                Arg::with_name("close-rate")
+                    .long("close-rate")
+                    .value_name("Per-second")
+                    .help("Rate of connections/s that should be client closed")
+                    .takes_value(true),
+            )
+            .arg(
                 Arg::with_name("tcp-nodelay")
                     .long("tcp-nodelay")
                     .help("Sets the TCP NODELAY socket option")
@@ -419,6 +426,10 @@ impl Config {
 
         if let Some(connect_timeout) = parse_numeric_arg(&matches, "connect-timeout") {
             config.general.set_connect_timeout(connect_timeout);
+        }
+
+        if let Some(close_rate) = parse_numeric_arg(&matches, "close-rate") {
+            config.general.set_close_rate(Some(close_rate));
         }
 
         if let Some(warmup_hitrate) = parse_float_arg(&matches, "warmup-hitrate") {
@@ -559,6 +570,10 @@ impl Config {
 
     pub fn connect_ratelimit(&self) -> Option<usize> {
         self.general.connect_ratelimit()
+    }
+
+    pub fn close_rate(&self) -> Option<usize> {
+        self.general.close_rate()
     }
 
     pub fn tcp_nodelay(&self) -> bool {

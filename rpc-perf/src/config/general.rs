@@ -33,6 +33,7 @@ pub struct General {
     endpoints: Option<Vec<String>>,
     request_ratelimit: Option<usize>,
     connect_ratelimit: Option<usize>,
+    close_rate: Option<usize>,
     tls_key: Option<String>,
     tls_cert: Option<String>,
     tls_ca: Option<String>,
@@ -135,6 +136,14 @@ impl General {
         self.connect_ratelimit = per_second;
     }
 
+    pub fn set_close_rate(&mut self, per_second: Option<usize>) {
+        self.close_rate = per_second;
+    }
+
+    pub fn close_rate(&self) -> Option<usize> {
+        self.close_rate
+    }
+
     pub fn endpoints(&self) -> Option<Vec<String>> {
         self.endpoints.clone()
     }
@@ -211,6 +220,7 @@ impl Default for General {
             protocol: Default::default(),
             request_ratelimit: None,
             connect_ratelimit: None,
+            close_rate: None,
             tls_key: None,
             tls_cert: None,
             tls_ca: None,

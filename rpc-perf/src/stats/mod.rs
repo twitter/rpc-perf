@@ -39,6 +39,8 @@ pub fn register_stats(recorder: &Simple) {
     recorder.add_histogram_channel(Stat::ConnectionsOpened, 0, 60_000_000_000, 3);
     recorder.add_counter_channel(Stat::ConnectionsClosed);
     recorder.add_counter_channel(Stat::ConnectionsError);
+    recorder.add_counter_channel(Stat::ConnectionsClientClosed);
+    recorder.add_counter_channel(Stat::ConnectionsServerClosed);
     recorder.add_counter_channel(Stat::ConnectionsTimeout);
     recorder.add_histogram_channel(Stat::ResponsesTotal, 0, 60_000_000_000, 3);
     recorder.add_counter_channel(Stat::ResponsesOk);
@@ -206,6 +208,8 @@ pub enum Stat {
     ConnectionsOpened,
     ConnectionsClosed,
     ConnectionsError,
+    ConnectionsClientClosed,
+    ConnectionsServerClosed,
     ConnectionsTimeout,
     ResponsesTotal,
     ResponsesOk,
@@ -232,8 +236,10 @@ impl ToString for Stat {
             Stat::RequestsTimeout => "requests/timeout",
             Stat::ConnectionsTotal => "connections/total",
             Stat::ConnectionsOpened => "connections/opened",
-            Stat::ConnectionsClosed => "connections/closed",
+            Stat::ConnectionsClosed => "connections/closed/total",
             Stat::ConnectionsError => "connections/error",
+            Stat::ConnectionsClientClosed => "connections/closed/client",
+            Stat::ConnectionsServerClosed => "connections/closed/server",
             Stat::ConnectionsTimeout => "connections/timeout",
             Stat::ResponsesTotal => "responses/total",
             Stat::ResponsesOk => "responses/ok",
