@@ -56,7 +56,7 @@ impl Http {
                         )));
                     }
                     "/metrics.json" | "/vars.json" | "/admin/metrics.json" => {
-                        debug!("Serving human readable stats on /vars");
+                        debug!("Serving machine readable stats on /vars");
                         let _ = request.respond(Response::from_string(self.json(false)));
                     }
                     "/vars" => {
@@ -65,7 +65,8 @@ impl Http {
                     }
                     url => {
                         debug!("GET on non-existent url: {}", url);
-                        let _ = request.respond(Response::empty(404));
+                        debug!("Serving machine readable stats on /vars");
+                        let _ = request.respond(Response::from_string(self.json(false)));
                     }
                 },
                 method => {
