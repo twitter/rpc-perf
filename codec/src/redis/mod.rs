@@ -18,6 +18,7 @@ use bytes::{Buf, BytesMut, IntoBuf};
 
 use std::io::{BufRead, BufReader};
 use std::str;
+use std::collections::HashMap;
 
 pub enum Mode {
     Inline,
@@ -46,6 +47,55 @@ impl Redis {
                 buf.extend_from_slice(b"\r\n");
                 buf.extend_from_slice(key);
                 buf.extend_from_slice(b"\r\n");
+            }
+        }
+    }
+
+    pub fn mget(&self, buf: &mut BytesMut, keys: Vec<String>) {
+        match self.mode {
+            Mode::Inline => {
+                buf.extend_from_slice(b"mget ");
+                keys.into_iter().for_each(|k| {
+                    buf.extend_from_slice(k.as_bytes());
+                    buf.extend_from_slice(b" ");
+                });
+                buf.extend_from_slice(b"\r\n");
+            }
+            Mode::Resp => {
+                buf.extend_from_slice(format!("*{}\r\n", keys.len() + 1).as_bytes());
+                buf.extend_from_slice(b"$4\r\nmget\r\n");
+                keys.into_iter().for_each(|k| {
+                    buf.extend_from_slice(format!("${}\r\n", k.len()).as_bytes());
+                    buf.extend_from_slice(k.as_bytes());
+                    buf.extend_from_slice(b"\r\n");
+                });
+            }
+        }
+    }
+
+    pub fn mset(&self, buf: &mut BytesMut, kvs: HashMap<String, String>) {
+        match self.mode {
+            Mode::Inline => {
+                buf.extend_from_slice(b"mset ");
+                kvs.into_iter().for_each(|(k, v)| {
+                    buf.extend_from_slice(k.as_bytes());
+                    buf.extend_from_slice(b" ");
+                    buf.extend_from_slice(v.as_bytes());
+                });
+                buf.extend_from_slice(b"\r\n");
+            }
+            Mode::Resp => {
+                buf.extend_from_slice(format!("*{}\r\n", (kvs.len() * 2) + 1).as_bytes());
+                buf.extend_from_slice(b"$4\r\nmset\r\n");
+                kvs.into_iter().for_each(|(k, v)| {
+                    buf.extend_from_slice(format!("${}\r\n", k.len()).as_bytes());
+                    buf.extend_from_slice(k.as_bytes());
+                    buf.extend_from_slice(b"\r\n");
+                    buf.extend_from_slice(format!("${}\r\n", v.len()).as_bytes());
+                    buf.extend_from_slice(v.as_bytes());
+                    buf.extend_from_slice(b"\r\n");
+                });
+
             }
         }
     }

@@ -72,13 +72,6 @@ impl Default for Config {
     }
 }
 
-#[derive(Copy, Clone, Deserialize, Debug)]
-#[serde(rename_all = "lowercase")]
-pub enum Action {
-    Get,
-    Set,
-}
-
 #[derive(Clone, Debug, Deserialize)]
 pub struct Keyspace {
     length: usize,
@@ -110,6 +103,21 @@ impl Generator {
                 let value = keyspace.choose_value(rng);
                 crate::codec::Command::set(key, value)
             }
+            Action::Mget{ key_count } => {
+                let keys = (0..*key_count)
+                    .map(|_i| keyspace.choose_key(rng))
+                    .collect();
+
+                crate::codec::Command::mget(keys)
+            }
+            Action::Mset{ key_count } => {
+                let keys = (0..*key_count)
+                    .map(|_i| (keyspace.choose_key(rng), keyspace.choose_value(rng)))
+                    .collect();
+
+                crate::codec::Command::mset(keys)
+            }
+            _ => unimplemented!("implement missing commands"),
         }
     }
 }
@@ -127,7 +135,7 @@ impl KeyspaceGenerator {
         self.weight
     }
 
-    pub fn choose_action(&self, rng: &mut ThreadRng) -> Action {
+    pub fn choose_action(&self, rng: &mut ThreadRng) -> &Action {
         self.commands
             .choose_weighted(rng, |command| command.weight())
             .unwrap()
@@ -187,9 +195,21 @@ struct Command {
     weight: usize,
 }
 
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "lowercase", tag = "type")]
+pub enum Action {
+    Get,
+    Set,
+    Mget { key_count: usize },
+    Mset { key_count: usize },
+    // TODO(maximebedard): actually implement theses.
+    // Eval { script: String, keys: usize },
+    // Evalsha { script: String, keys: usize },
+}
+
 impl Command {
-    pub fn action(&self) -> Action {
-        self.action
+    pub fn action(&self) -> &Action {
+        &self.action
     }
 
     pub fn weight(&self) -> usize {

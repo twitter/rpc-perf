@@ -15,8 +15,6 @@
 use crate::codec::*;
 pub use codec::RedisMode;
 
-use crate::config::Action;
-
 use bytes::BytesMut;
 
 pub struct Redis {
@@ -48,24 +46,33 @@ impl Codec for Redis {
 
     fn encode(&mut self, buf: &mut BytesMut, rng: &mut ThreadRng) {
         let command = self.generate(rng);
-        match command.action() {
-            Action::Get => {
-                let key = command.key().unwrap();
+        match command {
+            Command::Get(key) => {
                 if let Some(recorder) = self.common.recorder() {
                     recorder.increment("commands/get");
                     recorder.distribution("keys/size", key.len());
                 }
-                self.codec.get(buf, key, None);
+                self.codec.get(buf, key.as_bytes(), None);
             }
-            Action::Set => {
-                let key = command.key().unwrap();
-                let value = command.value().unwrap();
+            Command::Set(key, value) => {
                 if let Some(recorder) = self.common.recorder() {
                     recorder.increment("commands/set");
                     recorder.distribution("keys/size", key.len());
                     recorder.distribution("values/size", value.len());
                 }
-                self.codec.set(buf, key, value);
+                self.codec.set(buf, key.as_bytes(), value.as_bytes());
+            }
+            Command::Mget(keys) => {
+                if let Some(recorder) = self.common.recorder() {
+                    recorder.increment("commands/mget");
+                }
+                self.codec.mget(buf, keys);
+            }
+            Command::Mset(kvs) => {
+                if let Some(recorder) = self.common.recorder() {
+                    recorder.increment("commands/mset");
+                }
+                self.codec.mset(buf, kvs);
             }
         }
     }

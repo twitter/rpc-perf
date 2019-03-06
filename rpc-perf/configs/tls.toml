@@ -16,8 +16,8 @@ length = 8 # 8 byte keys
 count = 10_000_000 # limit to 10M keys
 weight = 1 # this keyspace has a weight of 1
 commands = [ # get:set ratio is 1:1
-    {action = "get", weight = 1},
-    {action = "set", weight = 1},
+    {weight = 1, action= {type = "get"}},
+    {weight = 1, action= {type = "set"}},
 ]
 values = [ # value length will always be 64 bytes
     {length = 64, weight = 1},

@@ -17,6 +17,7 @@ use crate::config::Generator;
 use crate::stats::Simple;
 use bytes::BytesMut;
 use rand::rngs::ThreadRng;
+use std::collections::HashMap;
 
 mod echo;
 mod memcache;
@@ -31,47 +32,28 @@ pub use codec::Decoder;
 pub use codec::Error;
 pub use codec::Response;
 
-use crate::config::Action;
-
-pub struct Command {
-    action: Action,
-    key: Option<String>,
-    value: Option<String>,
+pub enum Command {
+    Get(String),
+    Set(String, String),
+    Mget(Vec<String>),
+    Mset(HashMap<String, String>),
 }
 
 impl Command {
     pub fn get(key: String) -> Command {
-        Command {
-            action: Action::Get,
-            key: Some(key),
-            value: None,
-        }
+        Command::Get(key)
     }
 
     pub fn set(key: String, value: String) -> Command {
-        Command {
-            action: Action::Set,
-            key: Some(key),
-            value: Some(value),
-        }
+        Command::Set(key, value)
     }
 
-    pub fn action(&self) -> Action {
-        self.action
+    pub fn mget(keys: Vec<String>) -> Command {
+        Command::Mget(keys)
     }
 
-    pub fn key(&self) -> Option<&[u8]> {
-        match &self.key {
-            Some(key) => Some(key.as_bytes()),
-            None => None,
-        }
-    }
-
-    pub fn value(&self) -> Option<&[u8]> {
-        match &self.value {
-            Some(value) => Some(value.as_bytes()),
-            None => None,
-        }
+    pub fn mset(kvs: HashMap<String, String>) -> Command {
+        Command::Mset(kvs)
     }
 }
 

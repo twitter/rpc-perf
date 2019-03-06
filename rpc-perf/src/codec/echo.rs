@@ -51,6 +51,9 @@ impl Codec for Echo {
 
     fn encode(&mut self, buf: &mut BytesMut, rng: &mut ThreadRng) {
         let command = self.generate(rng);
-        self.codec.echo(buf, command.key().unwrap());
+        match command {
+            Command::Get(key) => self.codec.echo(buf, key.as_bytes()),
+            _ => unreachable!(),
+        }
     }
 }
