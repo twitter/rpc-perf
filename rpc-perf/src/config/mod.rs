@@ -155,24 +155,23 @@ impl KeyspaceGenerator {
 impl Keyspace {
     pub fn generator(&self) -> KeyspaceGenerator {
         let count = if let Some(count) = self.count {
-            if 10_usize.saturating_pow(self.length as u32) < count {
-                error!(
-                    "Keyspace with length: {} has count that exceeds key length",
-                    self.length
-                );
-                10_usize.saturating_pow(self.length as u32)
-            } else {
-                count
-            }
-        } else {
-            let count = 10_usize.saturating_pow(self.length as u32);
-            if count == usize::max_value() {
-                error!(
-                    "Keyspace with length: {} has count that may exceed std::usize::MAX",
-                    self.length
+            let digits = (count as f64).log10().ceil() as usize;
+            if digits > self.length {
+                fatal!(
+                    "Keyspace with length: {} has count ({}) that can't be represented within key length",
+                    self.length,
+                    count,
                 );
             }
             count
+        } else {
+            if self.length > (usize::max_value() as f64).log10().floor() as usize {
+                fatal!(
+                    "Keyspace with length: {} cannot be represented with usize",
+                    self.length
+                );
+            }
+            10_usize.pow(self.length as u32)
         };
 
         let distribution = Uniform::from(0..count);
