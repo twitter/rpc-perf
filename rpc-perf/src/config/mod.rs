@@ -14,11 +14,10 @@
 
 mod general;
 
-
 pub use self::general::Protocol;
 
-use crate::*;
 use crate::config::general::General;
+use crate::*;
 
 use std::io::Read;
 use std::net::{SocketAddr, ToSocketAddrs};
