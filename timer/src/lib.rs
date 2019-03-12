@@ -79,7 +79,11 @@ where
         }
         let bucket = (ticks + self.tick) % self.buckets.len();
         let remaining = ticks / self.buckets.len();
-        let timer = Timer { token, remaining, bucket };
+        let timer = Timer {
+            token,
+            remaining,
+            bucket,
+        };
         self.timers.insert(token, timer);
         self.buckets[bucket].timers.insert(token);
     }
