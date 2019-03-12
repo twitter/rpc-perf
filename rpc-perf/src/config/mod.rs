@@ -14,24 +14,22 @@
 
 mod general;
 
-pub use self::general::Protocol;
-use rand::distributions::Alphanumeric;
-use rand::distributions::Distribution;
-use rand::distributions::Uniform;
-use rand::rngs::ThreadRng;
 
-use crate::config::general::General;
+pub use self::general::Protocol;
 
 use crate::*;
-use rand::seq::SliceRandom;
-use rand::Rng;
-
-use clap::{App, Arg, ArgMatches};
-use serde_derive::*;
+use crate::config::general::General;
 
 use std::io::Read;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::process;
+
+use clap::{App, Arg, ArgMatches};
+use rand::distributions::{Alphanumeric, Distribution, Uniform};
+use rand::rngs::ThreadRng;
+use rand::seq::SliceRandom;
+use rand::Rng;
+use serde_derive::*;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const NAME: &str = env!("CARGO_PKG_NAME");
@@ -157,17 +155,24 @@ impl KeyspaceGenerator {
 impl Keyspace {
     pub fn generator(&self) -> KeyspaceGenerator {
         let count = if let Some(count) = self.count {
-            if 10_usize.pow(self.length as u32) < count {
+            if 10_usize.saturating_pow(self.length as u32) < count {
                 error!(
                     "Keyspace with length: {} has count that exceeds key length",
                     self.length
                 );
-                10_usize.pow(self.length as u32)
+                10_usize.saturating_pow(self.length as u32)
             } else {
                 count
             }
         } else {
-            10_usize.pow(self.length as u32)
+            let count = 10_usize.saturating_pow(self.length as u32);
+            if count == usize::max_value() {
+                error!(
+                    "Keyspace with length: {} has count that may exceed std::usize::MAX",
+                    self.length
+                );
+            }
+            count
         };
 
         let distribution = Uniform::from(0..count);
