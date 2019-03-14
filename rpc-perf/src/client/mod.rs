@@ -483,7 +483,9 @@ pub trait Client: Send {
             let len = buf.len();
             match len {
                 0 => {
-                    error!("EOF on read");
+                    trace!("EOF on read");
+                    self.stat_increment(Stat::ConnectionsServerClosed);
+                    self.set_state(token, State::Closed);
                 }
                 n => {
                     trace!("Got a response: {} bytes", n);
