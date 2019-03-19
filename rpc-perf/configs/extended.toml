@@ -5,8 +5,8 @@ windows = 5 # run for 5 intervals
 clients = 1 # use a single client thread
 poolsize = 1 # each client has 1 connection per endpoint
 tcp_nodelay = false # do not enable tcp_nodelay
-request_timeout = 200 # milliseconds
-connect_timeout = 200 # milliseconds
+request_timeout = 200_000 # microseconds
+connect_timeout = 200_000 # microseconds
 request_ratelimit = 100_000 # 100K requests/second
 connect_ratelimit = 1000 # 1K connects/second
 warmup_hitrate = 0.9 # do warmup until 90% hitrate is achieved
@@ -15,7 +15,7 @@ endpoints = [ # specify the endpoints in the config
     "127.0.0.1:11211",
 ]
 
-# this keyspace will get 
+# this keyspace will get
 [[keyspace]]
 length = 8 # 8 byte keys
 count = 10_000 # limit to 10K keys
