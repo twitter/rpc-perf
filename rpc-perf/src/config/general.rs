@@ -116,16 +116,16 @@ impl General {
         self.connect_ratelimit
     }
 
-    pub fn set_request_timeout(&mut self, nanoseconds: usize) {
-        self.request_timeout = nanoseconds;
+    pub fn set_request_timeout(&mut self, microseconds: usize) {
+        self.request_timeout = microseconds;
     }
 
     pub fn request_timeout(&self) -> usize {
         self.request_timeout
     }
 
-    pub fn set_connect_timeout(&mut self, nanoseconds: usize) {
-        self.connect_timeout = nanoseconds;
+    pub fn set_connect_timeout(&mut self, microseconds: usize) {
+        self.connect_timeout = microseconds;
     }
 
     pub fn connect_timeout(&self) -> usize {
