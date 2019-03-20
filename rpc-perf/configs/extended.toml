@@ -22,7 +22,7 @@ count = 10_000 # limit to 10K keys
 weight = 9 # this keyspace will be used for 90% of requests
 commands = [ # get:set ratio is 4:1 - read heavy
     {action = "get", weight = 4},
-    {action = "set", weight = 1},
+    {action = "set", weight = 1, ttl = 120},
 ]
 values = [ # uses multiple value lengths with different weights
     {length = 64, weight = 8}, # 80% as 64 byte values
