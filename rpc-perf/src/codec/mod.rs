@@ -46,7 +46,7 @@ impl Command {
             action: Action::Get,
             key: Some(key),
             value: None,
-            ttl: None
+            ttl: None,
         }
     }
 
@@ -55,7 +55,7 @@ impl Command {
             action: Action::Set,
             key: Some(key),
             value: Some(value),
-            ttl: ttl
+            ttl,
         }
     }
 

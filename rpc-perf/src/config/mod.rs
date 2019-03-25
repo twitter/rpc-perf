@@ -96,7 +96,7 @@ impl Generator {
     pub fn generate(&self, rng: &mut ThreadRng) -> crate::codec::Command {
         let keyspace = self
             .keyspaces
-            .choose_weighted(rng, |keyspace| keyspace.weight())
+            .choose_weighted(rng, config::KeyspaceGenerator::weight)
             .unwrap();
         let command = keyspace.choose_command(rng);
         let action = command.action();
@@ -128,7 +128,9 @@ impl KeyspaceGenerator {
     }
 
     pub fn choose_command(&self, rng: &mut ThreadRng) -> &Command {
-        self.commands.choose_weighted(rng, |command| command.weight()).unwrap()
+        self.commands
+            .choose_weighted(rng, config::Command::weight)
+            .unwrap()
     }
 
     pub fn choose_key(&self, rng: &mut ThreadRng) -> String {
@@ -142,7 +144,7 @@ impl KeyspaceGenerator {
     pub fn choose_value(&self, rng: &mut ThreadRng) -> String {
         let length = self
             .values
-            .choose_weighted(rng, |value| value.weight())
+            .choose_weighted(rng, config::Value::weight)
             .unwrap()
             .length();
         rng.sample_iter(&Alphanumeric)

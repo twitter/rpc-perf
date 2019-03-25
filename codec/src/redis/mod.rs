@@ -232,18 +232,20 @@ mod tests {
     }
 
     #[test]
-    fn encode_ttl_resp(){
+    fn encode_ttl_resp() {
         let redis = Redis::new(Mode::Resp);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
-        test_case.extend_from_slice(b"*5\r\n$3\r\nset\r\n$3\r\nabc\r\n$4\r\n1234\r\n$2\r\nEX\r\n$4\r\n9876\r\n");
+        test_case.extend_from_slice(
+            b"*5\r\n$3\r\nset\r\n$3\r\nabc\r\n$4\r\n1234\r\n$2\r\nEX\r\n$4\r\n9876\r\n",
+        );
         redis.set(&mut buf, b"abc", b"1234", Some(9876));
 
         assert_eq!(test_case, buf);
     }
 
     #[test]
-    fn encode_resp_without_ttl(){
+    fn encode_resp_without_ttl() {
         let redis = Redis::new(Mode::Resp);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
@@ -254,7 +256,7 @@ mod tests {
     }
 
     #[test]
-    fn encode_ttl_inline(){
+    fn encode_ttl_inline() {
         let redis = Redis::new(Mode::Inline);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
@@ -265,7 +267,7 @@ mod tests {
     }
 
     #[test]
-    fn encode_inline_without_ttl(){
+    fn encode_inline_without_ttl() {
         let redis = Redis::new(Mode::Inline);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);

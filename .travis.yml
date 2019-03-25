@@ -34,7 +34,7 @@ matrix:
       rust: nightly
       env: TYPE=clippy RUST_BACKTRACE=1
       script:
-        - rustup component add clippy-preview
+        - rustup component add clippy
         - cargo clippy
   allow_failures:
     - rust: nightly
