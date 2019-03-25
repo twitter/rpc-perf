@@ -77,8 +77,8 @@ impl Command {
         }
     }
 
-    pub fn ttl(&self) -> Option<u32> {
-        self.ttl.map(|ttl| ttl as u32)
+    pub fn ttl(&self) -> Option<usize> {
+        self.ttl
     }
 }
 

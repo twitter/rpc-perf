@@ -69,7 +69,7 @@ impl Codec for Memcache {
                     recorder.distribution("keys/size", key.len());
                     recorder.distribution("values/size", value.len());
                 }
-                self.codec.set(buf, key, value, command.ttl(), None);
+                self.codec.set(buf, key, value, command.ttl().map(|ttl| ttl as u32), None);
             }
         }
     }

@@ -55,7 +55,7 @@ impl Codec for Redis {
                     recorder.increment("commands/get");
                     recorder.distribution("keys/size", key.len());
                 }
-                self.codec.get(buf, key, None);
+                self.codec.get(buf, key);
             }
             Action::Set => {
                 let key = command.key().unwrap();
@@ -65,7 +65,7 @@ impl Codec for Redis {
                     recorder.distribution("keys/size", key.len());
                     recorder.distribution("values/size", value.len());
                 }
-                self.codec.set(buf, key, value);
+                self.codec.set(buf, key, value, command.ttl());
             }
         }
     }
