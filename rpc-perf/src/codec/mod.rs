@@ -37,6 +37,7 @@ pub struct Command {
     action: Action,
     key: Option<String>,
     value: Option<String>,
+    ttl: Option<usize>,
 }
 
 impl Command {
@@ -45,14 +46,16 @@ impl Command {
             action: Action::Get,
             key: Some(key),
             value: None,
+            ttl: None
         }
     }
 
-    pub fn set(key: String, value: String) -> Command {
+    pub fn set(key: String, value: String, ttl: Option<usize>) -> Command {
         Command {
             action: Action::Set,
             key: Some(key),
             value: Some(value),
+            ttl: ttl
         }
     }
 
@@ -72,6 +75,10 @@ impl Command {
             Some(value) => Some(value.as_bytes()),
             None => None,
         }
+    }
+
+    pub fn ttl(&self) -> Option<usize> {
+        self.ttl
     }
 }
 

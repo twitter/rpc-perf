@@ -45,10 +45,12 @@ impl Default for Config {
         let get = Command {
             action: Action::Get,
             weight: 1,
+            ttl: None,
         };
         let set = Command {
             action: Action::Set,
             weight: 1,
+            ttl: None,
         };
         let value = Value {
             length: 64,
@@ -96,7 +98,8 @@ impl Generator {
             .keyspaces
             .choose_weighted(rng, |keyspace| keyspace.weight())
             .unwrap();
-        let action = keyspace.choose_action(rng);
+        let command = keyspace.choose_command(rng);
+        let action = command.action();
         match action {
             Action::Get => {
                 let key = keyspace.choose_key(rng);
@@ -105,7 +108,7 @@ impl Generator {
             Action::Set => {
                 let key = keyspace.choose_key(rng);
                 let value = keyspace.choose_value(rng);
-                crate::codec::Command::set(key, value)
+                crate::codec::Command::set(key, value, command.ttl())
             }
         }
     }
@@ -124,11 +127,8 @@ impl KeyspaceGenerator {
         self.weight
     }
 
-    pub fn choose_action(&self, rng: &mut ThreadRng) -> Action {
-        self.commands
-            .choose_weighted(rng, |command| command.weight())
-            .unwrap()
-            .action()
+    pub fn choose_command(&self, rng: &mut ThreadRng) -> &Command {
+        self.commands.choose_weighted(rng, |command| command.weight()).unwrap()
     }
 
     pub fn choose_key(&self, rng: &mut ThreadRng) -> String {
@@ -185,9 +185,10 @@ impl Keyspace {
 }
 
 #[derive(Clone, Debug, Deserialize)]
-struct Command {
+pub struct Command {
     action: Action,
     weight: usize,
+    ttl: Option<usize>,
 }
 
 impl Command {
@@ -197,6 +198,10 @@ impl Command {
 
     pub fn weight(&self) -> usize {
         self.weight
+    }
+
+    pub fn ttl(&self) -> Option<usize> {
+        self.ttl
     }
 }
 

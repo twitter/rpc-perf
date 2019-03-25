@@ -33,7 +33,7 @@ impl Redis {
         Self { mode }
     }
 
-    pub fn get(&self, buf: &mut BytesMut, key: &[u8], _ttl: Option<usize>) {
+    pub fn get(&self, buf: &mut BytesMut, key: &[u8]) {
         match self.mode {
             Mode::Inline => {
                 buf.extend_from_slice(b"get ");
@@ -50,17 +50,26 @@ impl Redis {
         }
     }
 
-    pub fn set(&self, buf: &mut BytesMut, key: &[u8], value: &[u8]) {
+    pub fn set(&self, buf: &mut BytesMut, key: &[u8], value: &[u8], ttl: Option<usize>) {
         match self.mode {
             Mode::Inline => {
                 buf.extend_from_slice(b"set ");
                 buf.extend_from_slice(key);
                 buf.extend_from_slice(b" ");
                 buf.extend_from_slice(value);
+                if let Some(ttl_value) = ttl {
+                    buf.extend_from_slice(b" EX ");
+                    buf.extend_from_slice(format!("{}", ttl_value).as_bytes());
+                }
                 buf.extend_from_slice(b"\r\n");
             }
             Mode::Resp => {
-                buf.extend_from_slice(b"*3\r\n$3\r\nset\r\n$");
+                if ttl.is_some() {
+                    buf.extend_from_slice(b"*5\r\n");
+                } else {
+                    buf.extend_from_slice(b"*3\r\n");
+                }
+                buf.extend_from_slice(b"$3\r\nset\r\n$");
                 buf.extend_from_slice(format!("{}", key.len()).as_bytes());
                 buf.extend_from_slice(b"\r\n");
                 buf.extend_from_slice(key);
@@ -69,6 +78,13 @@ impl Redis {
                 buf.extend_from_slice(b"\r\n");
                 buf.extend_from_slice(value);
                 buf.extend_from_slice(b"\r\n");
+                if let Some(ttl_value) = ttl {
+                    let formated_ttl = format!("{}", ttl_value);
+                    buf.extend_from_slice(b"$2\r\nEX\r\n");
+                    buf.extend_from_slice(format!("${}\r\n", formated_ttl.len()).as_bytes());
+                    buf.extend_from_slice(formated_ttl.as_bytes());
+                    buf.extend_from_slice(b"\r\n");
+                }
             }
         }
     }
@@ -213,5 +229,49 @@ mod tests {
     fn decode_hit() {
         let messages: Vec<&[u8]> = vec![b"$0\r\n\r\n", b"$1\r\n1\r\n", b"$8\r\nDEADBEEF\r\n"];
         decode_messages(messages, Ok(Response::Hit));
+    }
+
+    #[test]
+    fn encode_ttl_resp(){
+        let redis = Redis::new(Mode::Resp);
+        let mut buf = BytesMut::with_capacity(64);
+        let mut test_case = BytesMut::with_capacity(64);
+        test_case.extend_from_slice(b"*5\r\n$3\r\nset\r\n$3\r\nabc\r\n$4\r\n1234\r\n$2\r\nEX\r\n$4\r\n9876\r\n");
+        redis.set(&mut buf, b"abc", b"1234", Some(9876));
+
+        assert_eq!(test_case, buf);
+    }
+
+    #[test]
+    fn encode_resp_without_ttl(){
+        let redis = Redis::new(Mode::Resp);
+        let mut buf = BytesMut::with_capacity(64);
+        let mut test_case = BytesMut::with_capacity(64);
+        test_case.extend_from_slice(b"*3\r\n$3\r\nset\r\n$3\r\nabc\r\n$4\r\n1234\r\n");
+        redis.set(&mut buf, b"abc", b"1234", None);
+
+        assert_eq!(test_case, buf);
+    }
+
+    #[test]
+    fn encode_ttl_inline(){
+        let redis = Redis::new(Mode::Inline);
+        let mut buf = BytesMut::with_capacity(64);
+        let mut test_case = BytesMut::with_capacity(64);
+        test_case.extend_from_slice(b"set xyz 987 EX 1000\r\n");
+        redis.set(&mut buf, b"xyz", b"987", Some(1000));
+
+        assert_eq!(test_case, buf);
+    }
+
+    #[test]
+    fn encode_inline_without_ttl(){
+        let redis = Redis::new(Mode::Inline);
+        let mut buf = BytesMut::with_capacity(64);
+        let mut test_case = BytesMut::with_capacity(64);
+        test_case.extend_from_slice(b"set qrs 567\r\n");
+        redis.set(&mut buf, b"qrs", b"567", None);
+
+        assert_eq!(test_case, buf);
     }
 }
