@@ -25,7 +25,6 @@ pub struct OuterBucket {
 
 impl OuterBucket {
     pub fn new(min: usize, max: usize, buckets: usize) -> Self {
-        trace!("outer bucket: {} -> {} with {} buckets", min, max, buckets);
         let inner = Bucket::new(min, max);
         let count = buckets;
         let mut buckets = Vec::with_capacity(count);

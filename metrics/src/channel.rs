@@ -108,7 +108,6 @@ impl Channel {
     }
 
     pub fn record(&self, measurement: Measurement) {
-        trace!("record: {} {:?}", self.name(), measurement);
         match measurement {
             Measurement::Counter { value, time } => {
                 self.record_counter(value, time);
@@ -135,12 +134,6 @@ impl Channel {
                 let delta_value = value - previous;
                 let delta_time = time - self.last_write.get();
                 let rate = (delta_value as f64 * (1_000_000_000.0 / delta_time as f64)) as usize;
-                trace!(
-                    "delta value: {} time: {} rate: {}",
-                    delta_value,
-                    delta_time,
-                    rate
-                );
                 self.counter.incr(delta_value);
                 if let Some(ref histogram) = self.histogram {
                     histogram.incr(rate, 1);
@@ -265,14 +258,12 @@ impl Channel {
     }
 
     pub fn add_output(&self, output: Output) {
-        trace!("add output: {} {:?}", self.name(), output);
         unsafe {
             (*self.outputs.lock()).insert(output);
         }
     }
 
     pub fn delete_output(&self, output: Output) {
-        trace!("delete output: {} {:?}", self.name(), output);
         unsafe {
             (*self.outputs.lock()).remove(&output);
         }
@@ -302,7 +293,6 @@ impl Channel {
         let mut result = Vec::new();
         unsafe {
             for output in (*self.outputs.lock()).iter() {
-                trace!("generate reading for: {} {:?}", self.name(), *output);
                 match output {
                     Output::Counter => {
                         result.push(Reading::new(self.name(), output.clone(), self.counter()));
@@ -332,7 +322,6 @@ impl Channel {
         let mut result = HashMap::new();
         unsafe {
             for output in (*self.outputs.lock()).iter() {
-                trace!("generate reading for: {} {:?}", self.name(), *output);
                 match output {
                     Output::Counter => {
                         result.insert(output.clone(), self.counter());
