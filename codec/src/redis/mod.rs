@@ -64,7 +64,7 @@ impl Redis {
                 buf.extend_from_slice(b"\r\n");
             }
             Mode::Resp => {
-                if let Some(_) = ttl {
+                if ttl.is_some() {
                     buf.extend_from_slice(b"*5\r\n");
                 } else {
                     buf.extend_from_slice(b"*3\r\n");

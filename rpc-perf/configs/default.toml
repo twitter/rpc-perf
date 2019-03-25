@@ -1,5 +1,5 @@
 [general]
-protocol = "memcache"
+protocol = "redisresp"
 interval = 60 # seconds
 windows = 5 # run for 5 intervals
 clients = 1 # use a single client thread
@@ -14,7 +14,7 @@ count = 10_000_000 # limit to 10M keys
 weight = 1 # this keyspace has a weight of 1
 commands = [ # get:set ratio is 1:1
     {action = "get", weight = 1},
-    {action = "set", weight = 1},
+    {action = "set", weight = 1, ttl = 300},
 ]
 values = [ # value length will always be 64 bytes
     {length = 64, weight = 1},
