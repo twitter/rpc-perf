@@ -34,6 +34,7 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const NAME: &str = env!("CARGO_PKG_NAME");
 
 #[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Config {
     general: General,
     keyspace: Vec<Keyspace>,
@@ -73,12 +74,14 @@ impl Default for Config {
 
 #[derive(Copy, Clone, Deserialize, Debug)]
 #[serde(rename_all = "lowercase")]
+#[serde(deny_unknown_fields)]
 pub enum Action {
     Get,
     Set,
 }
 
 #[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Keyspace {
     length: usize,
     weight: usize,
@@ -187,6 +190,7 @@ impl Keyspace {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Command {
     action: Action,
     weight: usize,
@@ -208,6 +212,7 @@ impl Command {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Value {
     length: usize,
     weight: usize,
@@ -613,12 +618,19 @@ impl Config {
         self.general.waterfall()
     }
 
-    fn load_from_file(file: &str) -> Config {
-        let mut file = std::fs::File::open(file).expect("failed to open workload file");
+    fn load_from_file(filename: &str) -> Config {
+        let mut file = std::fs::File::open(filename).expect("failed to open workload file");
         let mut content = String::new();
         file.read_to_string(&mut content).expect("failed to read");
-        let toml: Config = toml::from_str(&content).expect("failed to parse toml");
-        toml
+        let toml = toml::from_str(&content);
+        match toml {
+            Ok(toml) => toml,
+            Err(e) => {
+                println!("Failed to parse TOML config: {}", filename);
+                println!("{}", e);
+                std::process::exit(1);
+            }
+        }
     }
 
     pub fn generator(&self) -> Generator {

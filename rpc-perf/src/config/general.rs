@@ -15,6 +15,7 @@
 use crate::config::*;
 
 #[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct General {
     #[serde(default)]
     protocol: Protocol,
@@ -263,6 +264,7 @@ fn default_connect_timeout() -> usize {
 
 #[derive(Copy, Clone, Deserialize, Debug)]
 #[serde(rename_all = "lowercase")]
+#[serde(deny_unknown_fields)]
 pub enum Protocol {
     Memcache,
     Ping,
@@ -279,6 +281,7 @@ impl Default for Protocol {
 #[derive(Clone, Deserialize, Debug)]
 #[serde(rename_all = "lowercase")]
 #[serde(remote = "Level")]
+#[serde(deny_unknown_fields)]
 enum LevelDef {
     Error,
     Warn,
