@@ -64,14 +64,11 @@ pub fn save_waterfall<S: ::std::hash::BuildHasher>(
         let mut values: Vec<usize> = labels.keys().cloned().collect();
         values.sort();
         let mut l = 0;
-        for slice in heatmap {
-            let mut x = 0;
-            for bucket in slice.histogram() {
+        for (y, slice) in heatmap.into_iter().enumerate() {
+            for (x, bucket) in slice.histogram().into_iter().enumerate() {
                 let value = color_from_value(bucket.count() / bucket.width(), low, mid, high);
                 buffer.set_pixel(x, y, value);
-                x += 1;
             }
-            y += 1;
         }
 
         if !values.is_empty() {
@@ -103,9 +100,8 @@ pub fn save_waterfall<S: ::std::hash::BuildHasher>(
         }
     }
 
-    let mut y = 0;
     let mut begin = heatmap.begin_utc();
-    for slice in heatmap {
+    for (y, slice) in heatmap.into_iter().enumerate() {
         let slice_begin = slice.begin_utc();
         if slice_begin - begin >= time::Duration::nanoseconds(interval as i64) {
             let label = format!("{}", slice_begin.rfc3339());
@@ -121,7 +117,6 @@ pub fn save_waterfall<S: ::std::hash::BuildHasher>(
             );
             begin = slice_begin;
         }
-        y += 1;
     }
 
     let _ = buffer.write_png(file);
