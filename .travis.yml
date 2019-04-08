@@ -39,6 +39,6 @@ matrix:
       rust: nightly
       env: TYPE=benchmark RUST_BACKTRACE=1
       script:
-        - cargo bench
+        - bash bench.sh
   allow_failures:
     - rust: nightly
