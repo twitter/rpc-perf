@@ -1,10 +1,10 @@
 #[macro_use]
 extern crate criterion;
 
-use codec::Decoder;
 use bytes::BytesMut;
-use criterion::Criterion;
+use codec::Decoder;
 use codec::Ping;
+use criterion::Criterion;
 
 fn encode_ping_benchmark(c: &mut Criterion) {
     let codec = Ping::new();
@@ -29,7 +29,7 @@ fn decode_incomplete_benchmark(c: &mut Criterion) {
 }
 
 fn decode_unknown_benchmark(c: &mut Criterion) {
-    ping_decode_benchmark(c, "ping decode unknown", b"+PONG\r\nDEADBEEF\r\n",);
+    ping_decode_benchmark(c, "ping decode unknown", b"+PONG\r\nDEADBEEF\r\n");
 }
 
 criterion_group!(

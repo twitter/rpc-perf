@@ -1,33 +1,41 @@
 #[macro_use]
 extern crate criterion;
 
-use codec::Decoder;
 use bytes::BytesMut;
-use criterion::Criterion;
+use codec::Decoder;
 use codec::{Redis, RedisMode};
+use criterion::Criterion;
 
 fn encode_inline_get_benchmark(c: &mut Criterion) {
     let codec = Redis::new(RedisMode::Inline);
     let mut buf = BytesMut::new();
-    c.bench_function("redis inline encode get", move |b| b.iter(|| codec.get(&mut buf, b"0")));
+    c.bench_function("redis inline encode get", move |b| {
+        b.iter(|| codec.get(&mut buf, b"0"))
+    });
 }
 
 fn encode_inline_set_benchmark(c: &mut Criterion) {
     let codec = Redis::new(RedisMode::Inline);
     let mut buf = BytesMut::new();
-    c.bench_function("redis inline encode set", move |b| b.iter(|| codec.set(&mut buf, b"0", b"0", None)));
+    c.bench_function("redis inline encode set", move |b| {
+        b.iter(|| codec.set(&mut buf, b"0", b"0", None))
+    });
 }
 
 fn encode_resp_get_benchmark(c: &mut Criterion) {
     let codec = Redis::new(RedisMode::Resp);
     let mut buf = BytesMut::new();
-    c.bench_function("redis resp encode get", move |b| b.iter(|| codec.get(&mut buf, b"0")));
+    c.bench_function("redis resp encode get", move |b| {
+        b.iter(|| codec.get(&mut buf, b"0"))
+    });
 }
 
 fn encode_resp_set_benchmark(c: &mut Criterion) {
     let codec = Redis::new(RedisMode::Resp);
     let mut buf = BytesMut::new();
-    c.bench_function("redis resp encode set", move |b| b.iter(|| codec.set(&mut buf, b"0", b"0", None)));
+    c.bench_function("redis resp encode set", move |b| {
+        b.iter(|| codec.set(&mut buf, b"0", b"0", None))
+    });
 }
 
 fn redis_decode_benchmark(c: &mut Criterion, label: &str, msg: &[u8]) {

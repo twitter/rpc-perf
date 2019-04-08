@@ -1,14 +1,16 @@
 #[macro_use]
 extern crate criterion;
 
-use codec::Decoder;
 use bytes::BytesMut;
-use criterion::Criterion;
+use codec::Decoder;
 use codec::Echo;
+use criterion::Criterion;
 
 fn encode_echo_benchmark(c: &mut Criterion) {
     let codec = Echo::new();
-    c.bench_function("echo encode", move |b| b.iter(|| codec.echo(&mut BytesMut::new(), b"0")));
+    c.bench_function("echo encode", move |b| {
+        b.iter(|| codec.echo(&mut BytesMut::new(), b"0"))
+    });
 }
 
 fn echo_decode_benchmark(c: &mut Criterion, label: &str, msg: &[u8]) {
