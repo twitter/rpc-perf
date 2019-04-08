@@ -38,7 +38,6 @@ pub fn save_waterfall<S: ::std::hash::BuildHasher>(
     // create image buffer
     let mut buffer = ImageBuffer::<ColorRgb>::new(width, height);
 
-    let mut y = 0;
     let histogram = Latched::new(0, heatmap.highest_count(), 3);
     for slice in heatmap {
         for b in slice.histogram() {
