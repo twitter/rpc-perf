@@ -10,8 +10,7 @@ env: TYPE=default RUST_BACKTRACE=1
 cache:
   directories:
   - $HOME/.cargo
-  - $TRAVIS_BUILD_DIR/target/debug
-  - $TRAVIS_BUILD_DIR/target/release
+  - $TRAVIS_BUILD_DIR/target
 script:
 - cargo build --verbose
 - cargo test --verbose
@@ -34,7 +33,12 @@ matrix:
       rust: nightly
       env: TYPE=clippy RUST_BACKTRACE=1
       script:
-        - rustup component add clippy
+        - rustup component add clippy --toolchain=nightly || cargo install --git https://github.com/rust-lang/rust-clippy/ --force clippy
         - cargo clippy
+    - os: linux
+      rust: nightly
+      env: TYPE=benchmark RUST_BACKTRACE=1
+      script:
+        - cargo bench
   allow_failures:
     - rust: nightly

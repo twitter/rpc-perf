@@ -9,6 +9,9 @@ homepage = "https://github.com/twitter/rpc-perf"
 repository = "https://github.com/twitter/rpc-perf"
 publish = false
 
+[dev-dependencies]
+criterion = "0.2"
+
 [dependencies]
 bytes = "0.4.11"
 crc = "1.8.1"
@@ -17,3 +20,19 @@ rand = "0.6.4"
 logger = { path = "../logger" }
 metrics = { path = "../metrics" }
 time = "0.1.42"
+
+[[bench]]
+name = "echo"
+harness = false
+
+[[bench]]
+name = "memcache"
+harness = false
+
+[[bench]]
+name = "ping"
+harness = false
+
+[[bench]]
+name = "redis"
+harness = false
