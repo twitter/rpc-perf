@@ -13,8 +13,8 @@
 //  limitations under the License.
 
 use crate::histogram::bucket::Bucket;
-use crate::histogram::latched::Iter;
-use crate::histogram::{Histogram, Latched};
+use crate::histogram::latched::simple::Iter;
+use crate::histogram::{Histogram, LatchedHistogram};
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 use std::time;
@@ -22,15 +22,15 @@ use std::time;
 #[derive(Clone)]
 /// A thread-safe fixed-size `Histogram` which allows multiple writers and
 /// retains samples across a given `Duration`
-pub struct Moving {
-    data: Latched,
+pub struct Simple {
+    data: LatchedHistogram,
     samples: Arc<Mutex<VecDeque<Sample>>>,
     window: Arc<time::Duration>,
 }
 
-impl Default for Moving {
-    fn default() -> Moving {
-        Self::new(1, 1_000_000, 3, time::Duration::new(60, 0))
+impl Default for Simple {
+    fn default() -> Simple {
+        Self::new(1_000_000, 3, time::Duration::new(60, 0))
     }
 }
 
@@ -46,8 +46,8 @@ struct Sample {
     direction: Direction,
 }
 
-impl<'a> IntoIterator for &'a Moving {
-    type Item = &'a Bucket;
+impl<'a> IntoIterator for &'a Simple {
+    type Item = Bucket;
     type IntoIter = Iter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -55,11 +55,11 @@ impl<'a> IntoIterator for &'a Moving {
     }
 }
 
-impl Moving {
+impl Simple {
     /// Create a new `MovingHistogram` with the given min, max, precision, and window
-    pub fn new(min: usize, max: usize, precision: usize, window: time::Duration) -> Self {
+    pub fn new(max: usize, precision: usize, window: time::Duration) -> Self {
         Self {
-            data: Latched::new(min, max, precision),
+            data: LatchedHistogram::new(max, precision),
             samples: Arc::new(Mutex::new(VecDeque::new())),
             window: Arc::new(window),
         }
@@ -83,7 +83,7 @@ impl Moving {
     }
 }
 
-impl Histogram for Moving {
+impl Histogram for Simple {
     /// Remove all samples from the datastructure
     fn clear(&self) {
         self.data.clear();
@@ -196,13 +196,13 @@ mod tests {
 
     #[test]
     fn empty() {
-        let h = Moving::default();
+        let h = Simple::default();
         assert_eq!(h.samples(), 0);
     }
 
     #[test]
     fn rolloff() {
-        let h = Moving::new(0, 10, 3, time::Duration::new(2, 0));
+        let h = Simple::new(10, 3, time::Duration::new(2, 0));
         assert_eq!(h.samples(), 0);
         h.incr(1, 1);
         assert_eq!(h.samples(), 1);
@@ -214,7 +214,7 @@ mod tests {
 
     #[test]
     fn threaded_access() {
-        let histogram = Moving::new(0, 10, 3, time::Duration::new(10, 0));
+        let histogram = Simple::new(10, 3, time::Duration::new(10, 0));
 
         let mut threads = Vec::new();
 

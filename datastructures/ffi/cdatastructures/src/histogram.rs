@@ -12,7 +12,7 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use datastructures::histogram::{Histogram as HistogramTrait, Latched as Histogram};
+use datastructures::{Histogram, HistogramBuilder};
 use libc::{c_float, uintptr_t};
 
 /// Create a new `histogram`
@@ -22,7 +22,7 @@ pub extern "C" fn histogram_new(
     max: uintptr_t,
     precision: uintptr_t,
 ) -> *mut Histogram {
-    Box::into_raw(Box::new(Histogram::new(min, max, precision)))
+    Box::into_raw(HistogramBuilder::new(min, max, precision, None).build())
 }
 
 /// Clear the count stored in the `histogram`

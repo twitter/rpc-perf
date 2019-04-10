@@ -17,7 +17,7 @@ pub mod http;
 use crate::client::SECOND;
 use crate::config::Config;
 pub use crate::stats::http::Http;
-use datastructures::Heatmap;
+use datastructures::{Heatmap, SimpleHeatmap};
 
 use metrics::*;
 
@@ -299,7 +299,7 @@ fn delta_percent<T: ToString>(
 #[derive(Clone)]
 pub struct Simple {
     inner: Recorder,
-    heatmap: Option<Heatmap>,
+    heatmap: Option<SimpleHeatmap>,
 }
 
 impl Simple {
@@ -307,14 +307,12 @@ impl Simple {
         let heatmap = if config.waterfall().is_some() {
             if let Some(windows) = config.windows() {
                 Some(
-                    datastructures::HeatmapBuilder::new(
-                        0,
+                    SimpleHeatmap::new(
                         SECOND,
                         2,
                         SECOND,
                         windows * config.interval() * SECOND,
-                    )
-                    .build(),
+                    ),
                 )
             } else {
                 warn!("Unable to initialize waterfall output without fixed duration");
@@ -342,7 +340,7 @@ impl Simple {
         max: usize,
         precision: usize,
     ) {
-        let histogram_config = HistogramConfig::new(min, max, precision, None);
+        let histogram_config = HistogramBuilder::new(min, max, precision, None);
         self.inner.add_channel(
             label.to_string(),
             Source::TimeInterval,
@@ -370,7 +368,7 @@ impl Simple {
         max: usize,
         precision: usize,
     ) {
-        let histogram_config = HistogramConfig::new(min, max, precision, None);
+        let histogram_config = HistogramBuilder::new(min, max, precision, None);
         self.inner.add_channel(
             label.to_string(),
             Source::Distribution,

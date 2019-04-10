@@ -12,12 +12,10 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
+use datastructures::{Heatmap, SimpleHeatmap, HistogramBuilder};
 use hsl::HSL;
 use png::HasParameters;
 use rusttype::{point, FontCollection, PositionedGlyph, Scale};
-
-use datastructures::histogram::{Histogram, Latched};
-use datastructures::Heatmap;
 use logger::*;
 
 use std::collections::HashMap;
@@ -26,7 +24,7 @@ use std::io::BufWriter;
 use std::path::Path;
 
 pub fn save_waterfall<S: ::std::hash::BuildHasher>(
-    heatmap: &Heatmap,
+    heatmap: &SimpleHeatmap,
     file: &str,
     labels: HashMap<usize, String, S>,
     interval: usize,
@@ -38,9 +36,9 @@ pub fn save_waterfall<S: ::std::hash::BuildHasher>(
     // create image buffer
     let mut buffer = ImageBuffer::<ColorRgb>::new(width, height);
 
-    let histogram = Latched::new(0, heatmap.highest_count(), 3);
+    let histogram = HistogramBuilder::new(0, heatmap.highest_count(), 3, None).build();
     for slice in heatmap {
-        for b in slice.histogram() {
+        for b in slice.histogram().into_iter() {
             let magnitude = (b.count() as f64 / b.width() as f64).ceil() as usize;
             if magnitude > 0 {
                 histogram.incr(magnitude, 1);

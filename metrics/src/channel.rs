@@ -13,7 +13,7 @@
 //  limitations under the License.
 
 use crate::*;
-use datastructures::HistogramConfig;
+use crate::HistogramBuilder;
 
 use datastructures::{Counter, Histogram, RwWrapper};
 
@@ -80,7 +80,7 @@ impl PartialEq for Channel {
 impl Eq for Channel {}
 
 impl Channel {
-    pub fn new(name: String, source: Source, histogram_config: Option<HistogramConfig>) -> Self {
+    pub fn new(name: String, source: Source, histogram_config: Option<HistogramBuilder>) -> Self {
         let histogram = if let Some(config) = histogram_config {
             Some(config.build())
         } else {

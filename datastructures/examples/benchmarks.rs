@@ -12,7 +12,7 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use datastructures::histogram;
+use datastructures;
 use datastructures::{Counter, Histogram};
 use std::{thread, time};
 
@@ -22,8 +22,10 @@ pub const NS_PER_MINUTE: usize = 60 * NS_PER_SEC;
 #[derive(Debug, Copy, Clone)]
 pub enum Structure {
     Counter,
-    FixedHistogram,
-    MovingHistogram,
+    // TraditionalLatchedHistogram,
+    // TraditionalMovingHistogram,
+    SimpleLatchedHistogram,
+    SimpleMovingHistogram,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -41,29 +43,53 @@ pub fn main() {
         Operation::Increment,
         "Counter Incr/s".to_string(),
     );
+    // runner(
+    //     runtime,
+    //     Structure::TraditionalLatchedHistogram,
+    //     Operation::Increment,
+    //     "TraditionalLatchedHistogram Incr/s".to_string(),
+    // );
+    // runner(
+    //     runtime,
+    //     Structure::TraditionalLatchedHistogram,
+    //     Operation::Percentile,
+    //     "TraditionalLatchedHistogram Percentile/s".to_string(),
+    // );
+    // runner(
+    //     runtime,
+    //     Structure::TraditionalMovingHistogram,
+    //     Operation::Increment,
+    //     "TraditionalMovingHistogram Incr/s".to_string(),
+    // );
+    // runner(
+    //     runtime,
+    //     Structure::TraditionalMovingHistogram,
+    //     Operation::Percentile,
+    //     "TraditionalMovingHistogram Percentile/s".to_string(),
+    // );
     runner(
         runtime,
-        Structure::FixedHistogram,
+        Structure::SimpleLatchedHistogram,
         Operation::Increment,
-        "Fixed Histogram Incr/s".to_string(),
+        "SimpleLatchedHistogram Incr/s".to_string(),
     );
     runner(
         runtime,
-        Structure::FixedHistogram,
+        Structure::SimpleLatchedHistogram,
         Operation::Percentile,
-        "Fixed Histogram Percentile/s".to_string(),
+        "SimpleLatchedHistogram Percentile/s".to_string(),
     );
     runner(
         runtime,
-        Structure::MovingHistogram,
+        Structure::SimpleMovingHistogram,
         Operation::Increment,
-        "Moving Histogram Incr/s".to_string(),
+        "SimpleMovingHistogram Incr/s".to_string(),
     );
     runner(
         runtime,
-        Structure::MovingHistogram,
+        Structure::SimpleMovingHistogram,
         Operation::Percentile,
-        "Moving Histogram Percentile/s".to_string(),
+        "SimpleMovingHistogram Percentile/s".to_string(),
     );
 }
 
@@ -160,8 +186,68 @@ pub fn sized_run(
                 }
             }
         }
-        Structure::FixedHistogram => {
-            let histogram = histogram::Latched::new(0, NS_PER_SEC, 3);
+        // Structure::TraditionalLatchedHistogram => {
+        //     let histogram = datastructures::TraditionalLatchedHistogram::new(0, NS_PER_SEC, 3);
+        //     if operation == Operation::Percentile {
+        //         for i in 0..50_000 {
+        //             histogram.incr(i, 1);
+        //         }
+        //     }
+        //     for mut tid in 0..threads {
+        //         let histogram = histogram.clone();
+        //         if contended {
+        //             tid = 1;
+        //         }
+        //         match operation {
+        //             Operation::Increment => {
+        //                 thread_pool.push(thread::spawn(move || {
+        //                     for _ in 0..(max / threads) {
+        //                         histogram.incr(tid * 1_000_000, 1);
+        //                     }
+        //                 }));
+        //             }
+        //             Operation::Percentile => {
+        //                 thread_pool.push(thread::spawn(move || {
+        //                     for _ in 0..(max / threads) {
+        //                         let _ = histogram.percentile(1.0);
+        //                     }
+        //                 }));
+        //             }
+        //         }
+        //     }
+        // }
+        // Structure::TraditionalMovingHistogram => {
+        //     let histogram = datastructures::TraditionalMovingHistogram::new(0, NS_PER_SEC, 3, time::Duration::new(3600, 0));
+        //     if operation == Operation::Percentile {
+        //         for i in 0..50_000 {
+        //             histogram.incr(i, 1);
+        //         }
+        //     }
+        //     for mut tid in 0..threads {
+        //         let histogram = histogram.clone();
+        //         if contended {
+        //             tid = 1;
+        //         }
+        //         match operation {
+        //             Operation::Increment => {
+        //                 thread_pool.push(thread::spawn(move || {
+        //                     for _ in 0..(max / threads) {
+        //                         histogram.incr(tid * 1_000_000, 1);
+        //                     }
+        //                 }));
+        //             }
+        //             Operation::Percentile => {
+        //                 thread_pool.push(thread::spawn(move || {
+        //                     for _ in 0..(max / threads) {
+        //                         let _ = histogram.percentile(1.0);
+        //                     }
+        //                 }));
+        //             }
+        //         }
+        //     }
+        // }
+        Structure::SimpleLatchedHistogram => {
+            let histogram = datastructures::LatchedHistogram::new(NS_PER_SEC, 3);
             if operation == Operation::Percentile {
                 for i in 0..50_000 {
                     histogram.incr(i, 1);
@@ -190,8 +276,8 @@ pub fn sized_run(
                 }
             }
         }
-        Structure::MovingHistogram => {
-            let histogram = histogram::Moving::new(0, NS_PER_SEC, 3, time::Duration::new(3600, 0));
+        Structure::SimpleMovingHistogram => {
+            let histogram = datastructures::MovingHistogram::new(NS_PER_SEC, 3, time::Duration::new(3600, 0));
             if operation == Operation::Percentile {
                 for i in 0..50_000 {
                     histogram.incr(i, 1);

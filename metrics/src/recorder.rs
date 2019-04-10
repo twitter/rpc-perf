@@ -13,7 +13,7 @@
 //  limitations under the License.
 
 use crate::*;
-use datastructures::HistogramConfig;
+use crate::HistogramBuilder;
 use datastructures::RwWrapper;
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -61,7 +61,7 @@ impl Recorder {
         &self,
         name: String,
         source: Source,
-        histogram_config: Option<HistogramConfig>,
+        histogram_config: Option<HistogramBuilder>,
     ) {
         debug!("add channel: {} source: {:?}", name, source);
         let channel = Channel::new(name.clone(), source, histogram_config);

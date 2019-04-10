@@ -71,12 +71,12 @@
 
 mod bool;
 mod counter;
-pub mod heatmap;
-pub mod histogram;
+mod heatmap;
+mod histogram;
 mod wrapper;
 
 pub use crate::bool::Bool;
 pub use crate::counter::Counter;
-pub use crate::heatmap::{Config as HeatmapBuilder, Heatmap};
-pub use crate::histogram::{Config as HistogramConfig, Histogram};
+pub use crate::heatmap::{Builder as HeatmapBuilder, Heatmap, SimpleHeatmap};
+pub use crate::histogram::{Builder as HistogramBuilder, Histogram, LatchedHistogram, MovingHistogram};
 pub use crate::wrapper::{RwWrapper, Wrapper};

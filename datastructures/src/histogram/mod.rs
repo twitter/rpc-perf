@@ -12,13 +12,15 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-mod bucket;
-mod latched;
-mod moving;
 
-pub use self::latched::Latched;
-pub use self::moving::Moving;
 use std::time::Duration;
+
+pub mod bucket;
+pub mod latched;
+pub mod moving;
+
+pub use self::latched::Histogram as LatchedHistogram;
+pub use self::moving::Histogram as MovingHistogram;
 
 /// A set of common functions for all `Histogram` types
 pub trait Histogram {
@@ -58,14 +60,14 @@ pub trait Histogram {
     fn buckets(&self) -> usize;
 }
 
-pub struct Config {
+pub struct Builder {
     min: usize,
     max: usize,
     precision: usize,
     window: Option<Duration>,
 }
 
-impl Config {
+impl Builder {
     pub fn new(min: usize, max: usize, precision: usize, window: Option<Duration>) -> Self {
         Self {
             min,
@@ -77,9 +79,9 @@ impl Config {
 
     pub fn build(&self) -> Box<Histogram> {
         if let Some(window) = self.window {
-            Box::new(Moving::new(self.min, self.max, self.precision, window))
+            Box::new(self::moving::Histogram::new(self.max, self.precision, window))
         } else {
-            Box::new(Latched::new(self.min, self.max, self.precision))
+            Box::new(self::latched::Histogram::new(self.max, self.precision))
         }
     }
 }
