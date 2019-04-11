@@ -91,9 +91,7 @@ impl Heatmap {
         let num_slices = span / resolution;
         let mut slices = Vec::with_capacity(num_slices);
         for _ in 0..num_slices {
-            slices.push(LatchedHistogram::new(
-                max, precision,
-            ));
+            slices.push(LatchedHistogram::new(max, precision));
         }
 
         // get time and align with previous top of minute

@@ -68,11 +68,7 @@ impl Builder {
 
     pub fn build(&self) -> Box<Histogram> {
         if let Some(window) = self.window {
-            Box::new(self::MovingHistogram::new(
-                self.max,
-                self.precision,
-                window,
-            ))
+            Box::new(self::MovingHistogram::new(self.max, self.precision, window))
         } else {
             Box::new(self::LatchedHistogram::new(self.max, self.precision))
         }
