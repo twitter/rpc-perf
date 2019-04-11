@@ -181,7 +181,8 @@ pub fn sized_run(
             }
         }
         Structure::MovingHistogram => {
-            let histogram = datastructures::MovingHistogram::new(NS_PER_SEC, 3, time::Duration::new(3600, 0));
+            let histogram =
+                datastructures::MovingHistogram::new(NS_PER_SEC, 3, time::Duration::new(3600, 0));
             if operation == Operation::Percentile {
                 for i in 0..50_000 {
                     histogram.incr(i, 1);

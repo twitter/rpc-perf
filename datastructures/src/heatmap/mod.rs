@@ -81,7 +81,7 @@ pub struct Heatmap {
     newest_end_precise: Counter,   // end time of the oldest slice
     oldest_begin_utc: RwWrapper<Tm>, // relates start time of oldest slice to wall-clock
     resolution: Counter,           // number of NS per slice
-    slices: Vec<crate::histogram::latched::simple::Simple>,          // stores the `Histogram`s
+    slices: Vec<crate::histogram::latched::simple::Simple>, // stores the `Histogram`s
     offset: Counter,               // indicates which `Histogram` is the oldest
 }
 
@@ -91,7 +91,9 @@ impl Heatmap {
         let num_slices = span / resolution;
         let mut slices = Vec::with_capacity(num_slices);
         for _ in 0..num_slices {
-            slices.push(crate::histogram::latched::simple::Simple::new(max, precision));
+            slices.push(crate::histogram::latched::simple::Simple::new(
+                max, precision,
+            ));
         }
 
         // get time and align with previous top of minute
@@ -104,9 +106,7 @@ impl Heatmap {
 
         Heatmap {
             oldest_begin_precise: Counter::new(adjusted_precise as usize),
-            newest_begin_precise: Counter::new(
-                adjusted_precise as usize + span - resolution,
-            ),
+            newest_begin_precise: Counter::new(adjusted_precise as usize + span - resolution),
             newest_end_precise: Counter::new(adjusted_precise as usize + span),
             oldest_begin_utc: RwWrapper::new(adjusted_utc),
             offset: Counter::new(0),
@@ -262,8 +262,7 @@ impl<'a> Iterator for Iter<'a> {
                     + time::Duration::nanoseconds((begin_precise - heatmap_begin_precise) as i64),
                 end_utc: heatmap_begin_utc
                     + time::Duration::nanoseconds(
-                        (begin_precise + self.inner.resolution() - heatmap_begin_precise)
-                            as i64,
+                        (begin_precise + self.inner.resolution() - heatmap_begin_precise) as i64,
                     ),
                 histogram: self.inner.get_histogram(index).unwrap(),
             })

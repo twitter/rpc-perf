@@ -14,9 +14,9 @@
 
 use datastructures::{Heatmap, HistogramBuilder};
 use hsl::HSL;
+use logger::*;
 use png::HasParameters;
 use rusttype::{point, FontCollection, PositionedGlyph, Scale};
-use logger::*;
 
 use std::collections::HashMap;
 use std::fs::File;

@@ -4,9 +4,9 @@
 
 // a small and simple histogram
 
+use crate::counter::Counter;
 use crate::histogram::bucket::Bucket;
 use crate::histogram::Histogram;
-use crate::counter::Counter;
 
 #[derive(Clone)]
 /// A thread-safe fixed-size `Histogram` which allows multiple writers
@@ -22,12 +22,15 @@ impl Simple {
     /// Create a new `Histogram` which will store values between 0 and max
     /// while retaining the precision of the represented values
     pub fn new(max: usize, precision: usize) -> Self {
-        let exact_max = 10_usize.pow(precision as u32); 
+        let exact_max = 10_usize.pow(precision as u32);
 
         let total_buckets = if exact_max >= max {
             max + 1
         } else {
-            exact_max + (((max as f64).log10() as usize) - precision) * 9 * 10_usize.pow(precision as u32 - 1)
+            exact_max
+                + (((max as f64).log10() as usize) - precision)
+                    * 9
+                    * 10_usize.pow(precision as u32 - 1)
         };
 
         let mut buckets = Vec::new();
@@ -60,7 +63,8 @@ impl Simple {
             let precision = self.precision.get();
             let divisor = 10_usize.pow((power - precision) as u32 + 1);
             let base_offset = 10_usize.pow(precision as u32);
-            let power_offset = (0.9 * (10_usize.pow(precision as u32) * (power - precision)) as f64) as usize;
+            let power_offset =
+                (0.9 * (10_usize.pow(precision as u32) * (power - precision)) as f64) as usize;
             let remainder = value / divisor;
             let shift = 10_usize.pow(precision as u32 - 1);
             let index = base_offset + power_offset + remainder - shift;
@@ -81,9 +85,12 @@ impl Simple {
             let precision = self.precision.get();
             let shift = 10_usize.pow(precision as u32 - 1);
             let base_offset = 10_usize.pow(precision as u32);
-            let power = precision + (index - base_offset) / (9 * 10_usize.pow(precision as u32 - 1));
-            let power_offset = (0.9 * (10_usize.pow(precision as u32) * (power - precision)) as f64) as usize;
-            let value = (index + shift - base_offset - power_offset) * 10_usize.pow((power - precision + 1) as u32);
+            let power =
+                precision + (index - base_offset) / (9 * 10_usize.pow(precision as u32 - 1));
+            let power_offset =
+                (0.9 * (10_usize.pow(precision as u32) * (power - precision)) as f64) as usize;
+            let value = (index + shift - base_offset - power_offset)
+                * 10_usize.pow((power - precision + 1) as u32);
             Ok(value as usize - 1)
         }
     }
@@ -91,7 +98,6 @@ impl Simple {
     // Internal function to get the bucket at a given index
     fn get_bucket(&self, index: usize) -> Option<Bucket> {
         if let Some(counter) = self.buckets.get(index) {
-
             let count = counter.get();
 
             let min = if index < self.exact_max() {
@@ -109,7 +115,13 @@ impl Simple {
                 self.get_value(index).unwrap()
             };
             if min == max {
-                println!("bucket: {} for value: {} has min: {} and max: {}", index, self.get_value(index).unwrap(), min, max);
+                println!(
+                    "bucket: {} for value: {} has min: {} and max: {}",
+                    index,
+                    self.get_value(index).unwrap(),
+                    min,
+                    max
+                );
             }
             let bucket = Bucket::new(min, max);
             bucket.incr(count);
@@ -127,10 +139,7 @@ pub struct Iter<'a> {
 
 impl<'a> Iter<'a> {
     fn new(inner: &'a Simple) -> Iter<'a> {
-        Iter {
-            inner,
-            index: 0,
-        }
+        Iter { inner, index: 0 }
     }
 }
 
@@ -221,9 +230,9 @@ impl Histogram for Simple {
             for (index, bucket) in self.buckets.iter().enumerate() {
                 if have + bucket.get() >= need {
                     if let Ok(percentile) = self.get_value(index) {
-                        return Some(percentile)
+                        return Some(percentile);
                     } else {
-                        return None
+                        return None;
                     }
                 } else {
                     have += bucket.get();
@@ -281,7 +290,8 @@ impl Histogram for Simple {
             let mean = self.mean().unwrap();
             let mut sum = 0;
             for (index, counter) in self.buckets.iter().enumerate() {
-                sum += (self.get_value(index).unwrap_or(0) as i64 - mean as i64).pow(2) as usize * counter.get();
+                sum += (self.get_value(index).unwrap_or(0) as i64 - mean as i64).pow(2) as usize
+                    * counter.get();
             }
             Some((sum as f64 / self.samples() as f64).powf(0.5).round() as usize)
         }

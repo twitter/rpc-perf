@@ -306,14 +306,12 @@ impl Simple {
     pub fn new(config: &Config) -> Self {
         let heatmap = if config.waterfall().is_some() {
             if let Some(windows) = config.windows() {
-                Some(
-                    Heatmap::new(
-                        SECOND,
-                        2,
-                        SECOND,
-                        windows * config.interval() * SECOND,
-                    ),
-                )
+                Some(Heatmap::new(
+                    SECOND,
+                    2,
+                    SECOND,
+                    windows * config.interval() * SECOND,
+                ))
             } else {
                 warn!("Unable to initialize waterfall output without fixed duration");
                 None
