@@ -12,7 +12,6 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use crate::HistogramBuilder;
 use crate::*;
 
 use datastructures::{Counter, Histogram, RwWrapper};

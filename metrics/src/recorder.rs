@@ -12,16 +12,13 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use crate::HistogramBuilder;
 use crate::*;
-use datastructures::RwWrapper;
-use std::collections::HashSet;
-use std::sync::Arc;
 
-use datastructures::Wrapper;
-
+use datastructures::{RwWrapper, Wrapper};
 use evmap::{ReadHandle, WriteHandle};
-use std::collections::HashMap;
+
+use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct Recorder {
