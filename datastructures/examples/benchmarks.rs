@@ -2,8 +2,7 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use datastructures;
-use datastructures::{Counter, Histogram};
+use datastructures::{Counter, Histogram, LatchedHistogram, MovingHistogram};
 use std::{thread, time};
 
 pub const NS_PER_SEC: usize = 1_000_000_000;
@@ -47,13 +46,13 @@ pub fn main() {
         runtime,
         Structure::MovingHistogram,
         Operation::Increment,
-        "SimpleMovingHistogram Incr/s".to_string(),
+        "MovingHistogram Incr/s".to_string(),
     );
     runner(
         runtime,
         Structure::MovingHistogram,
         Operation::Percentile,
-        "SimpleMovingHistogram Percentile/s".to_string(),
+        "MovingHistogram Percentile/s".to_string(),
     );
 }
 
@@ -151,7 +150,7 @@ pub fn sized_run(
             }
         }
         Structure::LatchedHistogram => {
-            let histogram = datastructures::LatchedHistogram::new(NS_PER_SEC, 3);
+            let histogram = LatchedHistogram::new(NS_PER_SEC, 3);
             if operation == Operation::Percentile {
                 for i in 0..50_000 {
                     histogram.incr(i, 1);
@@ -181,8 +180,7 @@ pub fn sized_run(
             }
         }
         Structure::MovingHistogram => {
-            let histogram =
-                datastructures::MovingHistogram::new(NS_PER_SEC, 3, time::Duration::new(3600, 0));
+            let histogram = MovingHistogram::new(NS_PER_SEC, 3, time::Duration::new(3600, 0));
             if operation == Operation::Percentile {
                 for i in 0..50_000 {
                     histogram.incr(i, 1);
