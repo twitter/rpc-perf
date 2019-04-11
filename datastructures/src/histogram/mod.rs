@@ -1,24 +1,15 @@
-//  Copyright 2019 Twitter, Inc
-//
-//  Licensed under the Apache License, Version 2.0 (the "License");
-//  you may not use this file except in compliance with the License.
-//  You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-//  Unless required by applicable law or agreed to in writing, software
-//  distributed under the License is distributed on an "AS IS" BASIS,
-//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//  See the License for the specific language governing permissions and
-//  limitations under the License.
+// Copyright 2019 Twitter, Inc.
+// Licensed under the Apache License, Version 2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 
-mod bucket;
-mod latched;
-mod moving;
-
-pub use self::latched::Latched;
-pub use self::moving::Moving;
 use std::time::Duration;
+
+pub mod bucket;
+pub mod latched;
+pub mod moving;
+
+pub use self::latched::Latched as LatchedHistogram;
+pub use self::moving::Moving as MovingHistogram;
 
 /// A set of common functions for all `Histogram` types
 pub trait Histogram {
@@ -58,14 +49,14 @@ pub trait Histogram {
     fn buckets(&self) -> usize;
 }
 
-pub struct Config {
+pub struct Builder {
     min: usize,
     max: usize,
     precision: usize,
     window: Option<Duration>,
 }
 
-impl Config {
+impl Builder {
     pub fn new(min: usize, max: usize, precision: usize, window: Option<Duration>) -> Self {
         Self {
             min,
@@ -77,9 +68,9 @@ impl Config {
 
     pub fn build(&self) -> Box<Histogram> {
         if let Some(window) = self.window {
-            Box::new(Moving::new(self.min, self.max, self.precision, window))
+            Box::new(self::MovingHistogram::new(self.max, self.precision, window))
         } else {
-            Box::new(Latched::new(self.min, self.max, self.precision))
+            Box::new(self::LatchedHistogram::new(self.max, self.precision))
         }
     }
 }

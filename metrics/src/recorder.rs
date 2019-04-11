@@ -13,15 +13,12 @@
 //  limitations under the License.
 
 use crate::*;
-use datastructures::HistogramConfig;
-use datastructures::RwWrapper;
-use std::collections::HashSet;
-use std::sync::Arc;
 
-use datastructures::Wrapper;
-
+use datastructures::{RwWrapper, Wrapper};
 use evmap::{ReadHandle, WriteHandle};
-use std::collections::HashMap;
+
+use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct Recorder {
@@ -61,7 +58,7 @@ impl Recorder {
         &self,
         name: String,
         source: Source,
-        histogram_config: Option<HistogramConfig>,
+        histogram_config: Option<HistogramBuilder>,
     ) {
         debug!("add channel: {} source: {:?}", name, source);
         let channel = Channel::new(name.clone(), source, histogram_config);

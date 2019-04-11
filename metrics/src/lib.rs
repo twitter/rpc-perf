@@ -51,7 +51,7 @@ mod recorder;
 pub use crate::channel::{Channel, Measurement, Source};
 pub use crate::point::Point;
 pub use crate::recorder::Recorder;
-pub use datastructures::HistogramConfig;
+pub use datastructures::HistogramBuilder;
 pub(crate) use logger::*;
 
 use std::fmt;
@@ -177,7 +177,7 @@ mod tests {
     fn counter_channel() {
         let recorder = Recorder::new();
         let name = "test".to_string();
-        let histogram_config = HistogramConfig::new(0, 2_000_000_001, 3, None);
+        let histogram_config = HistogramBuilder::new(0, 2_000_000_001, 3, None);
         recorder.add_channel(name.clone(), Source::Counter, Some(histogram_config));
         // let channel = Channel::latched("test".to_string(), Source::Counter, 0, 2_000_000_001, 3);
         // recorder.add_channel(channel);
@@ -214,7 +214,7 @@ mod tests {
     fn distribution_channel() {
         let recorder = Recorder::new();
         let name = "test".to_string();
-        let histogram_config = HistogramConfig::new(1, 101, 3, None);
+        let histogram_config = HistogramBuilder::new(1, 101, 3, None);
         recorder.add_channel(name.clone(), Source::Distribution, Some(histogram_config));
         // let channel = Channel::latched("test".to_string(), Source::Distribution, 1, 101, 3);
         // recorder.add_channel(channel);
@@ -240,7 +240,7 @@ mod tests {
             );
         }
         assert_eq!(recorder.counter("test".to_string()), 100);
-        assert_eq!(recorder.percentile("test".to_string(), 0.0), Some(1));
+        assert_eq!(recorder.percentile("test".to_string(), 0.0), Some(0));
         assert_eq!(recorder.percentile("test".to_string(), 0.50), Some(50));
         assert_eq!(recorder.percentile("test".to_string(), 0.90), Some(90));
         assert_eq!(recorder.percentile("test".to_string(), 0.95), Some(95));
@@ -253,7 +253,7 @@ mod tests {
     fn gauge_channel() {
         let recorder = Recorder::new();
         let name = "test".to_string();
-        let histogram_config = HistogramConfig::new(1, 100, 3, None);
+        let histogram_config = HistogramBuilder::new(1, 100, 3, None);
         recorder.add_channel(name.clone(), Source::Gauge, Some(histogram_config));
         // let channel = Channel::latched("test".to_string(), Source::Gauge, 1, 100, 3);
         // recorder.add_channel(channel);
@@ -282,7 +282,7 @@ mod tests {
     fn time_interval_channel() {
         let recorder = Recorder::new();
         let name = "test".to_string();
-        let histogram_config = HistogramConfig::new(1, 100, 3, None);
+        let histogram_config = HistogramBuilder::new(1, 100, 3, None);
         recorder.add_channel(name.clone(), Source::TimeInterval, Some(histogram_config));
         assert_eq!(recorder.counter("test".to_string()), 0);
         recorder.record(
@@ -300,7 +300,7 @@ mod tests {
             );
         }
         assert_eq!(recorder.counter("test".to_string()), 100);
-        assert_eq!(recorder.percentile("test".to_string(), 0.0), Some(1));
+        assert_eq!(recorder.percentile("test".to_string(), 0.0), Some(0));
         assert_eq!(recorder.percentile("test".to_string(), 0.50), Some(1));
         assert_eq!(recorder.percentile("test".to_string(), 0.90), Some(1));
         assert_eq!(recorder.percentile("test".to_string(), 0.95), Some(1));

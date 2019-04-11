@@ -306,16 +306,12 @@ impl Simple {
     pub fn new(config: &Config) -> Self {
         let heatmap = if config.waterfall().is_some() {
             if let Some(windows) = config.windows() {
-                Some(
-                    datastructures::HeatmapBuilder::new(
-                        0,
-                        SECOND,
-                        2,
-                        SECOND,
-                        windows * config.interval() * SECOND,
-                    )
-                    .build(),
-                )
+                Some(Heatmap::new(
+                    SECOND,
+                    2,
+                    SECOND,
+                    windows * config.interval() * SECOND,
+                ))
             } else {
                 warn!("Unable to initialize waterfall output without fixed duration");
                 None
@@ -342,7 +338,7 @@ impl Simple {
         max: usize,
         precision: usize,
     ) {
-        let histogram_config = HistogramConfig::new(min, max, precision, None);
+        let histogram_config = HistogramBuilder::new(min, max, precision, None);
         self.inner.add_channel(
             label.to_string(),
             Source::TimeInterval,
@@ -370,7 +366,7 @@ impl Simple {
         max: usize,
         precision: usize,
     ) {
-        let histogram_config = HistogramConfig::new(min, max, precision, None);
+        let histogram_config = HistogramBuilder::new(min, max, precision, None);
         self.inner.add_channel(
             label.to_string(),
             Source::Distribution,

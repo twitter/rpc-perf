@@ -1,20 +1,10 @@
-//  Copyright 2019 Twitter, Inc
-//
-//  Licensed under the Apache License, Version 2.0 (the "License");
-//  you may not use this file except in compliance with the License.
-//  You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-//  Unless required by applicable law or agreed to in writing, software
-//  distributed under the License is distributed on an "AS IS" BASIS,
-//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//  See the License for the specific language governing permissions and
-//  limitations under the License.
+// Copyright 2019 Twitter, Inc.
+// Licensed under the Apache License, Version 2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 
 use crate::histogram::bucket::Bucket;
 use crate::histogram::latched::Iter;
-use crate::histogram::{Histogram, Latched};
+use crate::{Histogram, LatchedHistogram};
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 use std::time;
@@ -23,14 +13,14 @@ use std::time;
 /// A thread-safe fixed-size `Histogram` which allows multiple writers and
 /// retains samples across a given `Duration`
 pub struct Moving {
-    data: Latched,
+    data: LatchedHistogram,
     samples: Arc<Mutex<VecDeque<Sample>>>,
     window: Arc<time::Duration>,
 }
 
 impl Default for Moving {
     fn default() -> Moving {
-        Self::new(1, 1_000_000, 3, time::Duration::new(60, 0))
+        Self::new(1_000_000, 3, time::Duration::new(60, 0))
     }
 }
 
@@ -47,7 +37,7 @@ struct Sample {
 }
 
 impl<'a> IntoIterator for &'a Moving {
-    type Item = &'a Bucket;
+    type Item = Bucket;
     type IntoIter = Iter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -57,9 +47,9 @@ impl<'a> IntoIterator for &'a Moving {
 
 impl Moving {
     /// Create a new `MovingHistogram` with the given min, max, precision, and window
-    pub fn new(min: usize, max: usize, precision: usize, window: time::Duration) -> Self {
+    pub fn new(max: usize, precision: usize, window: time::Duration) -> Self {
         Self {
-            data: Latched::new(min, max, precision),
+            data: LatchedHistogram::new(max, precision),
             samples: Arc::new(Mutex::new(VecDeque::new())),
             window: Arc::new(window),
         }
@@ -202,7 +192,7 @@ mod tests {
 
     #[test]
     fn rolloff() {
-        let h = Moving::new(0, 10, 3, time::Duration::new(2, 0));
+        let h = Moving::new(10, 3, time::Duration::new(2, 0));
         assert_eq!(h.samples(), 0);
         h.incr(1, 1);
         assert_eq!(h.samples(), 1);
@@ -214,7 +204,7 @@ mod tests {
 
     #[test]
     fn threaded_access() {
-        let histogram = Moving::new(0, 10, 3, time::Duration::new(10, 0));
+        let histogram = Moving::new(10, 3, time::Duration::new(10, 0));
 
         let mut threads = Vec::new();
 

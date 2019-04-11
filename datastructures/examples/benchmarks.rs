@@ -1,19 +1,8 @@
-//  Copyright 2019 Twitter, Inc
-//
-//  Licensed under the Apache License, Version 2.0 (the "License");
-//  you may not use this file except in compliance with the License.
-//  You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-//  Unless required by applicable law or agreed to in writing, software
-//  distributed under the License is distributed on an "AS IS" BASIS,
-//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//  See the License for the specific language governing permissions and
-//  limitations under the License.
+// Copyright 2019 Twitter, Inc.
+// Licensed under the Apache License, Version 2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 
-use datastructures::histogram;
-use datastructures::{Counter, Histogram};
+use datastructures::{Counter, Histogram, LatchedHistogram, MovingHistogram};
 use std::{thread, time};
 
 pub const NS_PER_SEC: usize = 1_000_000_000;
@@ -22,7 +11,7 @@ pub const NS_PER_MINUTE: usize = 60 * NS_PER_SEC;
 #[derive(Debug, Copy, Clone)]
 pub enum Structure {
     Counter,
-    FixedHistogram,
+    LatchedHistogram,
     MovingHistogram,
 }
 
@@ -43,27 +32,27 @@ pub fn main() {
     );
     runner(
         runtime,
-        Structure::FixedHistogram,
+        Structure::LatchedHistogram,
         Operation::Increment,
-        "Fixed Histogram Incr/s".to_string(),
+        "LatchedHistogram Incr/s".to_string(),
     );
     runner(
         runtime,
-        Structure::FixedHistogram,
+        Structure::LatchedHistogram,
         Operation::Percentile,
-        "Fixed Histogram Percentile/s".to_string(),
+        "LatchedHistogram Percentile/s".to_string(),
     );
     runner(
         runtime,
         Structure::MovingHistogram,
         Operation::Increment,
-        "Moving Histogram Incr/s".to_string(),
+        "MovingHistogram Incr/s".to_string(),
     );
     runner(
         runtime,
         Structure::MovingHistogram,
         Operation::Percentile,
-        "Moving Histogram Percentile/s".to_string(),
+        "MovingHistogram Percentile/s".to_string(),
     );
 }
 
@@ -160,8 +149,8 @@ pub fn sized_run(
                 }
             }
         }
-        Structure::FixedHistogram => {
-            let histogram = histogram::Latched::new(0, NS_PER_SEC, 3);
+        Structure::LatchedHistogram => {
+            let histogram = LatchedHistogram::new(NS_PER_SEC, 3);
             if operation == Operation::Percentile {
                 for i in 0..50_000 {
                     histogram.incr(i, 1);
@@ -191,7 +180,7 @@ pub fn sized_run(
             }
         }
         Structure::MovingHistogram => {
-            let histogram = histogram::Moving::new(0, NS_PER_SEC, 3, time::Duration::new(3600, 0));
+            let histogram = MovingHistogram::new(NS_PER_SEC, 3, time::Duration::new(3600, 0));
             if operation == Operation::Percentile {
                 for i in 0..50_000 {
                     histogram.incr(i, 1);
