@@ -4,7 +4,7 @@
 
 use crate::histogram::bucket::Bucket;
 use crate::histogram::latched::simple::Iter;
-use crate::histogram::{Histogram, LatchedHistogram};
+use crate::{Histogram, LatchedHistogram};
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 use std::time;
@@ -12,14 +12,14 @@ use std::time;
 #[derive(Clone)]
 /// A thread-safe fixed-size `Histogram` which allows multiple writers and
 /// retains samples across a given `Duration`
-pub struct Simple {
+pub struct Moving {
     data: LatchedHistogram,
     samples: Arc<Mutex<VecDeque<Sample>>>,
     window: Arc<time::Duration>,
 }
 
-impl Default for Simple {
-    fn default() -> Simple {
+impl Default for Moving {
+    fn default() -> Moving {
         Self::new(1_000_000, 3, time::Duration::new(60, 0))
     }
 }
@@ -36,7 +36,7 @@ struct Sample {
     direction: Direction,
 }
 
-impl<'a> IntoIterator for &'a Simple {
+impl<'a> IntoIterator for &'a Moving {
     type Item = Bucket;
     type IntoIter = Iter<'a>;
 
@@ -45,7 +45,7 @@ impl<'a> IntoIterator for &'a Simple {
     }
 }
 
-impl Simple {
+impl Moving {
     /// Create a new `MovingHistogram` with the given min, max, precision, and window
     pub fn new(max: usize, precision: usize, window: time::Duration) -> Self {
         Self {
@@ -73,7 +73,7 @@ impl Simple {
     }
 }
 
-impl Histogram for Simple {
+impl Histogram for Moving {
     /// Remove all samples from the datastructure
     fn clear(&self) {
         self.data.clear();
@@ -186,13 +186,13 @@ mod tests {
 
     #[test]
     fn empty() {
-        let h = Simple::default();
+        let h = Moving::default();
         assert_eq!(h.samples(), 0);
     }
 
     #[test]
     fn rolloff() {
-        let h = Simple::new(10, 3, time::Duration::new(2, 0));
+        let h = Moving::new(10, 3, time::Duration::new(2, 0));
         assert_eq!(h.samples(), 0);
         h.incr(1, 1);
         assert_eq!(h.samples(), 1);
@@ -204,7 +204,7 @@ mod tests {
 
     #[test]
     fn threaded_access() {
-        let histogram = Simple::new(10, 3, time::Duration::new(10, 0));
+        let histogram = Moving::new(10, 3, time::Duration::new(10, 0));
 
         let mut threads = Vec::new();
 
