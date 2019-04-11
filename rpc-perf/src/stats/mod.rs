@@ -17,7 +17,7 @@ pub mod http;
 use crate::client::SECOND;
 use crate::config::Config;
 pub use crate::stats::http::Http;
-use datastructures::{Heatmap, SimpleHeatmap};
+use datastructures::Heatmap;
 
 use metrics::*;
 
@@ -299,7 +299,7 @@ fn delta_percent<T: ToString>(
 #[derive(Clone)]
 pub struct Simple {
     inner: Recorder,
-    heatmap: Option<SimpleHeatmap>,
+    heatmap: Option<Heatmap>,
 }
 
 impl Simple {
@@ -307,7 +307,7 @@ impl Simple {
         let heatmap = if config.waterfall().is_some() {
             if let Some(windows) = config.windows() {
                 Some(
-                    SimpleHeatmap::new(
+                    Heatmap::new(
                         SECOND,
                         2,
                         SECOND,

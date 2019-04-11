@@ -1,16 +1,6 @@
-//  Copyright 2019 Twitter, Inc
-//
-//  Licensed under the Apache License, Version 2.0 (the "License");
-//  you may not use this file except in compliance with the License.
-//  You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-//  Unless required by applicable law or agreed to in writing, software
-//  distributed under the License is distributed on an "AS IS" BASIS,
-//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//  See the License for the specific language governing permissions and
-//  limitations under the License.
+// Copyright 2019 Twitter, Inc.
+// Licensed under the Apache License, Version 2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 
 //! A collection of thread-safe datastructures which are intended for
 //! inclusion in other common libraries or for use directly in binary
@@ -77,6 +67,6 @@ mod wrapper;
 
 pub use crate::bool::Bool;
 pub use crate::counter::Counter;
-pub use crate::heatmap::{Builder as HeatmapBuilder, Heatmap, SimpleHeatmap};
+pub use crate::heatmap::{Builder as HeatmapBuilder, Heatmap};
 pub use crate::histogram::{Builder as HistogramBuilder, Histogram, LatchedHistogram, MovingHistogram};
 pub use crate::wrapper::{RwWrapper, Wrapper};

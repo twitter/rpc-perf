@@ -13,7 +13,7 @@
 //  limitations under the License.
 
 #![allow(unused_imports)]
-use datastructures::{Heatmap, HeatmapBuilder, Histogram, HistogramBuilder, SimpleHeatmap};
+use datastructures::{Heatmap, HeatmapBuilder, Histogram, HistogramBuilder};
 use logger::*;
 use rand::distributions::{Alphanumeric, Distribution, Gamma, LogNormal, Normal, Pareto, Uniform};
 use rand::{thread_rng, Rng};
@@ -29,7 +29,7 @@ fn main() {
     info!("Welcome to the simulator!");
 
     let histogram = HistogramBuilder::new(0, 1_000_000, 2, None).build();
-    let heatmap = SimpleHeatmap::new(1_000_000, 2, 1_000_000, 5_000_000_000);
+    let heatmap = Heatmap::new(1_000_000, 2, 1_000_000, 5_000_000_000);
 
     let distribution = Normal::new(500.0, 250.0);
 

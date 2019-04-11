@@ -12,7 +12,7 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use datastructures::{Heatmap, SimpleHeatmap, HistogramBuilder};
+use datastructures::{Heatmap, HistogramBuilder};
 use hsl::HSL;
 use png::HasParameters;
 use rusttype::{point, FontCollection, PositionedGlyph, Scale};
@@ -24,7 +24,7 @@ use std::io::BufWriter;
 use std::path::Path;
 
 pub fn save_waterfall<S: ::std::hash::BuildHasher>(
-    heatmap: &SimpleHeatmap,
+    heatmap: &Heatmap,
     file: &str,
     labels: HashMap<usize, String, S>,
     interval: usize,
