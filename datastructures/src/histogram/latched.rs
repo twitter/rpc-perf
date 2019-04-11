@@ -10,7 +10,7 @@ use crate::histogram::Histogram;
 
 #[derive(Clone)]
 /// A thread-safe fixed-size `Histogram` which allows multiple writers
-pub struct Simple {
+pub struct Latched {
     max: usize,
     buckets: Vec<Counter>,
     too_high: Counter,
@@ -18,7 +18,7 @@ pub struct Simple {
     precision: Counter,
 }
 
-impl Simple {
+impl Latched {
     /// Create a new `Histogram` which will store values between 0 and max
     /// while retaining the precision of the represented values
     pub fn new(max: usize, precision: usize) -> Self {
@@ -133,12 +133,12 @@ impl Simple {
 }
 
 pub struct Iter<'a> {
-    inner: &'a Simple,
+    inner: &'a Latched,
     index: usize,
 }
 
 impl<'a> Iter<'a> {
-    fn new(inner: &'a Simple) -> Iter<'a> {
+    fn new(inner: &'a Latched) -> Iter<'a> {
         Iter { inner, index: 0 }
     }
 }
@@ -153,7 +153,7 @@ impl<'a> Iterator for Iter<'a> {
     }
 }
 
-impl<'a> IntoIterator for &'a Simple {
+impl<'a> IntoIterator for &'a Latched {
     type Item = Bucket;
     type IntoIter = Iter<'a>;
 
@@ -162,7 +162,7 @@ impl<'a> IntoIterator for &'a Simple {
     }
 }
 
-impl Histogram for Simple {
+impl Histogram for Latched {
     fn clear(&self) {
         for bucket in &self.buckets {
             bucket.clear();
@@ -352,7 +352,7 @@ mod tests {
 
     #[test]
     fn get_index_1() {
-        let histogram = Simple::new(1000000, 1);
+        let histogram = Latched::new(1000000, 1);
         assert_eq!(histogram.get_index(0), Ok(0));
         assert_eq!(histogram.get_index(9), Ok(9));
         assert_eq!(histogram.get_index(10), Ok(10));
@@ -370,7 +370,7 @@ mod tests {
 
     #[test]
     fn get_index_2() {
-        let histogram = Simple::new(1000000, 2);
+        let histogram = Latched::new(1000000, 2);
         assert_eq!(histogram.get_index(0), Ok(0));
         assert_eq!(histogram.get_index(99), Ok(99));
         assert_eq!(histogram.get_index(100), Ok(100));
@@ -385,7 +385,7 @@ mod tests {
     }
     #[test]
     fn get_index_3() {
-        let histogram = Simple::new(1000000, 3);
+        let histogram = Latched::new(1000000, 3);
         assert_eq!(histogram.get_index(0), Ok(0));
         assert_eq!(histogram.get_index(99), Ok(99));
         assert_eq!(histogram.get_index(100), Ok(100));
@@ -400,7 +400,7 @@ mod tests {
     }
     #[test]
     fn get_value_1() {
-        let histogram = Simple::new(1000000, 1);
+        let histogram = Latched::new(1000000, 1);
         assert_eq!(histogram.get_value(0), Ok(0));
         assert_eq!(histogram.get_value(9), Ok(9));
         assert_eq!(histogram.get_value(10), Ok(19));
@@ -410,7 +410,7 @@ mod tests {
     }
     #[test]
     fn get_value_2() {
-        let histogram = Simple::new(1000000, 2);
+        let histogram = Latched::new(1000000, 2);
         assert_eq!(histogram.get_value(0), Ok(0));
         assert_eq!(histogram.get_value(99), Ok(99));
         assert_eq!(histogram.get_value(100), Ok(109));
@@ -423,7 +423,7 @@ mod tests {
     }
     #[test]
     fn get_value_3() {
-        let histogram = Simple::new(1000000, 3);
+        let histogram = Latched::new(1000000, 3);
         assert_eq!(histogram.get_value(0), Ok(0));
         assert_eq!(histogram.get_value(99), Ok(99));
         assert_eq!(histogram.get_value(100), Ok(100));
@@ -437,7 +437,7 @@ mod tests {
     #[test]
     // increment and decrement
     fn incr_decr() {
-        let histogram = Simple::new(10, 1);
+        let histogram = Latched::new(10, 1);
         assert_eq!(histogram.min(), 0);
         assert_eq!(histogram.max(), 10);
         assert_eq!(histogram.count(1), 0);
@@ -457,7 +457,7 @@ mod tests {
     #[test]
     // test clearing the data
     fn clear() {
-        let histogram = Simple::new(10, 1);
+        let histogram = Latched::new(10, 1);
         for i in 0..11 {
             histogram.incr(i, 1);
             assert_eq!(histogram.samples(), i + 1);
@@ -474,7 +474,7 @@ mod tests {
     #[test]
     // behavior when decrementing past 0
     fn bucket_underflow() {
-        let histogram = Simple::new(10, 1);
+        let histogram = Latched::new(10, 1);
         assert_eq!(histogram.count(1), 0);
         histogram.decr(1, 1);
         assert_eq!(histogram.count(1), usize::MAX);
@@ -483,7 +483,7 @@ mod tests {
     #[test]
     // behavior when incrementing past `usize::MAX`
     fn bucket_overflow() {
-        let histogram = Simple::new(10, 1);
+        let histogram = Latched::new(10, 1);
         assert_eq!(histogram.count(1), 0);
         histogram.incr(1, usize::MAX);
         assert_eq!(histogram.count(1), usize::MAX);
@@ -494,7 +494,7 @@ mod tests {
     #[test]
     // validate that threaded access yields correct results
     fn threaded_access() {
-        let histogram = Simple::new(10, 1);
+        let histogram = Latched::new(10, 1);
 
         let mut threads = Vec::new();
 
@@ -517,7 +517,7 @@ mod tests {
     #[test]
     // test percentiles for an exact-only histogram
     fn percentiles_exact() {
-        let histogram = Simple::new(101, 3);
+        let histogram = Latched::new(101, 3);
 
         for i in 1..101 {
             histogram.incr(i, 1);
@@ -534,7 +534,7 @@ mod tests {
     #[test]
     // test percentiles for a histogram which includes approximate buckets
     fn percentiles_approx() {
-        let histogram = Simple::new(101, 1);
+        let histogram = Latched::new(101, 1);
 
         for i in 0..101 {
             histogram.incr(i, 1);
@@ -551,7 +551,7 @@ mod tests {
 
     #[test]
     fn too_high() {
-        let histogram = Simple::new(101, 1);
+        let histogram = Latched::new(101, 1);
         assert_eq!(histogram.samples(), 0);
         assert_eq!(histogram.too_low(), 0);
         assert_eq!(histogram.too_high(), 0);
@@ -567,7 +567,7 @@ mod tests {
 
     #[test]
     fn incr_min() {
-        let histogram = Simple::new(101, 1);
+        let histogram = Latched::new(101, 1);
         assert_eq!(histogram.samples(), 0);
         assert_eq!(histogram.too_low(), 0);
         assert_eq!(histogram.too_high(), 0);
@@ -579,7 +579,7 @@ mod tests {
 
     #[test]
     fn incr_max() {
-        let histogram = Simple::new(101, 1);
+        let histogram = Latched::new(101, 1);
         assert_eq!(histogram.samples(), 0);
         assert_eq!(histogram.too_low(), 0);
         assert_eq!(histogram.too_high(), 0);
@@ -595,7 +595,7 @@ mod tests {
 
     #[test]
     fn mean() {
-        let histogram = Simple::new(101, 3);
+        let histogram = Latched::new(101, 3);
         assert_eq!(histogram.mean(), None);
         assert_eq!(histogram.samples(), 0);
         for i in 0..101 {
@@ -610,7 +610,7 @@ mod tests {
 
     #[test]
     fn std_dev() {
-        let histogram = Simple::new(101, 3);
+        let histogram = Latched::new(101, 3);
         assert_eq!(histogram.std_dev(), None);
         assert_eq!(histogram.samples(), 0);
         for i in 0..101 {

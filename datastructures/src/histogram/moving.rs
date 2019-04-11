@@ -3,7 +3,7 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 use crate::histogram::bucket::Bucket;
-use crate::histogram::latched::simple::Iter;
+use crate::histogram::latched::Iter;
 use crate::{Histogram, LatchedHistogram};
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};

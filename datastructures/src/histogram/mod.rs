@@ -8,8 +8,8 @@ pub mod bucket;
 pub mod latched;
 pub mod moving;
 
-pub use self::latched::Histogram as LatchedHistogram;
-pub use self::moving::Histogram as MovingHistogram;
+pub use self::latched::Latched as LatchedHistogram;
+pub use self::moving::Moving as MovingHistogram;
 
 /// A set of common functions for all `Histogram` types
 pub trait Histogram {
@@ -68,13 +68,13 @@ impl Builder {
 
     pub fn build(&self) -> Box<Histogram> {
         if let Some(window) = self.window {
-            Box::new(self::moving::Histogram::new(
+            Box::new(self::MovingHistogram::new(
                 self.max,
                 self.precision,
                 window,
             ))
         } else {
-            Box::new(self::latched::Histogram::new(self.max, self.precision))
+            Box::new(self::LatchedHistogram::new(self.max, self.precision))
         }
     }
 }
