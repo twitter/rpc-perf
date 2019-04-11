@@ -47,7 +47,6 @@ pub fn save_waterfall<S: ::std::hash::BuildHasher>(
     }
 
     if let Some(min) = histogram.percentile(0.0) {
-        // let min = histogram.percentile(0.0).unwrap();
         let low = histogram.percentile(0.01).unwrap();
         let mid = histogram.percentile(0.50).unwrap();
         let high = histogram.percentile(0.99).unwrap();
