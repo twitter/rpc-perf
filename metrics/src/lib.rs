@@ -183,17 +183,26 @@ mod tests {
         assert_eq!(recorder.percentile("test".to_string(), 0.0), None);
         recorder.record(
             "test".to_string(),
-            Measurement::Counter { time: 1_000_000_000, value: 1 },
+            Measurement::Counter {
+                time: 1_000_000_000,
+                value: 1,
+            },
         );
         assert_eq!(recorder.counter("test".to_string()), 1);
         recorder.record(
             "test".to_string(),
-            Measurement::Counter { time: 2_000_000_000, value: 1 },
+            Measurement::Counter {
+                time: 2_000_000_000,
+                value: 1,
+            },
         );
         assert_eq!(recorder.counter("test".to_string()), 1);
         recorder.record(
             "test".to_string(),
-            Measurement::Counter { time: 3_000_000_000, value: 2 },
+            Measurement::Counter {
+                time: 3_000_000_000,
+                value: 2,
+            },
         );
         assert_eq!(recorder.counter("test".to_string()), 2);
         assert!(approx_eq(
@@ -222,11 +231,17 @@ mod tests {
         assert_eq!(recorder.counter("test".to_string()), 0);
         recorder.record(
             "test".to_string(),
-            Measurement::Counter { time: 0_usize.wrapping_sub(2_000_000_000), value: 0 },
+            Measurement::Counter {
+                time: 0_usize.wrapping_sub(2_000_000_000),
+                value: 0,
+            },
         );
         recorder.record(
             "test".to_string(),
-            Measurement::Counter { time: 0_usize.wrapping_sub(1_000_000_000), value: 1 },
+            Measurement::Counter {
+                time: 0_usize.wrapping_sub(1_000_000_000),
+                value: 1,
+            },
         );
         assert_eq!(recorder.counter("test".to_string()), 1);
         recorder.record(
@@ -234,18 +249,32 @@ mod tests {
             Measurement::Counter { time: 0, value: 2 },
         );
         assert_eq!(recorder.counter("test".to_string()), 2);
-        assert!(approx_eq(recorder.percentile("test".to_string(), 0.0).unwrap(), 1, 3));
+        assert!(approx_eq(
+            recorder.percentile("test".to_string(), 0.0).unwrap(),
+            1,
+            3
+        ));
         recorder.clear();
         assert_eq!(recorder.counter("test".to_string()), 0);
         recorder.record(
             "test".to_string(),
-            Measurement::Counter { time: 0, value: 0_usize.wrapping_sub(1) },
+            Measurement::Counter {
+                time: 0,
+                value: 0_usize.wrapping_sub(1),
+            },
         );
         recorder.record(
             "test".to_string(),
-            Measurement::Counter { time: 1_000_000_000, value: 0 },
+            Measurement::Counter {
+                time: 1_000_000_000,
+                value: 0,
+            },
         );
-        assert!(approx_eq(recorder.percentile("test".to_string(), 0.0).unwrap(), 1, 3));
+        assert!(approx_eq(
+            recorder.percentile("test".to_string(), 0.0).unwrap(),
+            1,
+            3
+        ));
     }
 
     #[test]
@@ -288,10 +317,7 @@ mod tests {
         ];
         for (time, &value) in data.iter().enumerate() {
             let time = time * 1_000_000_000;
-            recorder.record(
-                "test".to_string(),
-                Measurement::Counter { time, value },
-            );
+            recorder.record("test".to_string(), Measurement::Counter { time, value });
             assert_eq!(recorder.counter("test".to_string()), value);
         }
         assert!(approx_eq(
