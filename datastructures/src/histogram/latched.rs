@@ -197,9 +197,6 @@ impl Histogram for Latched {
         } else if let Ok(index) = self.get_index(value) {
             if let Some(bucket) = self.buckets.get(index) {
                 bucket.incr(count);
-            } else {
-                println!("this is unexpected");
-                self.too_high.incr(count);
             }
         } else {
             self.too_high.incr(count);
