@@ -234,11 +234,7 @@ mod tests {
             Measurement::Counter { time: 0, value: 2 },
         );
         assert_eq!(recorder.counter("test".to_string()), 2);
-        assert!(approx_eq(
-            recorder.percentile("test".to_string(), 0.0).unwrap(),
-            1,
-            3
-        ));
+        assert!(approx_eq(recorder.percentile("test".to_string(), 0.0).unwrap(), 1, 3));
         recorder.clear();
         assert_eq!(recorder.counter("test".to_string()), 0);
         recorder.record(
@@ -249,9 +245,63 @@ mod tests {
             "test".to_string(),
             Measurement::Counter { time: 1_000_000_000, value: 0 },
         );
+        assert!(approx_eq(recorder.percentile("test".to_string(), 0.0).unwrap(), 1, 3));
+    }
+
+    #[test]
+    fn counter_data() {
+        let recorder = Recorder::new();
+        let name = "test".to_string();
+        let histogram_config = HistogramBuilder::new(0, 80_000_000_001, 3, None);
+        recorder.add_channel(name.clone(), Source::Counter, Some(histogram_config));
+        assert_eq!(recorder.counter("test".to_string()), 0);
+        let data: Vec<usize> = vec![
+            20334687810196614,
+            20334700932559005,
+            20334707934416079,
+            20334715466281658,
+            20334722865691396,
+            20334729437570419,
+            20334736349172794,
+            20334744140066654,
+            20334752014842899,
+            20334759773262663,
+            20334767739399083,
+            20334776042704014,
+            20334783846926280,
+            20334792112381879,
+            20334800539448702,
+            20334806702815373,
+            20334813358296654,
+            20334821659085751,
+            20334831578426342,
+            20334840167485094,
+            20334847154018880,
+            20334855102223627,
+            20334863614546286,
+            20334872101854187,
+            20334881347777697,
+            20334889378069475,
+            20334897879629869,
+            20334907138339519,
+            20334917775675515,
+        ];
+        for (time, &value) in data.iter().enumerate() {
+            let time = time * 1_000_000_000;
+            recorder.record(
+                "test".to_string(),
+                Measurement::Counter { time, value },
+            );
+            assert_eq!(recorder.counter("test".to_string()), value);
+        }
         assert!(approx_eq(
             recorder.percentile("test".to_string(), 0.0).unwrap(),
-            1,
+            6169999999,
+            3
+        ));
+        assert!(approx_eq(
+            recorder.percentile("test".to_string(), 1.0).unwrap(),
+            13199999999,
             3
         ));
     }
@@ -262,9 +312,6 @@ mod tests {
         let name = "test".to_string();
         let histogram_config = HistogramBuilder::new(1, 101, 3, None);
         recorder.add_channel(name.clone(), Source::Distribution, Some(histogram_config));
-        // let channel = Channel::latched("test".to_string(), Source::Distribution, 1, 101, 3);
-        // recorder.add_channel(channel);
-        // let channel = recorder.get_channel("test".to_string()).unwrap();
         assert_eq!(recorder.counter("test".to_string()), 0);
         recorder.record(
             "test".to_string(),
@@ -301,9 +348,6 @@ mod tests {
         let name = "test".to_string();
         let histogram_config = HistogramBuilder::new(1, 100, 3, None);
         recorder.add_channel(name.clone(), Source::Gauge, Some(histogram_config));
-        // let channel = Channel::latched("test".to_string(), Source::Gauge, 1, 100, 3);
-        // recorder.add_channel(channel);
-        // let channel = recorder.get_channel("test".to_string()).unwrap();
         assert_eq!(recorder.counter("test".to_string()), 0);
         recorder.record("test".to_string(), Measurement::Gauge { value: 0, time: 1 });
         assert_eq!(recorder.counter("test".to_string()), 0);

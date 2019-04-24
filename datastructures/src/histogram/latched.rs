@@ -27,10 +27,15 @@ impl Latched {
         let total_buckets = if exact_max >= max {
             max + 1
         } else {
-            exact_max
-                + (((max as f64).log10() as usize) - precision)
-                    * 9
-                    * 10_usize.pow(precision as u32 - 1)
+            let power = (max as f64).log10().floor() as usize;
+            let divisor = 10_usize.pow((power - precision) as u32 + 1);
+            let base_offset = 10_usize.pow(precision as u32);
+            let power_offset =
+                (0.9 * (10_usize.pow(precision as u32) * (power - precision)) as f64) as usize;
+            let remainder = max / divisor;
+            let shift = 10_usize.pow(precision as u32 - 1);
+            let index = base_offset + power_offset + remainder - shift;
+            index + 1
         };
 
         let mut buckets = Vec::new();
@@ -193,6 +198,7 @@ impl Histogram for Latched {
             if let Some(bucket) = self.buckets.get(index) {
                 bucket.incr(count);
             } else {
+                println!("this is unexpected");
                 self.too_high.incr(count);
             }
         } else {
@@ -541,8 +547,9 @@ mod tests {
         assert_eq!(histogram.percentile(0.25).unwrap(), 29);
         assert_eq!(histogram.percentile(0.5).unwrap(), 59);
         assert_eq!(histogram.percentile(0.75).unwrap(), 79);
-        assert_eq!(histogram.percentile(0.90).unwrap(), 100);
-        assert_eq!(histogram.percentile(0.99).unwrap(), 100);
+        assert_eq!(histogram.percentile(0.90).unwrap(), 99);
+        assert_eq!(histogram.percentile(0.99).unwrap(), 99);
+        assert_eq!(histogram.percentile(1.0).unwrap(), 100);
     }
 
     #[test]
@@ -579,11 +586,28 @@ mod tests {
         assert_eq!(histogram.samples(), 0);
         assert_eq!(histogram.too_low(), 0);
         assert_eq!(histogram.too_high(), 0);
-        histogram.incr(99, 1);
+        histogram.incr(100, 1);
         assert_eq!(histogram.samples(), 1);
         assert_eq!(histogram.too_low(), 0);
         assert_eq!(histogram.too_high(), 0);
-        histogram.incr(100, 1);
+        histogram.incr(101, 1);
+        assert_eq!(histogram.samples(), 2);
+        assert_eq!(histogram.too_low(), 0);
+        assert_eq!(histogram.too_high(), 1);
+    }
+
+    #[test]
+    fn incr_max_large() {
+        let max = 80_000_000_001;
+        let histogram = Latched::new(max, 1);
+        assert_eq!(histogram.samples(), 0);
+        assert_eq!(histogram.too_low(), 0);
+        assert_eq!(histogram.too_high(), 0);
+        histogram.incr(max - 1, 1);
+        assert_eq!(histogram.samples(), 1);
+        assert_eq!(histogram.too_low(), 0);
+        assert_eq!(histogram.too_high(), 0);
+        histogram.incr(max, 1);
         assert_eq!(histogram.samples(), 2);
         assert_eq!(histogram.too_low(), 0);
         assert_eq!(histogram.too_high(), 1);
