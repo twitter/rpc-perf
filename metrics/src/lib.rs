@@ -162,9 +162,9 @@ mod tests {
 
     fn approx_eq(a: usize, b: usize, precision: usize) -> bool {
         let power = 10_u32.pow(precision as u32) as f64;
-        let a = (a as f64).log(power) as usize;
-        let b = (b as f64).log(power) as usize;
-        if a >= (b - 1) && a <= (b + 1) {
+        let log_a = (a as f64).log(power) as usize;
+        let log_b = (b as f64).log(power) as usize;
+        if (log_a + 1) >= log_b && log_a <= (log_b + 1) {
             println!("{} ~= {}", a, b);
             true
         } else {
@@ -179,18 +179,21 @@ mod tests {
         let name = "test".to_string();
         let histogram_config = HistogramBuilder::new(0, 2_000_000_001, 3, None);
         recorder.add_channel(name.clone(), Source::Counter, Some(histogram_config));
-        // let channel = Channel::latched("test".to_string(), Source::Counter, 0, 2_000_000_001, 3);
-        // recorder.add_channel(channel);
-        // let channel = recorder.get_channel("test".to_string()).unwrap();
         assert_eq!(recorder.counter("test".to_string()), 0);
+        assert_eq!(recorder.percentile("test".to_string(), 0.0), None);
         recorder.record(
             "test".to_string(),
-            Measurement::Counter { time: 0, value: 1 },
+            Measurement::Counter { time: 1_000_000_000, value: 1 },
         );
         assert_eq!(recorder.counter("test".to_string()), 1);
         recorder.record(
             "test".to_string(),
-            Measurement::Counter { time: 1, value: 2 },
+            Measurement::Counter { time: 2_000_000_000, value: 1 },
+        );
+        assert_eq!(recorder.counter("test".to_string()), 1);
+        recorder.record(
+            "test".to_string(),
+            Measurement::Counter { time: 3_000_000_000, value: 2 },
         );
         assert_eq!(recorder.counter("test".to_string()), 2);
         assert!(approx_eq(
@@ -200,12 +203,55 @@ mod tests {
         ));
         assert!(approx_eq(
             recorder.percentile("test".to_string(), 0.5).unwrap(),
-            1_000_000_000,
+            0,
             3
         ));
         assert!(approx_eq(
             recorder.percentile("test".to_string(), 1.0).unwrap(),
-            2_000_000_000,
+            1,
+            3
+        ));
+    }
+
+    #[test]
+    fn counter_wraparound() {
+        let recorder = Recorder::new();
+        let name = "test".to_string();
+        let histogram_config = HistogramBuilder::new(0, 2_000_000_001, 3, None);
+        recorder.add_channel(name.clone(), Source::Counter, Some(histogram_config));
+        assert_eq!(recorder.counter("test".to_string()), 0);
+        recorder.record(
+            "test".to_string(),
+            Measurement::Counter { time: 0_usize.wrapping_sub(2_000_000_000), value: 0 },
+        );
+        recorder.record(
+            "test".to_string(),
+            Measurement::Counter { time: 0_usize.wrapping_sub(1_000_000_000), value: 1 },
+        );
+        assert_eq!(recorder.counter("test".to_string()), 1);
+        recorder.record(
+            "test".to_string(),
+            Measurement::Counter { time: 0, value: 2 },
+        );
+        assert_eq!(recorder.counter("test".to_string()), 2);
+        assert!(approx_eq(
+            recorder.percentile("test".to_string(), 0.0).unwrap(),
+            1,
+            3
+        ));
+        recorder.clear();
+        assert_eq!(recorder.counter("test".to_string()), 0);
+        recorder.record(
+            "test".to_string(),
+            Measurement::Counter { time: 0, value: 0_usize.wrapping_sub(1) },
+        );
+        recorder.record(
+            "test".to_string(),
+            Measurement::Counter { time: 1_000_000_000, value: 0 },
+        );
+        assert!(approx_eq(
+            recorder.percentile("test".to_string(), 0.0).unwrap(),
+            1,
             3
         ));
     }
@@ -240,7 +286,7 @@ mod tests {
             );
         }
         assert_eq!(recorder.counter("test".to_string()), 100);
-        assert_eq!(recorder.percentile("test".to_string(), 0.0), Some(0));
+        assert_eq!(recorder.percentile("test".to_string(), 0.0), Some(1));
         assert_eq!(recorder.percentile("test".to_string(), 0.50), Some(50));
         assert_eq!(recorder.percentile("test".to_string(), 0.90), Some(90));
         assert_eq!(recorder.percentile("test".to_string(), 0.95), Some(95));
@@ -300,7 +346,7 @@ mod tests {
             );
         }
         assert_eq!(recorder.counter("test".to_string()), 100);
-        assert_eq!(recorder.percentile("test".to_string(), 0.0), Some(0));
+        assert_eq!(recorder.percentile("test".to_string(), 0.0), Some(1));
         assert_eq!(recorder.percentile("test".to_string(), 0.50), Some(1));
         assert_eq!(recorder.percentile("test".to_string(), 0.90), Some(1));
         assert_eq!(recorder.percentile("test".to_string(), 0.95), Some(1));

@@ -112,17 +112,8 @@ impl Latched {
             let max = if index == self.buckets.len() - 1 {
                 self.max()
             } else {
-                self.get_value(index).unwrap()
+                self.get_value(index).unwrap() + 1
             };
-            if min == max {
-                println!(
-                    "bucket: {} for value: {} has min: {} and max: {}",
-                    index,
-                    self.get_value(index).unwrap(),
-                    min,
-                    max
-                );
-            }
             let bucket = Bucket::new(min, max);
             bucket.incr(count);
             Some(bucket)
@@ -222,7 +213,11 @@ impl Histogram for Latched {
         if samples == 0 {
             return None;
         }
-        let need = (samples as f64 * percentile).ceil() as usize;
+        let need = if percentile == 0.0 {
+            1
+        } else {
+            (samples as f64 * percentile).ceil() as usize
+        };
         let mut have = self.too_low();
         if have >= need {
             return Some(self.min());
@@ -523,6 +518,7 @@ mod tests {
             histogram.incr(i, 1);
         }
 
+        assert_eq!(histogram.percentile(0.0).unwrap(), 1);
         assert_eq!(histogram.percentile(0.01).unwrap(), 1);
         assert_eq!(histogram.percentile(0.25).unwrap(), 25);
         assert_eq!(histogram.percentile(0.5).unwrap(), 50);

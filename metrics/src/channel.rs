@@ -14,7 +14,7 @@
 
 use crate::*;
 
-use datastructures::{Counter, Histogram, RwWrapper};
+use datastructures::{Bool, Counter, Histogram, RwWrapper};
 
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -68,6 +68,7 @@ pub struct Channel {
     max: Point,
     min: Point,
     outputs: RwWrapper<HashSet<Output>>,
+    has_data: Bool,
 }
 
 impl PartialEq for Channel {
@@ -95,6 +96,7 @@ impl Channel {
             max: Point::new(0, 0),
             min: Point::new(0, 0),
             outputs: RwWrapper::new(HashSet::new()),
+            has_data: Bool::new(false),
         }
     }
 
@@ -127,11 +129,10 @@ impl Channel {
     // histogram tracks rate of change
     fn record_counter(&self, value: usize, time: usize) {
         if self.source == Source::Counter {
-            let previous = self.counter.get();
-            if previous > 0 {
+            if self.has_data.get() {
                 // calculate the difference between consecutive readings and the rate
-                let delta_value = value - previous;
-                let delta_time = time - self.last_write.get();
+                let delta_value = value.wrapping_sub(self.counter.get());
+                let delta_time = time.wrapping_sub(self.last_write.get());
                 let rate = (delta_value as f64 * (1_000_000_000.0 / delta_time as f64)) as usize;
                 self.counter.incr(delta_value);
                 if let Some(ref histogram) = self.histogram {
@@ -155,6 +156,7 @@ impl Channel {
                 }
             } else {
                 self.counter.set(value);
+                self.has_data.set(true);
             }
             self.last_write.set(time);
         }
@@ -279,6 +281,7 @@ impl Channel {
     }
 
     pub fn clear(&self) {
+        self.has_data.set(false);
         self.last_write.set(0);
         self.counter.set(0);
         if let Some(ref histogram) = self.histogram {
