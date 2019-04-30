@@ -106,7 +106,7 @@ pub fn sized_run(
     measurement_type: MeasurementType,
     single_channel: bool,
 ) -> f64 {
-    let recorder = Recorder::new();
+    let recorder = Recorder::<u64>::new();
 
     let mut thread_pool = Vec::new();
     let t0 = time::Instant::now();
@@ -117,22 +117,28 @@ pub fn sized_run(
         } else {
             "test".to_string()
         };
-        let histogram_config = HistogramBuilder::new(0, 2_000_000_001, 3, None);
+        let histogram_config = HistogramBuilder::new(2_000_000_000, 3, None);
         recorder.add_channel(label.clone(), source, Some(histogram_config));
         thread_pool.push(thread::spawn(move || {
             for value in 0..(max / threads) {
                 let measurement = match measurement_type {
-                    MeasurementType::Counter => Measurement::Counter { time: value, value },
+                    MeasurementType::Counter => Measurement::Counter {
+                        time: value as u64,
+                        value: value as u64,
+                    },
                     MeasurementType::Distribution => Measurement::Distribution {
-                        value,
+                        value: value as u64,
                         count: 1,
                         time: 1,
                     },
-                    MeasurementType::Gauge => Measurement::Gauge { value, time: 1 },
-                    MeasurementType::Increment => Measurement::Increment { value: 1, time: 1 },
+                    MeasurementType::Gauge => Measurement::Gauge {
+                        value: value as u64,
+                        time: 1,
+                    },
+                    MeasurementType::Increment => Measurement::Increment { count: 1, time: 1 },
                     MeasurementType::TimeInterval => Measurement::TimeInterval {
                         start: 1,
-                        stop: value,
+                        stop: value as u64,
                     },
                 };
                 recorder.record(label.clone(), measurement);

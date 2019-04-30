@@ -28,21 +28,21 @@ use logger::*;
 pub fn register_stats(recorder: &Simple) {
     recorder.add_counter_channel(Stat::CommandsGet);
     recorder.add_counter_channel(Stat::CommandsSet);
-    recorder.add_distribution_channel(Stat::KeySize, 0, 60_000_000_000, 3);
-    recorder.add_distribution_channel(Stat::ValueSize, 0, 60_000_000_000, 3);
+    recorder.add_distribution_channel(Stat::KeySize, 60_000_000_000, 3);
+    recorder.add_distribution_channel(Stat::ValueSize, 60_000_000_000, 3);
     recorder.add_counter_channel(Stat::Window);
     recorder.add_counter_channel(Stat::RequestsEnqueued);
     recorder.add_counter_channel(Stat::RequestsDequeued);
     recorder.add_counter_channel(Stat::RequestsError);
     recorder.add_counter_channel(Stat::RequestsTimeout);
     recorder.add_counter_channel(Stat::ConnectionsTotal);
-    recorder.add_histogram_channel(Stat::ConnectionsOpened, 0, 60_000_000_000, 3);
+    recorder.add_histogram_channel(Stat::ConnectionsOpened, 60_000_000_000, 3);
     recorder.add_counter_channel(Stat::ConnectionsClosed);
     recorder.add_counter_channel(Stat::ConnectionsError);
     recorder.add_counter_channel(Stat::ConnectionsClientClosed);
     recorder.add_counter_channel(Stat::ConnectionsServerClosed);
     recorder.add_counter_channel(Stat::ConnectionsTimeout);
-    recorder.add_histogram_channel(Stat::ResponsesTotal, 0, 60_000_000_000, 3);
+    recorder.add_histogram_channel(Stat::ResponsesTotal, 60_000_000_000, 3);
     recorder.add_counter_channel(Stat::ResponsesOk);
     recorder.add_counter_channel(Stat::ResponsesError);
     recorder.add_counter_channel(Stat::ResponsesHit);
@@ -50,13 +50,13 @@ pub fn register_stats(recorder: &Simple) {
 }
 
 pub struct StandardOut<'a> {
-    previous: HashMap<String, HashMap<Output, usize>>,
+    previous: HashMap<String, HashMap<Output, u64>>,
     recorder: &'a Simple,
-    interval: usize,
+    interval: u64,
 }
 
 impl<'a> StandardOut<'a> {
-    pub fn new(recorder: &'a Simple, interval: usize) -> Self {
+    pub fn new(recorder: &'a Simple, interval: u64) -> Self {
         Self {
             previous: recorder.hash_map(),
             recorder,
@@ -64,7 +64,7 @@ impl<'a> StandardOut<'a> {
         }
     }
 
-    fn display_percentiles(&self, stat: Stat, label: &str, divisor: usize, unit: &str) {
+    fn display_percentiles(&self, stat: Stat, label: &str, divisor: u64, unit: &str) {
         let p25 = self
             .recorder
             .percentile(stat, 0.25)
@@ -252,10 +252,10 @@ impl ToString for Stat {
 }
 
 fn delta_count<T: ToString>(
-    a: &HashMap<String, HashMap<Output, usize>>,
-    b: &HashMap<String, HashMap<Output, usize>>,
+    a: &HashMap<String, HashMap<Output, u64>>,
+    b: &HashMap<String, HashMap<Output, u64>>,
     label: T,
-) -> Option<usize> {
+) -> Option<u64> {
     let output = Output::Counter;
     let label = label.to_string();
     if let Some(a_outputs) = a.get(&label) {
@@ -273,8 +273,8 @@ fn delta_count<T: ToString>(
 }
 
 fn delta_percent<T: ToString>(
-    a: &HashMap<String, HashMap<Output, usize>>,
-    b: &HashMap<String, HashMap<Output, usize>>,
+    a: &HashMap<String, HashMap<Output, u64>>,
+    b: &HashMap<String, HashMap<Output, u64>>,
     label_a: T,
     label_b: T,
 ) -> Option<f64> {
@@ -298,8 +298,8 @@ fn delta_percent<T: ToString>(
 
 #[derive(Clone)]
 pub struct Simple {
-    inner: Recorder,
-    heatmap: Option<Heatmap>,
+    inner: Recorder<u64>,
+    heatmap: Option<Heatmap<u64>>,
 }
 
 impl Simple {
@@ -307,10 +307,10 @@ impl Simple {
         let heatmap = if config.waterfall().is_some() {
             if let Some(windows) = config.windows() {
                 Some(Heatmap::new(
-                    SECOND,
+                    SECOND as u64,
                     2,
-                    SECOND,
-                    windows * config.interval() * SECOND,
+                    SECOND as u64,
+                    (windows * config.interval() * SECOND) as u64,
                 ))
             } else {
                 warn!("Unable to initialize waterfall output without fixed duration");
@@ -331,14 +331,8 @@ impl Simple {
         self.inner.add_output(label.to_string(), Output::Counter);
     }
 
-    pub fn add_histogram_channel<T: ToString>(
-        &self,
-        label: T,
-        min: usize,
-        max: usize,
-        precision: usize,
-    ) {
-        let histogram_config = HistogramBuilder::new(min, max, precision, None);
+    pub fn add_histogram_channel<T: ToString>(&self, label: T, max: u64, precision: usize) {
+        let histogram_config = HistogramBuilder::new(max, precision, None);
         self.inner.add_channel(
             label.to_string(),
             Source::TimeInterval,
@@ -359,14 +353,8 @@ impl Simple {
             .add_output(label.to_string(), Output::Percentile(Percentile::p9999));
     }
 
-    pub fn add_distribution_channel<T: ToString>(
-        &self,
-        label: T,
-        min: usize,
-        max: usize,
-        precision: usize,
-    ) {
-        let histogram_config = HistogramBuilder::new(min, max, precision, None);
+    pub fn add_distribution_channel<T: ToString>(&self, label: T, max: u64, precision: usize) {
+        let histogram_config = HistogramBuilder::new(max, precision, None);
         self.inner.add_channel(
             label.to_string(),
             Source::Distribution,
@@ -387,7 +375,7 @@ impl Simple {
             .add_output(label.to_string(), Output::Percentile(Percentile::p9999));
     }
 
-    pub fn counter<T: ToString>(&self, label: T) -> usize {
+    pub fn counter<T: ToString>(&self, label: T) -> u64 {
         self.inner.counter(label.to_string())
     }
 
@@ -395,35 +383,35 @@ impl Simple {
         self.inner.record(
             label.to_string(),
             Measurement::Increment {
-                time: time::precise_time_ns() as usize,
-                value: 1,
+                time: time::precise_time_ns(),
+                count: 1,
             },
         )
     }
 
-    pub fn time_interval<T: ToString>(&self, label: T, start: usize, stop: usize) {
+    pub fn time_interval<T: ToString>(&self, label: T, start: u64, stop: u64) {
         self.inner
             .record(label.to_string(), Measurement::TimeInterval { start, stop });
     }
 
-    pub fn heatmap_increment(&self, start: usize, stop: usize) {
+    pub fn heatmap_increment(&self, start: u64, stop: u64) {
         if let Some(ref heatmap) = self.heatmap {
-            heatmap.incr(start, stop - start, 1);
+            heatmap.increment(start, stop - start, 1);
         }
     }
 
-    pub fn distribution<T: ToString>(&self, label: T, value: usize) {
+    pub fn distribution<T: ToString>(&self, label: T, value: u64) {
         self.inner.record(
             label.to_string(),
             Measurement::Distribution {
-                time: time::precise_time_ns() as usize,
+                time: time::precise_time_ns(),
                 value,
                 count: 1,
             },
         );
     }
 
-    pub fn percentile<T: ToString>(&self, label: T, percentile: f64) -> Option<usize> {
+    pub fn percentile<T: ToString>(&self, label: T, percentile: f64) -> Option<u64> {
         self.inner.percentile(label.to_string(), percentile)
     }
 
@@ -431,7 +419,7 @@ impl Simple {
         self.inner.latch();
     }
 
-    pub fn hash_map(&self) -> HashMap<String, HashMap<Output, usize>> {
+    pub fn hash_map(&self) -> HashMap<String, HashMap<Output, u64>> {
         self.inner.hash_map()
     }
 
@@ -467,7 +455,7 @@ impl Simple {
             labels.insert(100_000_000, "100ms".to_string());
             labels.insert(200_000_000, "200ms".to_string());
             labels.insert(400_000_000, "400ms".to_string());
-            waterfall::save_waterfall(&heatmap, &file, labels, 60 * SECOND);
+            waterfall::save_waterfall(&heatmap, &file, labels, 60 * SECOND as u64);
         }
     }
 }

@@ -13,6 +13,7 @@
 //  limitations under the License.
 
 use crate::*;
+use datastructures::Counting;
 
 use datastructures::{Bool, Counter, Histogram, RwWrapper};
 
@@ -20,33 +21,17 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 
 #[derive(Debug)]
-pub enum Measurement {
+pub enum Measurement<C> {
     // taken from a counter eg: number of requests
-    Counter {
-        value: usize,
-        time: usize,
-    },
+    Counter { value: u64, time: u64 },
     // taken from a distribution eg: an external histogram
-    Distribution {
-        value: usize,
-        count: usize,
-        time: usize,
-    },
+    Distribution { value: u64, count: C, time: u64 },
     // taken from a gauge eg: bytes of memory used
-    Gauge {
-        value: usize,
-        time: usize,
-    },
+    Gauge { value: u64, time: u64 },
     // incremental count to sum into a counter
-    Increment {
-        value: usize,
-        time: usize,
-    },
+    Increment { count: C, time: u64 },
     // the start and stop of an event
-    TimeInterval {
-        start: usize,
-        stop: usize,
-    },
+    TimeInterval { start: u64, stop: u64 },
 }
 
 #[derive(PartialEq, Debug, Copy, Clone)]
@@ -58,12 +43,12 @@ pub enum Source {
 }
 
 // #[derive(Clone)]
-pub struct Channel {
+pub struct Channel<C> {
     name: RwWrapper<String>,
     source: Source,
-    counter: Counter,
-    histogram: Option<Box<Histogram>>,
-    last_write: Counter,
+    counter: Counter<u64>,
+    histogram: Option<Box<Histogram<C>>>,
+    last_write: Counter<u64>,
     latched: bool,
     max: Point,
     min: Point,
@@ -71,16 +56,33 @@ pub struct Channel {
     has_data: Bool,
 }
 
-impl PartialEq for Channel {
-    fn eq(&self, other: &Channel) -> bool {
+impl<C: 'static> PartialEq for Channel<C>
+where
+    C: Counting,
+    u64: From<C>,
+{
+    fn eq(&self, other: &Channel<C>) -> bool {
         self.name() == other.name()
     }
 }
 
-impl Eq for Channel {}
+impl<C: 'static> Eq for Channel<C>
+where
+    C: Counting,
+    u64: From<C>,
+{
+}
 
-impl Channel {
-    pub fn new(name: String, source: Source, histogram_config: Option<HistogramBuilder>) -> Self {
+impl<C: 'static> Channel<C>
+where
+    C: Counting,
+    u64: From<C>,
+{
+    pub fn new(
+        name: String,
+        source: Source,
+        histogram_config: Option<HistogramBuilder<C>>,
+    ) -> Self {
         let histogram = if let Some(config) = histogram_config {
             Some(config.build())
         } else {
@@ -108,7 +110,7 @@ impl Channel {
         self.source
     }
 
-    pub fn record(&self, measurement: Measurement) {
+    pub fn record(&self, measurement: Measurement<C>) {
         match measurement {
             Measurement::Counter { value, time } => {
                 self.record_counter(value, time);
@@ -119,7 +121,7 @@ impl Channel {
             Measurement::Gauge { value, time } => {
                 self.record_gauge(value, time);
             }
-            Measurement::Increment { value, time } => self.record_increment(value, time),
+            Measurement::Increment { count, time } => self.record_increment(count, time),
             Measurement::TimeInterval { start, stop } => self.record_time_interval(start, stop),
         }
     }
@@ -127,16 +129,16 @@ impl Channel {
     // for Counter measurements:
     // counter tracks value
     // histogram tracks rate of change
-    fn record_counter(&self, value: usize, time: usize) {
+    fn record_counter(&self, value: u64, time: u64) {
         if self.source == Source::Counter {
             if self.has_data.get() {
                 // calculate the difference between consecutive readings and the rate
                 let delta_value = value.wrapping_sub(self.counter.get());
                 let delta_time = time.wrapping_sub(self.last_write.get());
-                let rate = (delta_value as f64 * (1_000_000_000.0 / delta_time as f64)) as usize;
-                self.counter.incr(delta_value);
+                let rate = (delta_value as f64 * (1_000_000_000.0 / delta_time as f64)) as u64;
+                self.counter.increment(delta_value);
                 if let Some(ref histogram) = self.histogram {
-                    histogram.incr(rate, 1);
+                    histogram.increment(rate, C::from(1_u8));
                 }
                 // track the point of max rate
                 if self.max.time() > 0 {
@@ -165,11 +167,11 @@ impl Channel {
     // for Distribution measurements:
     // counter tracks sum of all counts
     // histogram tracks values
-    fn record_distribution(&self, value: usize, count: usize, time: usize) {
+    fn record_distribution(&self, value: u64, count: C, time: u64) {
         if self.source == Source::Distribution {
-            self.counter.incr(count);
+            self.counter.increment(u64::from(count));
             if let Some(ref histogram) = self.histogram {
-                histogram.incr(value, count);
+                histogram.increment(value, count);
             }
             self.last_write.set(time);
         }
@@ -180,11 +182,11 @@ impl Channel {
     // histogram tracks readings
     // max tracks largest reading
     // min tracks smallest reading
-    fn record_gauge(&self, value: usize, time: usize) {
+    fn record_gauge(&self, value: u64, time: u64) {
         if self.source == Source::Gauge {
             self.counter.set(value);
             if let Some(ref histogram) = self.histogram {
-                histogram.incr(value, 1);
+                histogram.increment(value, C::from(1_u8));
             }
             // track the point of max gauge reading
             if self.max.time() > 0 {
@@ -209,23 +211,23 @@ impl Channel {
     // for Increment measurements:
     // counter tracks sum of all increments
     // histogram tracks magnitude of increments
-    fn record_increment(&self, value: usize, time: usize) {
+    fn record_increment(&self, count: C, time: u64) {
         if self.source == Source::Counter {
-            self.counter.incr(value);
+            self.counter.increment(u64::from(count));
             if let Some(ref histogram) = self.histogram {
-                histogram.incr(value, 1);
+                histogram.increment(u64::from(count), C::from(1_u8));
             }
             self.last_write.set(time);
         }
     }
 
     // for TimeInterval measurements, we increment the histogram with duration of event
-    fn record_time_interval(&self, start: usize, stop: usize) {
+    fn record_time_interval(&self, start: u64, stop: u64) {
         if self.source == Source::TimeInterval {
-            self.counter.incr(1);
+            self.counter.increment(1);
             let duration = stop - start;
             if let Some(ref histogram) = self.histogram {
-                histogram.incr(duration, 1);
+                histogram.increment(duration, C::from(1_u8));
             }
             // track point of largest interval
             if self.max.time() > 0 {
@@ -246,11 +248,11 @@ impl Channel {
         }
     }
 
-    pub fn counter(&self) -> usize {
+    pub fn counter(&self) -> u64 {
         self.counter.get()
     }
 
-    pub fn percentile(&self, percentile: f64) -> Option<usize> {
+    pub fn percentile(&self, percentile: f64) -> Option<u64> {
         if let Some(ref histogram) = self.histogram {
             histogram.percentile(percentile)
         } else {
@@ -273,7 +275,7 @@ impl Channel {
     pub fn latch(&self) {
         if self.latched {
             if let Some(ref histogram) = self.histogram {
-                histogram.clear();
+                histogram.reset();
             }
         }
         self.max.set(0, 0);
@@ -285,7 +287,7 @@ impl Channel {
         self.last_write.set(0);
         self.counter.set(0);
         if let Some(ref histogram) = self.histogram {
-            histogram.clear();
+            histogram.reset();
         }
         self.max.set(0, 0);
         self.min.set(0, 0);
@@ -320,7 +322,7 @@ impl Channel {
         result
     }
 
-    pub fn hash_map(&self) -> HashMap<Output, usize> {
+    pub fn hash_map(&self) -> HashMap<Output, u64> {
         let mut result = HashMap::new();
         unsafe {
             for output in (*self.outputs.lock()).iter() {

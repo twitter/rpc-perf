@@ -16,29 +16,32 @@ use datastructures::Counter;
 
 #[derive(Clone)]
 pub struct Point {
-    value: Counter,
-    time: Counter,
+    value: Counter<u64>,
+    time: Counter<u64>,
 }
 
 impl Point {
-    pub fn new(value: usize, time: usize) -> Self {
-        let v = Counter::default();
-        v.set(value);
-        let t = Counter::default();
-        t.set(time);
-        Self { value: v, time: t }
+    pub fn new(value: u64, time: u64) -> Self {
+        let value = Counter::new(value);
+        let time = Counter::new(time);
+        Self { value, time }
     }
 
-    pub fn value(&self) -> usize {
+    pub fn value(&self) -> u64 {
         self.value.get()
     }
 
-    pub fn time(&self) -> usize {
+    pub fn time(&self) -> u64 {
         self.time.get()
     }
 
-    pub fn set(&self, value: usize, time: usize) {
+    pub fn set(&self, value: u64, time: u64) {
         self.value.set(value);
         self.time.set(time);
+    }
+
+    pub fn reset(&self) {
+        self.value.reset();
+        self.time.reset();
     }
 }

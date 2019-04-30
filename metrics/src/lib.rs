@@ -131,11 +131,11 @@ pub enum Output {
 pub struct Reading {
     label: String,
     output: Output,
-    value: usize,
+    value: u64,
 }
 
 impl Reading {
-    pub fn new(label: String, output: Output, value: usize) -> Self {
+    pub fn new(label: String, output: Output, value: u64) -> Self {
         Self {
             label,
             output,
@@ -151,7 +151,7 @@ impl Reading {
         self.label.clone()
     }
 
-    pub fn value(&self) -> usize {
+    pub fn value(&self) -> u64 {
         self.value
     }
 }
@@ -160,10 +160,10 @@ impl Reading {
 mod tests {
     use super::*;
 
-    fn approx_eq(a: usize, b: usize, precision: usize) -> bool {
-        let power = 10_u32.pow(precision as u32) as f64;
-        let log_a = (a as f64).log(power) as usize;
-        let log_b = (b as f64).log(power) as usize;
+    fn approx_eq(a: u64, b: u64, precision: u64) -> bool {
+        let power = 10_u64.pow(precision as u32) as f64;
+        let log_a = (a as f64).log(power) as u64;
+        let log_b = (b as f64).log(power) as u64;
         if (log_a + 1) >= log_b && log_a <= (log_b + 1) {
             println!("{} ~= {}", a, b);
             true
@@ -175,9 +175,9 @@ mod tests {
 
     #[test]
     fn counter_channel() {
-        let recorder = Recorder::new();
+        let recorder = Recorder::<u64>::new();
         let name = "test".to_string();
-        let histogram_config = HistogramBuilder::new(0, 2_000_000_001, 3, None);
+        let histogram_config = HistogramBuilder::new(2_000_000_000, 3, None);
         recorder.add_channel(name.clone(), Source::Counter, Some(histogram_config));
         assert_eq!(recorder.counter("test".to_string()), 0);
         assert_eq!(recorder.percentile("test".to_string(), 0.0), None);
@@ -224,22 +224,22 @@ mod tests {
 
     #[test]
     fn counter_wraparound() {
-        let recorder = Recorder::new();
+        let recorder = Recorder::<u64>::new();
         let name = "test".to_string();
-        let histogram_config = HistogramBuilder::new(0, 2_000_000_001, 3, None);
+        let histogram_config = HistogramBuilder::new(2_000_000_000, 3, None);
         recorder.add_channel(name.clone(), Source::Counter, Some(histogram_config));
         assert_eq!(recorder.counter("test".to_string()), 0);
         recorder.record(
             "test".to_string(),
             Measurement::Counter {
-                time: 0_usize.wrapping_sub(2_000_000_000),
+                time: 0_u64.wrapping_sub(2_000_000_000),
                 value: 0,
             },
         );
         recorder.record(
             "test".to_string(),
             Measurement::Counter {
-                time: 0_usize.wrapping_sub(1_000_000_000),
+                time: 0_u64.wrapping_sub(1_000_000_000),
                 value: 1,
             },
         );
@@ -260,7 +260,7 @@ mod tests {
             "test".to_string(),
             Measurement::Counter {
                 time: 0,
-                value: 0_usize.wrapping_sub(1),
+                value: 0_u64.wrapping_sub(1),
             },
         );
         recorder.record(
@@ -279,12 +279,12 @@ mod tests {
 
     #[test]
     fn counter_data() {
-        let recorder = Recorder::new();
+        let recorder = Recorder::<u64>::new();
         let name = "test".to_string();
-        let histogram_config = HistogramBuilder::new(0, 80_000_000_001, 3, None);
+        let histogram_config = HistogramBuilder::new(80_000_000_000, 3, None);
         recorder.add_channel(name.clone(), Source::Counter, Some(histogram_config));
         assert_eq!(recorder.counter("test".to_string()), 0);
-        let data: Vec<usize> = vec![
+        let data: Vec<u64> = vec![
             20334687810196614,
             20334700932559005,
             20334707934416079,
@@ -316,7 +316,7 @@ mod tests {
             20334917775675515,
         ];
         for (time, &value) in data.iter().enumerate() {
-            let time = time * 1_000_000_000;
+            let time = time as u64 * 1_000_000_000;
             recorder.record("test".to_string(), Measurement::Counter { time, value });
             assert_eq!(recorder.counter("test".to_string()), value);
         }
@@ -334,9 +334,9 @@ mod tests {
 
     #[test]
     fn distribution_channel() {
-        let recorder = Recorder::new();
+        let recorder = Recorder::<u64>::new();
         let name = "test".to_string();
-        let histogram_config = HistogramBuilder::new(1, 101, 3, None);
+        let histogram_config = HistogramBuilder::new(100, 3, None);
         recorder.add_channel(name.clone(), Source::Distribution, Some(histogram_config));
         assert_eq!(recorder.counter("test".to_string()), 0);
         recorder.record(
@@ -370,9 +370,9 @@ mod tests {
 
     #[test]
     fn gauge_channel() {
-        let recorder = Recorder::new();
+        let recorder = Recorder::<u64>::new();
         let name = "test".to_string();
-        let histogram_config = HistogramBuilder::new(1, 100, 3, None);
+        let histogram_config = HistogramBuilder::new(100, 3, None);
         recorder.add_channel(name.clone(), Source::Gauge, Some(histogram_config));
         assert_eq!(recorder.counter("test".to_string()), 0);
         recorder.record("test".to_string(), Measurement::Gauge { value: 0, time: 1 });
@@ -396,9 +396,9 @@ mod tests {
 
     #[test]
     fn time_interval_channel() {
-        let recorder = Recorder::new();
+        let recorder = Recorder::<u64>::new();
         let name = "test".to_string();
-        let histogram_config = HistogramBuilder::new(1, 100, 3, None);
+        let histogram_config = HistogramBuilder::new(100, 3, None);
         recorder.add_channel(name.clone(), Source::TimeInterval, Some(histogram_config));
         assert_eq!(recorder.counter("test".to_string()), 0);
         recorder.record(

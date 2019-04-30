@@ -2,11 +2,11 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use datastructures::{Counter, Histogram, LatchedHistogram, MovingHistogram};
+use datastructures::*;
 use std::{thread, time};
 
-pub const NS_PER_SEC: usize = 1_000_000_000;
-pub const NS_PER_MINUTE: usize = 60 * NS_PER_SEC;
+pub const NS_PER_SEC: u64 = 1_000_000_000;
+pub const NS_PER_MINUTE: u64 = 60 * NS_PER_SEC;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Structure {
@@ -119,14 +119,14 @@ pub fn sized_run(
     match structure {
         Structure::Counter => {
             if contended {
-                let counter = Counter::default();
+                let counter = Counter::<u64>::default();
                 for _ in 0..threads {
                     let counter = counter.clone();
                     match operation {
                         Operation::Increment => {
                             thread_pool.push(thread::spawn(move || {
                                 for _ in 0..(max / threads) {
-                                    counter.incr(1);
+                                    counter.increment(1);
                                 }
                             }));
                         }
@@ -135,12 +135,12 @@ pub fn sized_run(
                 }
             } else {
                 for _ in 0..threads {
-                    let counter = Counter::default();
+                    let counter = Counter::<u64>::default();
                     match operation {
                         Operation::Increment => {
                             thread_pool.push(thread::spawn(move || {
                                 for _ in 0..(max / threads) {
-                                    counter.incr(1);
+                                    counter.increment(1);
                                 }
                             }));
                         }
@@ -150,10 +150,10 @@ pub fn sized_run(
             }
         }
         Structure::LatchedHistogram => {
-            let histogram = LatchedHistogram::new(NS_PER_SEC, 3);
+            let histogram = LatchedHistogram::<u64>::new(NS_PER_SEC, 3);
             if operation == Operation::Percentile {
                 for i in 0..50_000 {
-                    histogram.incr(i, 1);
+                    histogram.increment(i, 1);
                 }
             }
             for mut tid in 0..threads {
@@ -165,7 +165,7 @@ pub fn sized_run(
                     Operation::Increment => {
                         thread_pool.push(thread::spawn(move || {
                             for _ in 0..(max / threads) {
-                                histogram.incr(tid * 1_000_000, 1);
+                                histogram.increment(tid as u64 * 1_000_000, 1);
                             }
                         }));
                     }
@@ -180,10 +180,11 @@ pub fn sized_run(
             }
         }
         Structure::MovingHistogram => {
-            let histogram = MovingHistogram::new(NS_PER_SEC, 3, time::Duration::new(3600, 0));
+            let histogram =
+                MovingHistogram::<u64>::new(NS_PER_SEC, 3, time::Duration::new(3600, 0));
             if operation == Operation::Percentile {
                 for i in 0..50_000 {
-                    histogram.incr(i, 1);
+                    histogram.increment(i, 1);
                 }
             }
             for mut tid in 0..threads {
@@ -195,7 +196,7 @@ pub fn sized_run(
                     Operation::Increment => {
                         thread_pool.push(thread::spawn(move || {
                             for _ in 0..(max / threads) {
-                                histogram.incr(tid * 1_000_000, 1);
+                                histogram.increment(tid as u64 * 1_000_000, 1);
                             }
                         }));
                     }
