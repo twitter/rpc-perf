@@ -12,6 +12,7 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
+use datastructures::Counting;
 use datastructures::{Heatmap, HistogramBuilder};
 use hsl::HSL;
 use logger::*;
@@ -23,12 +24,15 @@ use std::fs::File;
 use std::io::BufWriter;
 use std::path::Path;
 
-pub fn save_waterfall<S: ::std::hash::BuildHasher>(
-    heatmap: &Heatmap,
+pub fn save_waterfall<S: ::std::hash::BuildHasher, C: 'static>(
+    heatmap: &Heatmap<C>,
     file: &str,
-    labels: HashMap<usize, String, S>,
-    interval: usize,
-) {
+    labels: HashMap<u64, String, S>,
+    interval: u64,
+) where
+    C: Counting,
+    u64: From<C>,
+{
     debug!("saving waterfall");
     let height = heatmap.slices();
     let width = heatmap.buckets();
@@ -36,12 +40,11 @@ pub fn save_waterfall<S: ::std::hash::BuildHasher>(
     // create image buffer
     let mut buffer = ImageBuffer::<ColorRgb>::new(width, height);
 
-    let histogram = HistogramBuilder::new(0, heatmap.highest_count(), 3, None).build();
+    let histogram = HistogramBuilder::new(heatmap.highest_count(), 3, None).build();
     for slice in heatmap {
         for b in slice.histogram().into_iter() {
-            let magnitude = (b.count() as f64 / b.width() as f64).ceil() as usize;
-            if magnitude > 0 {
-                histogram.incr(magnitude, 1);
+            if b.weighted_count() > 0 {
+                histogram.increment(b.weighted_count(), C::from(1_u8));
             }
         }
     }
@@ -57,21 +60,20 @@ pub fn save_waterfall<S: ::std::hash::BuildHasher>(
             min, low, mid, high, max
         );
 
-        let mut values: Vec<usize> = labels.keys().cloned().collect();
+        let mut values: Vec<u64> = labels.keys().cloned().collect();
         values.sort();
         let mut l = 0;
         for (y, slice) in heatmap.into_iter().enumerate() {
             for (x, bucket) in slice.histogram().into_iter().enumerate() {
-                let value = color_from_value(bucket.count() / bucket.width(), low, mid, high);
+                let value = color_from_value(bucket.weighted_count(), low, mid, high);
                 buffer.set_pixel(x, y, value);
             }
         }
 
         if !values.is_empty() {
-            let mut x = 0;
             let y = 0;
             let slice = heatmap.into_iter().next().unwrap();
-            for bucket in slice.histogram() {
+            for (x, bucket) in slice.histogram().into_iter().enumerate() {
                 let value = bucket.max();
                 if value >= values[l] {
                     if let Some(label) = labels.get(&values[l]) {
@@ -91,7 +93,6 @@ pub fn save_waterfall<S: ::std::hash::BuildHasher>(
                         break;
                     }
                 }
-                x += 1;
             }
         }
     }
@@ -185,7 +186,7 @@ fn string_buffer(string: &str, size: f32) -> ImageBuffer<ColorRgb> {
 /// values below low will clip to black
 /// mid point is the transition between luminosity (black-blue) and hue (blue->red) ramps
 /// values above high will clip to red
-fn color_from_value(value: usize, low: usize, mid: usize, high: usize) -> ColorRgb {
+fn color_from_value(value: u64, low: u64, mid: u64, high: u64) -> ColorRgb {
     let hsl = if value < low {
         HSL {
             h: 250.0,

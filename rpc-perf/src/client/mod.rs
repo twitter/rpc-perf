@@ -102,11 +102,11 @@ pub trait Client: Send {
         self.common().stat_increment(label);
     }
 
-    fn stat_interval(&self, label: Stat, start: usize, stop: usize) {
+    fn stat_interval(&self, label: Stat, start: u64, stop: u64) {
         self.common().stat_interval(label, start, stop);
     }
 
-    fn heatmap_increment(&self, start: usize, stop: usize) {
+    fn heatmap_increment(&self, start: u64, stop: u64) {
         self.common().heatmap_increment(start, stop);
     }
 
@@ -312,11 +312,7 @@ pub trait Client: Send {
                 State::Established => {
                     trace!("connection established {:?}", token);
                     if let Some(t0) = self.session(token).timestamp() {
-                        self.stat_interval(
-                            Stat::ConnectionsOpened,
-                            t0 as usize,
-                            time::precise_time_ns() as usize,
-                        );
+                        self.stat_interval(Stat::ConnectionsOpened, t0, time::precise_time_ns());
                     }
                     self.do_established(token);
                 }
@@ -355,11 +351,7 @@ pub trait Client: Send {
                 State::Established => {
                     debug!("session established");
                     if let Some(t0) = self.session(token).timestamp() {
-                        self.stat_interval(
-                            Stat::ConnectionsOpened,
-                            t0 as usize,
-                            time::precise_time_ns() as usize,
-                        );
+                        self.stat_interval(Stat::ConnectionsOpened, t0, time::precise_time_ns());
                     }
                     self.do_established(token);
                 }
@@ -518,8 +510,8 @@ pub trait Client: Send {
 
                     if parsed != Err(Error::Incomplete) {
                         if let Some(t0) = self.session(token).timestamp() {
-                            self.stat_interval(Stat::ResponsesTotal, t0 as usize, t1 as usize);
-                            self.heatmap_increment(t0 as usize, t1 as usize);
+                            self.stat_interval(Stat::ResponsesTotal, t0, t1);
+                            self.heatmap_increment(t0, t1);
                         }
                         trace!("switch to established");
                         self.clear_timeout(token);

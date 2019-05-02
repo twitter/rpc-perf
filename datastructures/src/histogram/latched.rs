@@ -4,172 +4,185 @@
 
 // a small and simple histogram
 
+use crate::counter::Counting;
+use std::convert::From;
+
 use crate::counter::Counter;
 use crate::histogram::bucket::Bucket;
 use crate::histogram::Histogram;
 
 #[derive(Clone)]
 /// A thread-safe fixed-size `Histogram` which allows multiple writers
-pub struct Latched {
-    max: usize,
-    buckets: Vec<Counter>,
-    too_high: Counter,
-    exact_max: Counter,
-    precision: Counter,
+pub struct Latched<C>
+where
+    C: Counting,
+    u64: From<C>,
+{
+    max: u64,
+    buckets: Vec<Counter<C>>,
+    too_high: Counter<u64>,
+    exact_max: u64,
+    precision: usize,
 }
 
-impl Latched {
+impl<C> Latched<C>
+where
+    C: Counting,
+    u64: From<C>,
+{
     /// Create a new `Histogram` which will store values between 0 and max
     /// while retaining the precision of the represented values
-    pub fn new(max: usize, precision: usize) -> Self {
-        let exact_max = 10_usize.pow(precision as u32);
-
-        let total_buckets = if exact_max >= max {
-            max + 1
-        } else {
-            let power = (max as f64).log10().floor() as usize;
-            let divisor = 10_usize.pow((power - precision) as u32 + 1);
-            let base_offset = 10_usize.pow(precision as u32);
-            let power_offset =
-                (0.9 * (10_usize.pow(precision as u32) * (power - precision)) as f64) as usize;
-            let remainder = max / divisor;
-            let shift = 10_usize.pow(precision as u32 - 1);
-            let index = base_offset + power_offset + remainder - shift;
-            index + 1
-        };
-
-        let mut buckets = Vec::new();
-        for _ in 0..total_buckets {
-            buckets.push(Counter::default());
-        }
-
-        Self {
+    pub fn new(max: u64, precision: usize) -> Self {
+        let exact_max = 10_u64.pow(precision as u32);
+        let mut histogram = Self {
             max,
-            buckets,
+            buckets: Vec::new(),
             too_high: Counter::default(),
-            exact_max: Counter::new(exact_max),
-            precision: Counter::new(precision),
+            exact_max,
+            precision,
+        };
+        for _ in 0..=histogram.get_index(max).unwrap() {
+            histogram.buckets.push(Counter::<C>::default());
         }
+        histogram
     }
 
     // Internal function to get the max of the linear range of the histogram
-    fn exact_max(&self) -> usize {
-        self.exact_max.get()
+    fn exact_max(&self) -> u64 {
+        self.exact_max
     }
 
     // Internal function to get the index for a given value
-    fn get_index(&self, value: usize) -> Result<usize, ()> {
-        if value >= self.max {
+    fn get_index(&self, value: u64) -> Result<usize, ()> {
+        if value > self.max {
             Err(())
-        } else if value < self.exact_max() {
-            Ok(value)
+        } else if value <= self.exact_max() {
+            Ok(value as usize)
         } else {
             let power = (value as f64).log10().floor() as usize;
-            let precision = self.precision.get();
-            let divisor = 10_usize.pow((power - precision) as u32 + 1);
-            let base_offset = 10_usize.pow(precision as u32);
-            let power_offset =
-                (0.9 * (10_usize.pow(precision as u32) * (power - precision)) as f64) as usize;
+            let divisor = 10_u64.pow((power - self.precision) as u32 + 1);
+            let base_offset = 10_usize.pow(self.precision as u32);
+            let power_offset = (0.9
+                * (10_usize.pow(self.precision as u32) * (power - self.precision)) as f64)
+                as usize;
             let remainder = value / divisor;
-            let shift = 10_usize.pow(precision as u32 - 1);
-            let index = base_offset + power_offset + remainder - shift;
+            let shift = 10_usize.pow(self.precision as u32 - 1);
+            let index = base_offset + power_offset + remainder as usize - shift;
             Ok(index)
         }
     }
 
     // Internal function to get the value for a given index
-    fn get_value(&self, index: usize) -> Result<usize, ()> {
+    fn get_min_value(&self, index: usize) -> Result<u64, ()> {
         if index >= self.buckets.len() {
             Err(())
-        } else if index < self.exact_max() {
-            Ok(index)
+        } else if (index as u64) <= self.exact_max() {
+            Ok(index as u64)
         } else if index == self.buckets.len() - 1 {
-            Ok(self.max() - 1)
+            Ok(self.max)
         } else {
-            let index = index + 1;
-            let precision = self.precision.get();
-            let shift = 10_usize.pow(precision as u32 - 1);
-            let base_offset = 10_usize.pow(precision as u32);
-            let power =
-                precision + (index - base_offset) / (9 * 10_usize.pow(precision as u32 - 1));
-            let power_offset =
-                (0.9 * (10_usize.pow(precision as u32) * (power - precision)) as f64) as usize;
-            let value = (index + shift - base_offset - power_offset)
-                * 10_usize.pow((power - precision + 1) as u32);
-            Ok(value as usize - 1)
+            let shift = 10_usize.pow(self.precision as u32 - 1);
+            let base_offset = 10_usize.pow(self.precision as u32);
+            let power = self.precision
+                + (index - base_offset) / (9 * 10_usize.pow(self.precision as u32 - 1));
+            let power_offset = (0.9
+                * (10_usize.pow(self.precision as u32) * (power - self.precision)) as f64)
+                as usize;
+            let value = (index + shift - base_offset - power_offset) as u64
+                * 10_u64.pow((power - self.precision + 1) as u32);
+            Ok(value)
+        }
+    }
+
+    fn get_max_value(&self, index: usize) -> Result<u64, ()> {
+        if index == self.buckets.len() - 1 {
+            Ok(self.max + 1)
+        } else {
+            Ok(self.get_min_value(index + 1).unwrap())
         }
     }
 
     // Internal function to get the bucket at a given index
-    fn get_bucket(&self, index: usize) -> Option<Bucket> {
+    fn get_bucket(&self, index: usize) -> Option<Bucket<C>> {
         if let Some(counter) = self.buckets.get(index) {
-            let count = counter.get();
-
-            let min = if index < self.exact_max() {
-                if index == 0 {
-                    0
-                } else {
-                    index - 1
-                }
-            } else {
-                self.get_value(index - 1).unwrap()
-            };
-            let max = if index == self.buckets.len() - 1 {
-                self.max()
-            } else {
-                self.get_value(index).unwrap() + 1
-            };
-            let bucket = Bucket::new(min, max);
-            bucket.incr(count);
+            let bucket = Bucket::new(
+                self.get_min_value(index).unwrap(),
+                self.get_max_value(index).unwrap(),
+            );
+            bucket.increment(counter.get());
             Some(bucket)
         } else {
             None
         }
     }
+
+    fn get_value(&self, index: usize) -> Result<u64, ()> {
+        self.get_max_value(index).map(|v| v - 1)
+    }
 }
 
-pub struct Iter<'a> {
-    inner: &'a Latched,
+pub struct Iter<'a, C>
+where
+    C: Counting,
+    u64: From<C>,
+{
+    inner: &'a Latched<C>,
     index: usize,
 }
 
-impl<'a> Iter<'a> {
-    fn new(inner: &'a Latched) -> Iter<'a> {
+impl<'a, C> Iter<'a, C>
+where
+    C: Counting,
+    u64: From<C>,
+{
+    fn new(inner: &'a Latched<C>) -> Iter<'a, C> {
         Iter { inner, index: 0 }
     }
 }
 
-impl<'a> Iterator for Iter<'a> {
-    type Item = Bucket;
+impl<'a, C> Iterator for Iter<'a, C>
+where
+    C: Counting,
+    u64: From<C>,
+{
+    type Item = Bucket<C>;
 
-    fn next(&mut self) -> Option<Bucket> {
+    fn next(&mut self) -> Option<Bucket<C>> {
         let bucket = self.inner.get_bucket(self.index);
         self.index += 1;
         bucket
     }
 }
 
-impl<'a> IntoIterator for &'a Latched {
-    type Item = Bucket;
-    type IntoIter = Iter<'a>;
+impl<'a, C> IntoIterator for &'a Latched<C>
+where
+    C: Counting,
+    u64: From<C>,
+{
+    type Item = Bucket<C>;
+    type IntoIter = Iter<'a, C>;
 
     fn into_iter(self) -> Self::IntoIter {
         Iter::new(self)
     }
 }
 
-impl Histogram for Latched {
-    fn clear(&self) {
+impl<C> Histogram<C> for Latched<C>
+where
+    C: Counting,
+    u64: From<C>,
+{
+    fn reset(&self) {
         for bucket in &self.buckets {
-            bucket.clear();
+            bucket.set(Default::default());
         }
-        self.too_high.clear();
+        self.too_high.reset();
     }
 
-    fn count(&self, value: usize) -> usize {
+    fn count(&self, value: u64) -> u64 {
         if let Ok(index) = self.get_index(value) {
             match self.get_bucket(index) {
-                Some(bucket) => bucket.count(),
+                Some(bucket) => u64::from(bucket.count()),
                 None => 0,
             }
         } else {
@@ -177,163 +190,122 @@ impl Histogram for Latched {
         }
     }
 
-    fn decr(&self, value: usize, count: usize) {
-        if value >= self.max() {
-            self.too_high.decr(count);
-        } else if let Ok(index) = self.get_index(value) {
-            if let Some(bucket) = self.buckets.get(index) {
-                bucket.decr(count);
-            } else {
-                self.too_high.decr(count);
-            }
+    fn decrement(&self, value: u64, count: C) {
+        if let Ok(index) = self.get_index(value) {
+            self.buckets[index].decrement(count);
         } else {
-            self.too_high.decr(count);
+            self.too_high.decrement(u64::from(count));
         }
     }
 
-    fn incr(&self, value: usize, count: usize) {
-        if value >= self.max() {
-            self.too_high.incr(count);
-        } else if let Ok(index) = self.get_index(value) {
-            if let Some(bucket) = self.buckets.get(index) {
-                bucket.incr(count);
-            }
+    fn increment(&self, value: u64, count: C) {
+        if let Ok(index) = self.get_index(value) {
+            self.buckets[index].increment(count);
         } else {
-            self.too_high.incr(count);
+            self.too_high.increment(u64::from(count));
         }
     }
 
-    fn max(&self) -> usize {
+    fn max(&self) -> u64 {
         self.max
     }
 
-    fn min(&self) -> usize {
-        0
-    }
-
-    fn percentile(&self, percentile: f64) -> Option<usize> {
-        let samples = self.samples();
-        if samples == 0 {
+    fn percentile(&self, percentile: f64) -> Option<u64> {
+        if self.samples() == 0 {
             return None;
         }
         let need = if percentile == 0.0 {
             1
         } else {
-            (samples as f64 * percentile).ceil() as usize
+            (self.samples() as f64 * percentile).ceil() as u64
         };
-        let mut have = self.too_low();
-        if have >= need {
-            return Some(self.min());
-        } else {
-            for (index, bucket) in self.buckets.iter().enumerate() {
-                if have + bucket.get() >= need {
-                    if let Ok(percentile) = self.get_value(index) {
-                        return Some(percentile);
-                    } else {
-                        return None;
-                    }
-                } else {
-                    have += bucket.get();
-                }
+        let mut have = 0;
+        for (index, counter) in self.buckets.iter().enumerate() {
+            have += u64::from(counter.get());
+            if have >= need {
+                return Some(self.get_value(index).unwrap());
             }
         }
         Some(self.max())
     }
 
     fn precision(&self) -> usize {
-        self.precision.get()
+        self.precision
     }
 
-    fn too_low(&self) -> usize {
-        0
-    }
-
-    fn too_high(&self) -> usize {
+    fn too_high(&self) -> u64 {
         self.too_high.get()
     }
 
-    fn samples(&self) -> usize {
-        let mut total = self.too_low() + self.too_high();
+    fn samples(&self) -> u64 {
+        let mut total = self.too_high();
         for bucket in &self.buckets {
-            total += bucket.get();
+            total += u64::from(bucket.get());
         }
         total
     }
 
-    fn sum(&self) -> Option<usize> {
+    fn sum(&self) -> Option<u64> {
         if self.samples() == 0 {
             None
         } else {
             let mut sum = 0;
-            for (index, counter) in self.buckets.iter().enumerate() {
-                sum += (self.get_value(index).unwrap_or(0)) * counter.get();
+            for bucket in self.into_iter() {
+                sum += u64::from(bucket.count()) * bucket.nominal();
             }
             Some(sum)
         }
     }
 
-    fn mean(&self) -> Option<usize> {
+    fn mean(&self) -> Option<f64> {
         if self.samples() == 0 {
             None
         } else {
-            let sum = self.sum().unwrap_or(0);
-            Some((sum as f64 / self.samples() as f64).ceil() as usize)
+            Some(self.sum().unwrap_or(0) as f64 / self.samples() as f64)
         }
     }
 
-    fn std_dev(&self) -> Option<usize> {
+    fn std_dev(&self) -> Option<f64> {
         if self.samples() == 0 {
             None
         } else {
             let mean = self.mean().unwrap();
-            let mut sum = 0;
-            for (index, counter) in self.buckets.iter().enumerate() {
-                sum += (self.get_value(index).unwrap_or(0) as i64 - mean as i64).pow(2) as usize
-                    * counter.get();
+            let mut sum = 0.0;
+            for bucket in self.into_iter() {
+                sum +=
+                    (bucket.nominal() as f64 - mean).powf(2.0) * (u64::from(bucket.count()) as f64);
             }
-            Some((sum as f64 / self.samples() as f64).powf(0.5).round() as usize)
+            Some((sum / self.samples() as f64).powf(0.5))
         }
     }
 
-    fn mode(&self) -> Option<usize> {
+    fn mode(&self) -> Option<u64> {
         if self.samples() == 0 {
             None
         } else {
             let mut mode = 0;
             let mut count = 0;
-            for (index, counter) in self.buckets.iter().enumerate() {
-                let width = if index < self.exact_max() {
-                    1
-                } else {
-                    self.get_value(index).unwrap_or(1) - self.get_value(index - 1).unwrap_or(0)
-                };
-                let magnitude = counter.get() / width;
-                if magnitude > count {
-                    count = magnitude;
-                    mode = counter.get();
+            for bucket in self.into_iter() {
+                if bucket.weighted_count() > count {
+                    count = bucket.weighted_count();
+                    mode = u64::from(bucket.count());
                 }
             }
             Some(mode)
         }
     }
 
-    fn highest_count(&self) -> usize {
+    fn highest_count(&self) -> Option<u64> {
         if self.samples() == 0 {
-            0
+            None
         } else {
-            let mut count = 0;
-            for (index, counter) in self.buckets.iter().enumerate() {
-                let width = if index < self.exact_max() {
-                    1
-                } else {
-                    self.get_value(index).unwrap_or(1) - self.get_value(index - 1).unwrap_or(0)
-                };
-                let magnitude = counter.get() / width;
-                if magnitude > count {
-                    count = magnitude;
+            let mut highest_count = 0;
+            for bucket in self.into_iter() {
+                if bucket.weighted_count() > highest_count {
+                    highest_count = bucket.weighted_count();
                 }
             }
-            count
+            Some(highest_count)
         }
     }
 
@@ -346,11 +318,49 @@ impl Histogram for Latched {
 mod tests {
     use super::*;
     use std::thread;
-    use std::usize;
+    use std::u64;
+
+    #[test]
+    fn bucketing_1() {
+        let histogram = Latched::<u64>::new(100, 1);
+        assert_eq!(histogram.get_bucket(0).unwrap().min(), 0);
+        assert_eq!(histogram.get_bucket(0).unwrap().max(), 1);
+        assert_eq!(histogram.get_bucket(0).unwrap().nominal(), 0);
+        assert_eq!(histogram.get_bucket(1).unwrap().min(), 1);
+        assert_eq!(histogram.get_bucket(1).unwrap().max(), 2);
+        assert_eq!(histogram.get_bucket(1).unwrap().nominal(), 1);
+        assert_eq!(histogram.get_bucket(2).unwrap().min(), 2);
+        assert_eq!(histogram.get_bucket(2).unwrap().max(), 3);
+        assert_eq!(histogram.get_bucket(2).unwrap().nominal(), 2);
+        assert_eq!(histogram.get_bucket(3).unwrap().min(), 3);
+        assert_eq!(histogram.get_bucket(3).unwrap().max(), 4);
+        assert_eq!(histogram.get_bucket(3).unwrap().nominal(), 3);
+        assert_eq!(histogram.get_bucket(4).unwrap().min(), 4);
+        assert_eq!(histogram.get_bucket(4).unwrap().max(), 5);
+        assert_eq!(histogram.get_bucket(4).unwrap().nominal(), 4);
+        assert_eq!(histogram.get_bucket(5).unwrap().min(), 5);
+        assert_eq!(histogram.get_bucket(5).unwrap().max(), 6);
+        assert_eq!(histogram.get_bucket(5).unwrap().nominal(), 5);
+        assert_eq!(histogram.get_bucket(6).unwrap().min(), 6);
+        assert_eq!(histogram.get_bucket(6).unwrap().max(), 7);
+        assert_eq!(histogram.get_bucket(6).unwrap().nominal(), 6);
+        assert_eq!(histogram.get_bucket(7).unwrap().min(), 7);
+        assert_eq!(histogram.get_bucket(7).unwrap().max(), 8);
+        assert_eq!(histogram.get_bucket(7).unwrap().nominal(), 7);
+        assert_eq!(histogram.get_bucket(8).unwrap().min(), 8);
+        assert_eq!(histogram.get_bucket(8).unwrap().max(), 9);
+        assert_eq!(histogram.get_bucket(8).unwrap().nominal(), 8);
+        assert_eq!(histogram.get_bucket(9).unwrap().min(), 9);
+        assert_eq!(histogram.get_bucket(9).unwrap().max(), 10);
+        assert_eq!(histogram.get_bucket(9).unwrap().nominal(), 9);
+        assert_eq!(histogram.get_bucket(10).unwrap().min(), 10);
+        assert_eq!(histogram.get_bucket(10).unwrap().max(), 20);
+        assert_eq!(histogram.get_bucket(10).unwrap().nominal(), 19);
+    }
 
     #[test]
     fn get_index_1() {
-        let histogram = Latched::new(1000000, 1);
+        let histogram = Latched::<u64>::new(1000000, 1);
         assert_eq!(histogram.get_index(0), Ok(0));
         assert_eq!(histogram.get_index(9), Ok(9));
         assert_eq!(histogram.get_index(10), Ok(10));
@@ -363,12 +373,13 @@ mod tests {
         assert_eq!(histogram.get_index(99999), Ok(45));
         assert_eq!(histogram.get_index(100000), Ok(46));
         assert_eq!(histogram.get_index(999999), Ok(54));
-        assert_eq!(histogram.get_index(1000000), Err(()));
+        assert_eq!(histogram.get_index(1000000), Ok(55));
+        assert_eq!(histogram.get_index(1000001), Err(()));
     }
 
     #[test]
     fn get_index_2() {
-        let histogram = Latched::new(1000000, 2);
+        let histogram = Latched::<u64>::new(1000000, 2);
         assert_eq!(histogram.get_index(0), Ok(0));
         assert_eq!(histogram.get_index(99), Ok(99));
         assert_eq!(histogram.get_index(100), Ok(100));
@@ -379,11 +390,12 @@ mod tests {
         assert_eq!(histogram.get_index(99_999), Ok(369));
         assert_eq!(histogram.get_index(100_000), Ok(370));
         assert_eq!(histogram.get_index(999_999), Ok(459));
-        assert_eq!(histogram.get_index(1_000_000), Err(()));
+        assert_eq!(histogram.get_index(1_000_000), Ok(460));
+        assert_eq!(histogram.get_index(1_000_001), Err(()));
     }
     #[test]
     fn get_index_3() {
-        let histogram = Latched::new(1000000, 3);
+        let histogram = Latched::<u64>::new(1000000, 3);
         assert_eq!(histogram.get_index(0), Ok(0));
         assert_eq!(histogram.get_index(99), Ok(99));
         assert_eq!(histogram.get_index(100), Ok(100));
@@ -394,11 +406,12 @@ mod tests {
         assert_eq!(histogram.get_index(99_999), Ok(2799));
         assert_eq!(histogram.get_index(100_000), Ok(2800));
         assert_eq!(histogram.get_index(999_999), Ok(3699));
-        assert_eq!(histogram.get_index(1_000_000), Err(()));
+        assert_eq!(histogram.get_index(1_000_000), Ok(3700));
+        assert_eq!(histogram.get_index(1_000_001), Err(()));
     }
     #[test]
     fn get_value_1() {
-        let histogram = Latched::new(1000000, 1);
+        let histogram = Latched::<u64>::new(1000000, 1);
         assert_eq!(histogram.get_value(0), Ok(0));
         assert_eq!(histogram.get_value(9), Ok(9));
         assert_eq!(histogram.get_value(10), Ok(19));
@@ -408,7 +421,7 @@ mod tests {
     }
     #[test]
     fn get_value_2() {
-        let histogram = Latched::new(1000000, 2);
+        let histogram = Latched::<u64>::new(1000000, 2);
         assert_eq!(histogram.get_value(0), Ok(0));
         assert_eq!(histogram.get_value(99), Ok(99));
         assert_eq!(histogram.get_value(100), Ok(109));
@@ -421,7 +434,7 @@ mod tests {
     }
     #[test]
     fn get_value_3() {
-        let histogram = Latched::new(1000000, 3);
+        let histogram = Latched::<u64>::new(1000000, 3);
         assert_eq!(histogram.get_value(0), Ok(0));
         assert_eq!(histogram.get_value(99), Ok(99));
         assert_eq!(histogram.get_value(100), Ok(100));
@@ -435,17 +448,16 @@ mod tests {
     #[test]
     // increment and decrement
     fn incr_decr() {
-        let histogram = Latched::new(10, 1);
-        assert_eq!(histogram.min(), 0);
+        let histogram = Latched::<u64>::new(10, 1);
         assert_eq!(histogram.max(), 10);
         assert_eq!(histogram.count(1), 0);
         assert_eq!(histogram.samples(), 0);
-        histogram.incr(1, 1);
+        histogram.increment(1, 1);
         assert_eq!(histogram.count(0), 0);
         assert_eq!(histogram.count(1), 1);
         assert_eq!(histogram.count(2), 0);
         assert_eq!(histogram.samples(), 1);
-        histogram.decr(1, 1);
+        histogram.decrement(1, 1);
         assert_eq!(histogram.count(0), 0);
         assert_eq!(histogram.count(1), 0);
         assert_eq!(histogram.count(2), 0);
@@ -455,44 +467,42 @@ mod tests {
     #[test]
     // test clearing the data
     fn clear() {
-        let histogram = Latched::new(10, 1);
-        for i in 0..11 {
-            histogram.incr(i, 1);
+        let histogram = Latched::<u64>::new(10, 1);
+        for i in 0..12 {
+            histogram.increment(i, 1);
             assert_eq!(histogram.samples(), i + 1);
         }
-        assert_eq!(histogram.samples(), 11);
-        assert_eq!(histogram.too_low(), 0);
+        assert_eq!(histogram.samples(), 12);
         assert_eq!(histogram.too_high(), 1);
-        histogram.clear();
+        histogram.reset();
         assert_eq!(histogram.samples(), 0);
-        assert_eq!(histogram.too_low(), 0);
         assert_eq!(histogram.too_high(), 0);
     }
 
     #[test]
     // behavior when decrementing past 0
     fn bucket_underflow() {
-        let histogram = Latched::new(10, 1);
+        let histogram = Latched::<u64>::new(10, 1);
         assert_eq!(histogram.count(1), 0);
-        histogram.decr(1, 1);
-        assert_eq!(histogram.count(1), usize::MAX);
+        histogram.decrement(1, 1);
+        assert_eq!(histogram.count(1), u64::MAX);
     }
 
     #[test]
     // behavior when incrementing past `usize::MAX`
     fn bucket_overflow() {
-        let histogram = Latched::new(10, 1);
+        let histogram = Latched::<u64>::new(10, 1);
         assert_eq!(histogram.count(1), 0);
-        histogram.incr(1, usize::MAX);
-        assert_eq!(histogram.count(1), usize::MAX);
-        histogram.incr(1, 1);
+        histogram.increment(1, u64::MAX);
+        assert_eq!(histogram.count(1), u64::MAX);
+        histogram.increment(1, 1);
         assert_eq!(histogram.count(1), 0);
     }
 
     #[test]
     // validate that threaded access yields correct results
     fn threaded_access() {
-        let histogram = Latched::new(10, 1);
+        let histogram = Latched::<u64>::new(10, 1);
 
         let mut threads = Vec::new();
 
@@ -500,7 +510,7 @@ mod tests {
             let histogram = histogram.clone();
             threads.push(thread::spawn(move || {
                 for _ in 0..1_000_000 {
-                    histogram.incr(1, 1);
+                    histogram.increment(1, 1);
                 }
             }));
         }
@@ -515,10 +525,10 @@ mod tests {
     #[test]
     // test percentiles for an exact-only histogram
     fn percentiles_exact() {
-        let histogram = Latched::new(101, 3);
+        let histogram = Latched::<u64>::new(101, 3);
 
         for i in 1..101 {
-            histogram.incr(i, 1);
+            histogram.increment(i, 1);
         }
 
         assert_eq!(histogram.percentile(0.0).unwrap(), 1);
@@ -528,15 +538,16 @@ mod tests {
         assert_eq!(histogram.percentile(0.75).unwrap(), 75);
         assert_eq!(histogram.percentile(0.90).unwrap(), 90);
         assert_eq!(histogram.percentile(0.99).unwrap(), 99);
+        assert_eq!(histogram.percentile(1.0).unwrap(), 100);
     }
 
     #[test]
     // test percentiles for a histogram which includes approximate buckets
     fn percentiles_approx() {
-        let histogram = Latched::new(101, 1);
+        let histogram = Latched::<u64>::new(100, 1);
 
         for i in 0..101 {
-            histogram.incr(i, 1);
+            histogram.increment(i, 1);
             assert_eq!(histogram.samples(), i + 1);
         }
         assert_eq!(histogram.samples(), 101);
@@ -551,92 +562,81 @@ mod tests {
 
     #[test]
     fn too_high() {
-        let histogram = Latched::new(101, 1);
+        let histogram = Latched::<u64>::new(100, 1);
         assert_eq!(histogram.samples(), 0);
-        assert_eq!(histogram.too_low(), 0);
         assert_eq!(histogram.too_high(), 0);
-        histogram.incr(102, 1);
+        histogram.increment(102, 1);
         assert_eq!(histogram.samples(), 1);
-        assert_eq!(histogram.too_low(), 0);
         assert_eq!(histogram.too_high(), 1);
-        histogram.decr(102, 1);
+        histogram.decrement(102, 1);
         assert_eq!(histogram.samples(), 0);
-        assert_eq!(histogram.too_low(), 0);
         assert_eq!(histogram.too_high(), 0);
     }
 
     #[test]
     fn incr_min() {
-        let histogram = Latched::new(101, 1);
+        let histogram = Latched::<u64>::new(100, 1);
         assert_eq!(histogram.samples(), 0);
-        assert_eq!(histogram.too_low(), 0);
         assert_eq!(histogram.too_high(), 0);
-        histogram.incr(1, 1);
+        histogram.increment(1, 1);
         assert_eq!(histogram.samples(), 1);
-        assert_eq!(histogram.too_low(), 0);
         assert_eq!(histogram.too_high(), 0);
     }
 
     #[test]
     fn incr_max() {
-        let histogram = Latched::new(101, 1);
+        let histogram = Latched::<u64>::new(100, 1);
         assert_eq!(histogram.samples(), 0);
-        assert_eq!(histogram.too_low(), 0);
         assert_eq!(histogram.too_high(), 0);
-        histogram.incr(100, 1);
+        histogram.increment(100, 1);
         assert_eq!(histogram.samples(), 1);
-        assert_eq!(histogram.too_low(), 0);
         assert_eq!(histogram.too_high(), 0);
-        histogram.incr(101, 1);
+        histogram.increment(101, 1);
         assert_eq!(histogram.samples(), 2);
-        assert_eq!(histogram.too_low(), 0);
         assert_eq!(histogram.too_high(), 1);
     }
 
     #[test]
     fn incr_max_large() {
-        let max = 80_000_000_001;
-        let histogram = Latched::new(max, 1);
+        let max = 80_000_000_000;
+        let histogram = Latched::<u64>::new(max, 1);
         assert_eq!(histogram.samples(), 0);
-        assert_eq!(histogram.too_low(), 0);
         assert_eq!(histogram.too_high(), 0);
-        histogram.incr(max - 1, 1);
+        histogram.increment(max - 1, 1);
         assert_eq!(histogram.samples(), 1);
-        assert_eq!(histogram.too_low(), 0);
         assert_eq!(histogram.too_high(), 0);
-        histogram.incr(max, 1);
+        histogram.increment(max + 1, 1);
         assert_eq!(histogram.samples(), 2);
-        assert_eq!(histogram.too_low(), 0);
         assert_eq!(histogram.too_high(), 1);
     }
 
     #[test]
     fn mean() {
-        let histogram = Latched::new(101, 3);
+        let histogram = Latched::<u64>::new(100, 3);
         assert_eq!(histogram.mean(), None);
         assert_eq!(histogram.samples(), 0);
         for i in 0..101 {
-            histogram.incr(i, 1);
+            histogram.increment(i, 1);
         }
-        assert_eq!(histogram.mean(), Some(50));
+        assert_eq!(histogram.mean().map(|v| v.round() as usize), Some(50));
         assert_eq!(histogram.samples(), 101);
-        histogram.clear();
-        histogram.incr(25, 100);
-        assert_eq!(histogram.mean(), Some(25));
+        histogram.reset();
+        histogram.increment(25, 100);
+        assert_eq!(histogram.mean(), Some(25.0));
     }
 
     #[test]
     fn std_dev() {
-        let histogram = Latched::new(101, 3);
+        let histogram = Latched::<u64>::new(100, 3);
         assert_eq!(histogram.std_dev(), None);
         assert_eq!(histogram.samples(), 0);
         for i in 0..101 {
-            histogram.incr(i, 1);
+            histogram.increment(i, 1);
         }
-        assert_eq!(histogram.std_dev(), Some(29));
+        assert_eq!(histogram.std_dev().map(|v| v.round() as usize), Some(29));
         assert_eq!(histogram.samples(), 101);
-        histogram.clear();
-        histogram.incr(25, 100);
-        assert_eq!(histogram.std_dev(), Some(0));
+        histogram.reset();
+        histogram.increment(25, 100);
+        assert_eq!(histogram.std_dev(), Some(0.0));
     }
 }

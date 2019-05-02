@@ -57,7 +57,7 @@ impl Codec for Memcache {
                 let key = command.key().unwrap();
                 if let Some(recorder) = self.common.recorder() {
                     recorder.increment("commands/get");
-                    recorder.distribution("keys/size", key.len());
+                    recorder.distribution("keys/size", key.len() as u64);
                 }
                 self.codec.get(buf, key);
             }
@@ -66,8 +66,8 @@ impl Codec for Memcache {
                 let value = command.value().unwrap();
                 if let Some(recorder) = self.common.recorder() {
                     recorder.increment("commands/set");
-                    recorder.distribution("keys/size", key.len());
-                    recorder.distribution("values/size", value.len());
+                    recorder.distribution("keys/size", key.len() as u64);
+                    recorder.distribution("values/size", value.len() as u64);
                 }
                 self.codec
                     .set(buf, key, value, command.ttl().map(|ttl| ttl as u32), None);

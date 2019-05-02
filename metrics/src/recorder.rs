@@ -13,6 +13,7 @@
 //  limitations under the License.
 
 use crate::*;
+use datastructures::Counting;
 
 use datastructures::{RwWrapper, Wrapper};
 use evmap::{ReadHandle, WriteHandle};
@@ -21,13 +22,21 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 #[derive(Clone)]
-pub struct Recorder {
-    data_read: ReadHandle<String, Arc<Channel>>,
-    data_write: Wrapper<WriteHandle<String, Arc<Channel>>>,
+pub struct Recorder<C: 'static>
+where
+    C: Counting,
+    u64: From<C>,
+{
+    data_read: ReadHandle<String, Arc<Channel<C>>>,
+    data_write: Wrapper<WriteHandle<String, Arc<Channel<C>>>>,
     labels: RwWrapper<HashSet<String>>,
 }
 
-impl Recorder {
+impl<C> Recorder<C>
+where
+    C: Counting,
+    u64: From<C>,
+{
     pub fn new() -> Self {
         let (read, write) = evmap::new();
         Self {
@@ -37,18 +46,18 @@ impl Recorder {
         }
     }
 
-    pub fn record(&self, channel: String, measurement: Measurement) {
+    pub fn record(&self, channel: String, measurement: Measurement<C>) {
         self.data_read
             .get_and(&channel, |channel| (*channel)[0].record(measurement));
     }
 
-    pub fn counter(&self, channel: String) -> usize {
+    pub fn counter(&self, channel: String) -> u64 {
         self.data_read
             .get_and(&channel, |channel| (*channel)[0].counter())
             .unwrap_or(0)
     }
 
-    pub fn percentile(&self, channel: String, percentile: f64) -> Option<usize> {
+    pub fn percentile(&self, channel: String, percentile: f64) -> Option<u64> {
         self.data_read
             .get_and(&channel, |channel| (*channel)[0].percentile(percentile))
             .unwrap_or(None)
@@ -58,7 +67,7 @@ impl Recorder {
         &self,
         name: String,
         source: Source,
-        histogram_config: Option<HistogramBuilder>,
+        histogram_config: Option<HistogramBuilder<C>>,
     ) {
         debug!("add channel: {} source: {:?}", name, source);
         let channel = Channel::new(name.clone(), source, histogram_config);
@@ -100,7 +109,7 @@ impl Recorder {
         result
     }
 
-    pub fn hash_map(&self) -> HashMap<String, HashMap<Output, usize>> {
+    pub fn hash_map(&self) -> HashMap<String, HashMap<Output, u64>> {
         let mut result = HashMap::new();
         unsafe {
             for label in &*self.labels.get() {
@@ -155,7 +164,11 @@ impl Recorder {
     }
 }
 
-impl Default for Recorder {
+impl<C> Default for Recorder<C>
+where
+    C: Counting,
+    u64: From<C>,
+{
     fn default() -> Self {
         Self::new()
     }

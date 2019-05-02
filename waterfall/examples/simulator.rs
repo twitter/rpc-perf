@@ -28,8 +28,8 @@ fn main() {
 
     info!("Welcome to the simulator!");
 
-    let histogram = HistogramBuilder::new(0, 1_000_000, 2, None).build();
-    let heatmap = Heatmap::new(1_000_000, 2, 1_000_000, 5_000_000_000);
+    let histogram = HistogramBuilder::<u64>::new(1_000_000, 2, None).build();
+    let heatmap = Heatmap::<u64>::new(1_000_000, 2, 1_000_000, 5_000_000_000);
 
     let distribution = Normal::new(500.0, 250.0);
 
@@ -44,15 +44,14 @@ fn main() {
             heatmap.latch();
         }
         let value = distribution.sample(&mut thread_rng()).abs();
-        let value = value.floor() as usize;
-        histogram.incr(value, 1);
-        heatmap.incr(time::precise_time_ns() as usize, value, 1);
+        let value = value.floor() as u64;
+        histogram.increment(value, 1);
+        heatmap.increment(time::precise_time_ns(), value, 1);
     }
 
     info!(
-        "data: samples: {} too_low: {} too_high: {} mean: {:?} mode: {:?} std_dev: {:?}",
+        "data: samples: {} too_high: {} mean: {:?} mode: {:?} std_dev: {:?}",
         histogram.samples(),
-        histogram.too_low(),
         histogram.too_high(),
         histogram.mean(),
         histogram.mode(),

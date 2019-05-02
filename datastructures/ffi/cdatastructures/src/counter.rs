@@ -13,27 +13,27 @@
 //  limitations under the License.
 
 use datastructures::Counter;
-use libc::uintptr_t;
+use libc::uint64_t;
 
 /// Create a new `Counter`
 #[no_mangle]
-pub extern "C" fn counter_new() -> *mut Counter {
-    Box::into_raw(Box::new(Counter::new(0)))
+pub extern "C" fn counter_new() -> *mut Counter<u64> {
+    Box::into_raw(Box::new(Counter::<u64>::default()))
 }
 
 /// Clear the count stored in the `Counter`
 #[no_mangle]
-pub unsafe extern "C" fn counter_clear(ptr: *mut Counter) {
+pub unsafe extern "C" fn counter_reset(ptr: *mut Counter<u64>) {
     let counter = {
         assert!(!ptr.is_null());
         &mut *ptr
     };
-    counter.clear();
+    counter.reset();
 }
 
 /// Get the count stored in the `Counter`
 #[no_mangle]
-pub unsafe extern "C" fn counter_count(ptr: *mut Counter) -> uintptr_t {
+pub unsafe extern "C" fn counter_count(ptr: *mut Counter<u64>) -> uint64_t {
     let counter = {
         assert!(!ptr.is_null());
         &mut *ptr
@@ -43,17 +43,17 @@ pub unsafe extern "C" fn counter_count(ptr: *mut Counter) -> uintptr_t {
 
 /// Decrement the value of the `Counter` by count
 #[no_mangle]
-pub unsafe extern "C" fn counter_decr(ptr: *mut Counter, count: uintptr_t) {
+pub unsafe extern "C" fn counter_decr(ptr: *mut Counter<u64>, count: uint64_t) {
     let counter = {
         assert!(!ptr.is_null());
         &mut *ptr
     };
-    counter.decr(count);
+    counter.decrement(count);
 }
 
 /// Free the `Counter`
 #[no_mangle]
-pub unsafe extern "C" fn counter_free(ptr: *mut Counter) {
+pub unsafe extern "C" fn counter_free(ptr: *mut Counter<u64>) {
     if ptr.is_null() {
         return;
     }
@@ -62,12 +62,12 @@ pub unsafe extern "C" fn counter_free(ptr: *mut Counter) {
 
 /// Increment the value of the `Counter` by count
 #[no_mangle]
-pub unsafe extern "C" fn counter_incr(ptr: *mut Counter, count: uintptr_t) {
+pub unsafe extern "C" fn counter_incr(ptr: *mut Counter<u64>, count: uint64_t) {
     let counter = {
         assert!(!ptr.is_null());
         &mut *ptr
     };
-    counter.incr(count);
+    counter.increment(count);
 }
 
 #[allow(dead_code)]

@@ -2,9 +2,13 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
+use crate::counter::Counting;
+use std::convert::From;
+
 use crate::histogram::bucket::Bucket;
 use crate::histogram::latched::Iter;
-use crate::{Histogram, LatchedHistogram};
+use crate::histogram::latched::Latched;
+use crate::histogram::Histogram;
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 use std::time;
@@ -12,16 +16,14 @@ use std::time;
 #[derive(Clone)]
 /// A thread-safe fixed-size `Histogram` which allows multiple writers and
 /// retains samples across a given `Duration`
-pub struct Moving {
-    data: LatchedHistogram,
-    samples: Arc<Mutex<VecDeque<Sample>>>,
+pub struct Moving<C>
+where
+    C: Counting,
+    u64: From<C>,
+{
+    data: Latched<C>,
+    samples: Arc<Mutex<VecDeque<Sample<C>>>>,
     window: Arc<time::Duration>,
-}
-
-impl Default for Moving {
-    fn default() -> Moving {
-        Self::new(1_000_000, 3, time::Duration::new(60, 0))
-    }
 }
 
 enum Direction {
@@ -29,27 +31,39 @@ enum Direction {
     Increment,
 }
 
-struct Sample {
-    value: usize,
-    count: usize,
+struct Sample<C>
+where
+    C: Counting,
+    u64: From<C>,
+{
+    value: u64,
+    count: C,
     time: time::Instant,
     direction: Direction,
 }
 
-impl<'a> IntoIterator for &'a Moving {
-    type Item = Bucket;
-    type IntoIter = Iter<'a>;
+impl<'a, C> IntoIterator for &'a Moving<C>
+where
+    C: Counting,
+    u64: From<C>,
+{
+    type Item = Bucket<C>;
+    type IntoIter = Iter<'a, C>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.data.into_iter()
     }
 }
 
-impl Moving {
+impl<C> Moving<C>
+where
+    C: Counting,
+    u64: From<C>,
+{
     /// Create a new `MovingHistogram` with the given min, max, precision, and window
-    pub fn new(max: usize, precision: usize, window: time::Duration) -> Self {
+    pub fn new(max: u64, precision: usize, window: time::Duration) -> Self {
         Self {
-            data: LatchedHistogram::new(max, precision),
+            data: Latched::<C>::new(max, precision),
             samples: Arc::new(Mutex::new(VecDeque::new())),
             window: Arc::new(window),
         }
@@ -62,8 +76,8 @@ impl Moving {
             let age = time - sample.time;
             if age > (*self.window) {
                 match sample.direction {
-                    Direction::Decrement => self.data.incr(sample.value, sample.count),
-                    Direction::Increment => self.data.decr(sample.value, sample.count),
+                    Direction::Decrement => self.data.increment(sample.value, sample.count),
+                    Direction::Increment => self.data.decrement(sample.value, sample.count),
                 }
             } else {
                 queue.push_front(sample);
@@ -73,25 +87,29 @@ impl Moving {
     }
 }
 
-impl Histogram for Moving {
+impl<C> Histogram<C> for Moving<C>
+where
+    C: Counting,
+    u64: From<C>,
+{
     /// Remove all samples from the datastructure
-    fn clear(&self) {
-        self.data.clear();
+    fn reset(&self) {
+        self.data.reset();
         self.samples.lock().unwrap().truncate(0);
     }
 
     /// Get total count of entries
-    fn samples(&self) -> usize {
+    fn samples(&self) -> u64 {
         let time = time::Instant::now();
         self.trim(time);
         self.data.samples()
     }
 
     /// Decrement the bucket that represents value by count
-    fn decr(&self, value: usize, count: usize) {
+    fn decrement(&self, value: u64, count: C) {
         let time = time::Instant::now();
         self.trim(time);
-        self.data.decr(value, count);
+        self.data.decrement(value, count);
         let sample = Sample {
             value,
             count,
@@ -103,10 +121,10 @@ impl Histogram for Moving {
     }
 
     /// Increment the bucket that represents value by count
-    fn incr(&self, value: usize, count: usize) {
+    fn increment(&self, value: u64, count: C) {
         let time = time::Instant::now();
         self.trim(time);
-        self.data.incr(value, count);
+        self.data.increment(value, count);
         let sample = Sample {
             value,
             count,
@@ -118,59 +136,49 @@ impl Histogram for Moving {
     }
 
     /// Return the value for the given percentile (0.0 - 1.0)
-    fn percentile(&self, percentile: f64) -> Option<usize> {
+    fn percentile(&self, percentile: f64) -> Option<u64> {
         let time = time::Instant::now();
         self.trim(time);
         self.data.percentile(percentile)
     }
 
-    fn count(&self, value: usize) -> usize {
+    fn count(&self, value: u64) -> u64 {
         let time = time::Instant::now();
         self.trim(time);
         self.data.count(value)
     }
 
-    fn too_high(&self) -> usize {
+    fn too_high(&self) -> u64 {
         let time = time::Instant::now();
         self.trim(time);
         self.data.too_high()
     }
 
-    fn too_low(&self) -> usize {
-        let time = time::Instant::now();
-        self.trim(time);
-        self.data.too_low()
-    }
-
-    fn max(&self) -> usize {
+    fn max(&self) -> u64 {
         self.data.max()
-    }
-
-    fn min(&self) -> usize {
-        self.data.min()
     }
 
     fn precision(&self) -> usize {
         self.data.precision()
     }
 
-    fn sum(&self) -> Option<usize> {
+    fn sum(&self) -> Option<u64> {
         self.data.sum()
     }
 
-    fn mean(&self) -> Option<usize> {
+    fn mean(&self) -> Option<f64> {
         self.data.mean()
     }
 
-    fn std_dev(&self) -> Option<usize> {
+    fn std_dev(&self) -> Option<f64> {
         self.data.std_dev()
     }
 
-    fn mode(&self) -> Option<usize> {
+    fn mode(&self) -> Option<u64> {
         self.data.mode()
     }
 
-    fn highest_count(&self) -> usize {
+    fn highest_count(&self) -> Option<u64> {
         self.data.highest_count()
     }
 
@@ -186,15 +194,15 @@ mod tests {
 
     #[test]
     fn empty() {
-        let h = Moving::default();
+        let h = Moving::<u64>::new(10, 3, time::Duration::new(2, 0));
         assert_eq!(h.samples(), 0);
     }
 
     #[test]
     fn rolloff() {
-        let h = Moving::new(10, 3, time::Duration::new(2, 0));
+        let h = Moving::<u64>::new(10, 3, time::Duration::new(2, 0));
         assert_eq!(h.samples(), 0);
-        h.incr(1, 1);
+        h.increment(1, 1);
         assert_eq!(h.samples(), 1);
         thread::sleep(time::Duration::new(1, 0));
         assert_eq!(h.samples(), 1);
@@ -204,7 +212,7 @@ mod tests {
 
     #[test]
     fn threaded_access() {
-        let histogram = Moving::new(10, 3, time::Duration::new(10, 0));
+        let histogram = Moving::<u64>::new(10, 3, time::Duration::new(10, 0));
 
         let mut threads = Vec::new();
 
@@ -212,7 +220,7 @@ mod tests {
             let histogram = histogram.clone();
             threads.push(thread::spawn(move || {
                 for i in 0..100_000 {
-                    histogram.incr(i, 1);
+                    histogram.increment(i, 1);
                 }
             }));
         }

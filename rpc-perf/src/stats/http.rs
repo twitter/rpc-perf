@@ -106,7 +106,7 @@ impl Http {
                     let now_ns = time::precise_time_ns();
 
                     // find the number of NS in the past for point
-                    let delta_ns = now_ns as usize - point_ns;
+                    let delta_ns = now_ns - point_ns;
                     let point_timespec =
                         now_timespec - time::Duration::nanoseconds(delta_ns as i64);
 
@@ -160,7 +160,7 @@ impl Http {
                     let now_ns = time::precise_time_ns();
 
                     // find the number of NS in the past for point
-                    let delta_ns = now_ns as usize - point_ns;
+                    let delta_ns = now_ns - point_ns;
                     let point_timespec =
                         now_timespec - time::Duration::nanoseconds(delta_ns as i64);
 

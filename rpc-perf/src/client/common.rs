@@ -171,13 +171,13 @@ impl Common {
         }
     }
 
-    pub fn stat_interval(&self, label: Stat, start: usize, stop: usize) {
+    pub fn stat_interval(&self, label: Stat, start: u64, stop: u64) {
         if let Some(ref stats) = self.stats {
             stats.time_interval(label, start, stop);
         }
     }
 
-    pub fn heatmap_increment(&self, start: usize, stop: usize) {
+    pub fn heatmap_increment(&self, start: u64, stop: u64) {
         if let Some(ref stats) = self.stats {
             stats.heatmap_increment(start, stop);
         }

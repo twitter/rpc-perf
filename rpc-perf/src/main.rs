@@ -48,7 +48,7 @@ pub fn main() {
     let recorder = Simple::new(&config);
     stats::register_stats(&recorder);
 
-    let mut stats_stdout = stats::StandardOut::new(&recorder, config.interval());
+    let mut stats_stdout = stats::StandardOut::new(&recorder, config.interval() as u64);
 
     let readings = Arc::new(Mutex::new(Vec::<Reading>::new()));
     if let Some(stats_listen) = config.listen() {
@@ -75,7 +75,7 @@ pub fn main() {
         stats_stdout.print();
 
         if let Some(max_window) = config.windows() {
-            if recorder.counter(Stat::Window) >= max_window {
+            if recorder.counter(Stat::Window) >= max_window as u64 {
                 control.set(false);
                 break;
             }
@@ -153,19 +153,19 @@ fn make_client(id: usize, codec: Box<Codec>, _config: &Config) -> Box<Client> {
 
 fn launch_clients(config: &Config, recorder: &stats::Simple, control: Bool) {
     let request_ratelimiter = if let Some(limit) = config.request_ratelimit() {
-        Some(Ratelimiter::new(config.clients(), 1, limit))
+        Some(Ratelimiter::new(config.clients() as u64, 1, limit as u64))
     } else {
         None
     };
 
     let connect_ratelimiter = if let Some(limit) = config.connect_ratelimit() {
-        Some(Ratelimiter::new(config.clients(), 1, limit))
+        Some(Ratelimiter::new(config.clients() as u64, 1, limit as u64))
     } else {
         None
     };
 
     let close_rate = if let Some(rate) = config.close_rate() {
-        Some(Ratelimiter::new(config.clients(), 1, rate))
+        Some(Ratelimiter::new(config.clients() as u64, 1, rate as u64))
     } else {
         None
     };
