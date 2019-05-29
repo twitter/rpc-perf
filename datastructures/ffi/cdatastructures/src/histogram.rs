@@ -12,13 +12,13 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use datastructures::{Histogram, HistogramBuilder};
+use datastructures::{Histogram, LatchedHistogram};
 use libc::{c_float, uint64_t, uintptr_t};
 
 /// Create a new `histogram`
 #[no_mangle]
 pub extern "C" fn histogram_new(max: uint64_t, precision: uintptr_t) -> *mut Histogram<u64> {
-    Box::into_raw(HistogramBuilder::new(max, precision, None).build())
+    Box::into_raw(Box::new(LatchedHistogram::new(max, precision)))
 }
 
 /// Clear the count stored in the `histogram`

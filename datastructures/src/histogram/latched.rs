@@ -232,7 +232,7 @@ where
         let mut have = 0;
         for (outer_index, outer_counter) in self.outer_buckets.iter().enumerate() {
             if have + outer_counter.get() >= need {
-                for index in (outer_index*1000)..((outer_index + 1)*1000) {
+                for index in (outer_index * 1000)..((outer_index + 1) * 1000) {
                     have += u64::from(self.buckets[index].get());
                     if have >= need {
                         return Some(self.get_value(index).unwrap());

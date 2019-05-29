@@ -8,9 +8,11 @@ use std::marker::PhantomData;
 use std::time::Duration;
 
 pub mod bucket;
+pub mod circular;
 pub mod latched;
 pub mod moving;
 
+pub use self::circular::Circular as CircularHistogram;
 pub use self::latched::Latched as LatchedHistogram;
 pub use self::moving::Moving as MovingHistogram;
 
@@ -57,6 +59,7 @@ pub struct Builder<C> {
     max: u64,
     precision: usize,
     window: Option<Duration>,
+    capacity: Option<u32>,
     _counter: PhantomData<C>,
 }
 
@@ -66,11 +69,17 @@ where
     u64: From<C>,
 {
     /// Create a new `Builder` with the given configuration
-    pub fn new(max: u64, precision: usize, window: Option<Duration>) -> Self {
+    pub fn new(
+        max: u64,
+        precision: usize,
+        window: Option<Duration>,
+        capacity: Option<u32>,
+    ) -> Self {
         Self {
             max,
             precision,
             window,
+            capacity,
             _counter: PhantomData::<C>,
         }
     }
@@ -79,11 +88,20 @@ where
     /// the `Builder`'s configuration
     pub fn build(&self) -> Box<Histogram<C>> {
         if let Some(window) = self.window {
-            Box::new(self::MovingHistogram::<C>::new(
-                self.max,
-                self.precision,
-                window,
-            ))
+            if let Some(capacity) = self.capacity {
+                Box::new(self::CircularHistogram::<C>::new(
+                    self.max,
+                    self.precision,
+                    window.as_nanos() as u64,
+                    capacity,
+                ))
+            } else {
+                Box::new(self::MovingHistogram::<C>::new(
+                    self.max,
+                    self.precision,
+                    window,
+                ))
+            }
         } else {
             Box::new(self::LatchedHistogram::<C>::new(self.max, self.precision))
         }

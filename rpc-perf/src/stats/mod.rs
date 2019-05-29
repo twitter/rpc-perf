@@ -332,7 +332,7 @@ impl Simple {
     }
 
     pub fn add_histogram_channel<T: ToString>(&self, label: T, max: u64, precision: usize) {
-        let histogram_config = HistogramBuilder::new(max, precision, None);
+        let histogram_config = HistogramBuilder::new(max, precision, None, None);
         self.inner.add_channel(
             label.to_string(),
             Source::TimeInterval,
@@ -354,7 +354,7 @@ impl Simple {
     }
 
     pub fn add_distribution_channel<T: ToString>(&self, label: T, max: u64, precision: usize) {
-        let histogram_config = HistogramBuilder::new(max, precision, None);
+        let histogram_config = HistogramBuilder::new(max, precision, None, None);
         self.inner.add_channel(
             label.to_string(),
             Source::Distribution,

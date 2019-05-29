@@ -765,7 +765,7 @@ dependencies = [
  "timer 0.1.1",
  "tiny_http 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "toml 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)",
- "waterfall 0.2.0",
+ "waterfall 0.2.1",
  "webpki 0.18.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -1047,7 +1047,7 @@ dependencies = [
 
 [[package]]
 name = "waterfall"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "datastructures 0.2.1",
  "dejavu 2.37.0 (registry+https://github.com/rust-lang/crates.io-index)",
