@@ -13,7 +13,7 @@
 //  limitations under the License.
 
 use datastructures::Counting;
-use datastructures::{Heatmap, HistogramBuilder};
+use datastructures::{Heatmap, Histogram, LatchedHistogram};
 use hsl::HSL;
 use logger::*;
 use png::HasParameters;
@@ -40,7 +40,7 @@ pub fn save_waterfall<S: ::std::hash::BuildHasher, C: 'static>(
     // create image buffer
     let mut buffer = ImageBuffer::<ColorRgb>::new(width, height);
 
-    let histogram = HistogramBuilder::new(heatmap.highest_count(), 3, None).build();
+    let histogram = LatchedHistogram::new(heatmap.highest_count(), 3);
     for slice in heatmap {
         for b in slice.histogram().into_iter() {
             if b.weighted_count() > 0 {

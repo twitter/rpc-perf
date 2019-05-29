@@ -13,5 +13,5 @@ pub use crate::counter::*;
 pub use crate::heatmap::Builder as HeatmapBuilder;
 pub use crate::heatmap::Heatmap;
 pub use crate::histogram::Builder as HistogramBuilder;
-pub use crate::histogram::{Histogram, LatchedHistogram, MovingHistogram};
+pub use crate::histogram::{CircularHistogram, Histogram, LatchedHistogram, MovingHistogram};
 pub use crate::wrapper::*;

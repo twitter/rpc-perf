@@ -28,7 +28,7 @@ fn main() {
 
     info!("Welcome to the simulator!");
 
-    let histogram = HistogramBuilder::<u64>::new(1_000_000, 2, None).build();
+    let histogram = HistogramBuilder::<u64>::new(1_000_000, 2, None, None).build();
     let heatmap = Heatmap::<u64>::new(1_000_000, 2, 1_000_000, 5_000_000_000);
 
     let distribution = Normal::new(500.0, 250.0);
