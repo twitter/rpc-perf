@@ -20,6 +20,7 @@ where
 {
     max: u64,
     buckets: Vec<Counter<C>>,
+    outer_buckets: Vec<Counter<u64>>,
     too_high: Counter<u64>,
     exact_max: u64,
     precision: usize,
@@ -37,12 +38,16 @@ where
         let mut histogram = Self {
             max,
             buckets: Vec::new(),
+            outer_buckets: Vec::new(),
             too_high: Counter::default(),
             exact_max,
             precision,
         };
         for _ in 0..=histogram.get_index(max).unwrap() {
             histogram.buckets.push(Counter::<C>::default());
+        }
+        for _ in 0..=(histogram.buckets.len() / 1000) {
+            histogram.outer_buckets.push(Counter::default());
         }
         histogram
     }
@@ -174,7 +179,10 @@ where
 {
     fn reset(&self) {
         for bucket in &self.buckets {
-            bucket.set(Default::default());
+            bucket.reset();
+        }
+        for bucket in &self.outer_buckets {
+            bucket.reset();
         }
         self.too_high.reset();
     }
@@ -193,6 +201,7 @@ where
     fn decrement(&self, value: u64, count: C) {
         if let Ok(index) = self.get_index(value) {
             self.buckets[index].decrement(count);
+            self.outer_buckets[index / 1000].decrement(u64::from(count));
         } else {
             self.too_high.decrement(u64::from(count));
         }
@@ -201,6 +210,7 @@ where
     fn increment(&self, value: u64, count: C) {
         if let Ok(index) = self.get_index(value) {
             self.buckets[index].increment(count);
+            self.outer_buckets[index / 1000].increment(u64::from(count));
         } else {
             self.too_high.increment(u64::from(count));
         }
@@ -220,10 +230,16 @@ where
             (self.samples() as f64 * percentile).ceil() as u64
         };
         let mut have = 0;
-        for (index, counter) in self.buckets.iter().enumerate() {
-            have += u64::from(counter.get());
-            if have >= need {
-                return Some(self.get_value(index).unwrap());
+        for (outer_index, outer_counter) in self.outer_buckets.iter().enumerate() {
+            if have + outer_counter.get() >= need {
+                for index in (outer_index*1000)..((outer_index + 1)*1000) {
+                    have += u64::from(self.buckets[index].get());
+                    if have >= need {
+                        return Some(self.get_value(index).unwrap());
+                    }
+                }
+            } else {
+                have += outer_counter.get();
             }
         }
         Some(self.max())
@@ -239,8 +255,8 @@ where
 
     fn samples(&self) -> u64 {
         let mut total = self.too_high();
-        for bucket in &self.buckets {
-            total += u64::from(bucket.get());
+        for bucket in &self.outer_buckets {
+            total += bucket.get();
         }
         total
     }
