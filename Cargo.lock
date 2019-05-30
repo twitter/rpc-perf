@@ -159,7 +159,7 @@ dependencies = [
  "criterion 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "datastructures 0.2.1",
  "logger 0.1.0",
- "metrics 0.2.0",
+ "metrics 0.3.0",
  "rand 0.6.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.42 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -436,7 +436,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "metrics"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "datastructures 0.2.1",
  "evmap 4.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -752,7 +752,7 @@ dependencies = [
  "datastructures 0.2.1",
  "getopts 0.2.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "logger 0.1.0",
- "metrics 0.2.0",
+ "metrics 0.3.0",
  "mio 0.6.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "mpmc 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.6.4 (registry+https://github.com/rust-lang/crates.io-index)",
