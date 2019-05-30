@@ -257,7 +257,9 @@ where
 
     pub fn percentile(&self, percentile: f64) -> Option<u64> {
         if let Some(ref histogram) = self.histogram {
-            histogram.percentile(percentile).map(|v| v * self.scale.get())
+            histogram
+                .percentile(percentile)
+                .map(|v| v * self.scale.get())
         } else {
             None
         }

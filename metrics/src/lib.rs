@@ -337,7 +337,12 @@ mod tests {
         let recorder = Recorder::<u64>::new();
         let name = "test".to_string();
         let histogram_config = HistogramBuilder::new(100, 3, None, None);
-        recorder.add_channel(name.clone(), Source::Distribution, Some(histogram_config), 1);
+        recorder.add_channel(
+            name.clone(),
+            Source::Distribution,
+            Some(histogram_config),
+            1,
+        );
         assert_eq!(recorder.counter("test".to_string()), 0);
         recorder.record(
             "test".to_string(),
@@ -399,7 +404,12 @@ mod tests {
         let recorder = Recorder::<u64>::new();
         let name = "test".to_string();
         let histogram_config = HistogramBuilder::new(100, 3, None, None);
-        recorder.add_channel(name.clone(), Source::TimeInterval, Some(histogram_config), 1);
+        recorder.add_channel(
+            name.clone(),
+            Source::TimeInterval,
+            Some(histogram_config),
+            1,
+        );
         assert_eq!(recorder.counter("test".to_string()), 0);
         recorder.record(
             "test".to_string(),
@@ -430,7 +440,12 @@ mod tests {
         let recorder = Recorder::<u64>::new();
         let name = "test".to_string();
         let histogram_config = HistogramBuilder::new(100, 3, None, None);
-        recorder.add_channel(name.clone(), Source::Distribution, Some(histogram_config), 1_000);
+        recorder.add_channel(
+            name.clone(),
+            Source::Distribution,
+            Some(histogram_config),
+            1_000,
+        );
         assert_eq!(recorder.counter("test".to_string()), 0);
         recorder.record(
             "test".to_string(),
@@ -457,7 +472,10 @@ mod tests {
         assert_eq!(recorder.percentile("test".to_string(), 0.90), Some(90_000));
         assert_eq!(recorder.percentile("test".to_string(), 0.95), Some(95_000));
         assert_eq!(recorder.percentile("test".to_string(), 0.99), Some(99_000));
-        assert_eq!(recorder.percentile("test".to_string(), 0.999), Some(100_000));
+        assert_eq!(
+            recorder.percentile("test".to_string(), 0.999),
+            Some(100_000)
+        );
         assert_eq!(recorder.percentile("test".to_string(), 1.00), Some(100_000));
     }
 }
