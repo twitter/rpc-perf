@@ -98,6 +98,28 @@ where
         }
         self.timers.shrink_to_fit();
     }
+
+    pub fn next_timeout(&self) -> Option<usize> {
+        if self.timers.is_empty() {
+            None
+        } else {
+            let mut remaining = 0;
+            loop {
+                for offset in 0..self.buckets.len() {
+                    let mut tick = self.tick + offset;
+                    if tick >= self.buckets.len() {
+                        tick -= self.buckets.len();
+                    }
+                    for timer in &self.buckets[tick].timers {
+                        if self.timers[&timer].remaining == remaining {
+                            return Some(offset + remaining * self.buckets.len());
+                        }
+                    }
+                }
+                remaining += 1;
+            }
+        }
+    }
 }
 
 pub struct Bucket<T> {
@@ -148,6 +170,7 @@ mod tests {
     fn new() {
         let mut wheel = Wheel::<usize>::new(1000);
         assert!(wheel.tick(1000).is_empty());
+        assert_eq!(wheel.next_timeout(), None);
     }
 
     #[test]
@@ -155,9 +178,11 @@ mod tests {
         let mut wheel = Wheel::new(1000);
         let _id = wheel.add(0, 0);
         assert_eq!(wheel.pending(), 1);
+        assert_eq!(wheel.next_timeout(), Some(0));
         let timers = wheel.tick(1);
         assert_eq!(timers.len(), 1);
         assert_eq!(wheel.pending(), 0);
+        assert_eq!(wheel.next_timeout(), None);
     }
 
     #[test]
@@ -165,8 +190,10 @@ mod tests {
         let mut wheel = Wheel::new(1000);
         wheel.add(0, 0);
         assert_eq!(wheel.pending(), 1);
+        assert_eq!(wheel.next_timeout(), Some(0));
         wheel.cancel(0);
         assert_eq!(wheel.pending(), 0);
+        assert_eq!(wheel.next_timeout(), None);
     }
 
     #[test]
@@ -177,11 +204,13 @@ mod tests {
         }
         assert_eq!(wheel.pending(), 1000);
         for i in 0..1000 {
+            assert_eq!(wheel.next_timeout(), Some(0));
             let timers = wheel.tick(1);
             assert_eq!(timers.len(), 1);
             assert_eq!(timers[0], i);
         }
         assert_eq!(wheel.pending(), 0);
+        assert_eq!(wheel.next_timeout(), None);
     }
 
     #[test]
@@ -201,5 +230,16 @@ mod tests {
             assert_eq!(timers.len(), 1);
         }
         assert_eq!(wheel.pending(), 0);
+    }
+
+    #[test]
+    fn next_timeout() {
+        let mut wheel = Wheel::new(1000);
+        wheel.add(1, 5000);
+        assert_eq!(wheel.next_timeout(), Some(5000));
+        wheel.add(2, 1000);
+        assert_eq!(wheel.next_timeout(), Some(1000));
+        wheel.add(3, 1);
+        assert_eq!(wheel.next_timeout(), Some(1));
     }
 }

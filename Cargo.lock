@@ -762,7 +762,7 @@ dependencies = [
  "serde_derive 1.0.85 (registry+https://github.com/rust-lang/crates.io-index)",
  "slab 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.42 (registry+https://github.com/rust-lang/crates.io-index)",
- "timer 0.1.1",
+ "timer 0.1.2",
  "tiny_http 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "toml 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "waterfall 0.2.1",
@@ -942,7 +942,7 @@ dependencies = [
 
 [[package]]
 name = "timer"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "logger 0.1.0",
 ]
