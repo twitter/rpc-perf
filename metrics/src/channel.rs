@@ -54,6 +54,7 @@ pub struct Channel<C> {
     min: Point,
     outputs: RwWrapper<HashSet<Output>>,
     has_data: Bool,
+    scale: Counter<u64>,
 }
 
 impl<C: 'static> PartialEq for Channel<C>
@@ -82,6 +83,7 @@ where
         name: String,
         source: Source,
         histogram_config: Option<HistogramBuilder<C>>,
+        scale: u64,
     ) -> Self {
         let histogram = if let Some(config) = histogram_config {
             Some(config.build())
@@ -99,6 +101,7 @@ where
             min: Point::new(0, 0),
             outputs: RwWrapper::new(HashSet::new()),
             has_data: Bool::new(false),
+            scale: Counter::new(scale),
         }
     }
 
@@ -249,12 +252,12 @@ where
     }
 
     pub fn counter(&self) -> u64 {
-        self.counter.get()
+        self.counter.get() * self.scale.get()
     }
 
     pub fn percentile(&self, percentile: f64) -> Option<u64> {
         if let Some(ref histogram) = self.histogram {
-            histogram.percentile(percentile)
+            histogram.percentile(percentile).map(|v| v * self.scale.get())
         } else {
             None
         }

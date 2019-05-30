@@ -178,7 +178,7 @@ mod tests {
         let recorder = Recorder::<u64>::new();
         let name = "test".to_string();
         let histogram_config = HistogramBuilder::new(2_000_000_000, 3, None, None);
-        recorder.add_channel(name.clone(), Source::Counter, Some(histogram_config));
+        recorder.add_channel(name.clone(), Source::Counter, Some(histogram_config), 1);
         assert_eq!(recorder.counter("test".to_string()), 0);
         assert_eq!(recorder.percentile("test".to_string(), 0.0), None);
         recorder.record(
@@ -227,7 +227,7 @@ mod tests {
         let recorder = Recorder::<u64>::new();
         let name = "test".to_string();
         let histogram_config = HistogramBuilder::new(2_000_000_000, 3, None, None);
-        recorder.add_channel(name.clone(), Source::Counter, Some(histogram_config));
+        recorder.add_channel(name.clone(), Source::Counter, Some(histogram_config), 1);
         assert_eq!(recorder.counter("test".to_string()), 0);
         recorder.record(
             "test".to_string(),
@@ -282,7 +282,7 @@ mod tests {
         let recorder = Recorder::<u64>::new();
         let name = "test".to_string();
         let histogram_config = HistogramBuilder::new(80_000_000_000, 3, None, None);
-        recorder.add_channel(name.clone(), Source::Counter, Some(histogram_config));
+        recorder.add_channel(name.clone(), Source::Counter, Some(histogram_config), 1);
         assert_eq!(recorder.counter("test".to_string()), 0);
         let data: Vec<u64> = vec![
             20334687810196614,
@@ -337,7 +337,7 @@ mod tests {
         let recorder = Recorder::<u64>::new();
         let name = "test".to_string();
         let histogram_config = HistogramBuilder::new(100, 3, None, None);
-        recorder.add_channel(name.clone(), Source::Distribution, Some(histogram_config));
+        recorder.add_channel(name.clone(), Source::Distribution, Some(histogram_config), 1);
         assert_eq!(recorder.counter("test".to_string()), 0);
         recorder.record(
             "test".to_string(),
@@ -373,7 +373,7 @@ mod tests {
         let recorder = Recorder::<u64>::new();
         let name = "test".to_string();
         let histogram_config = HistogramBuilder::new(100, 3, None, None);
-        recorder.add_channel(name.clone(), Source::Gauge, Some(histogram_config));
+        recorder.add_channel(name.clone(), Source::Gauge, Some(histogram_config), 1);
         assert_eq!(recorder.counter("test".to_string()), 0);
         recorder.record("test".to_string(), Measurement::Gauge { value: 0, time: 1 });
         assert_eq!(recorder.counter("test".to_string()), 0);
@@ -399,7 +399,7 @@ mod tests {
         let recorder = Recorder::<u64>::new();
         let name = "test".to_string();
         let histogram_config = HistogramBuilder::new(100, 3, None, None);
-        recorder.add_channel(name.clone(), Source::TimeInterval, Some(histogram_config));
+        recorder.add_channel(name.clone(), Source::TimeInterval, Some(histogram_config), 1);
         assert_eq!(recorder.counter("test".to_string()), 0);
         recorder.record(
             "test".to_string(),
@@ -423,5 +423,41 @@ mod tests {
         assert_eq!(recorder.percentile("test".to_string(), 0.99), Some(1));
         assert_eq!(recorder.percentile("test".to_string(), 0.999), Some(1));
         assert_eq!(recorder.percentile("test".to_string(), 1.00), Some(1));
+    }
+
+    #[test]
+    fn scaled_distribution_channel() {
+        let recorder = Recorder::<u64>::new();
+        let name = "test".to_string();
+        let histogram_config = HistogramBuilder::new(100, 3, None, None);
+        recorder.add_channel(name.clone(), Source::Distribution, Some(histogram_config), 1_000);
+        assert_eq!(recorder.counter("test".to_string()), 0);
+        recorder.record(
+            "test".to_string(),
+            Measurement::Distribution {
+                value: 1,
+                count: 1,
+                time: 0,
+            },
+        );
+        assert_eq!(recorder.counter("test".to_string()), 1_000);
+        for i in 2..101 {
+            recorder.record(
+                "test".to_string(),
+                Measurement::Distribution {
+                    value: i,
+                    count: 1,
+                    time: 0,
+                },
+            );
+        }
+        assert_eq!(recorder.counter("test".to_string()), 100_000);
+        assert_eq!(recorder.percentile("test".to_string(), 0.0), Some(1_000));
+        assert_eq!(recorder.percentile("test".to_string(), 0.50), Some(50_000));
+        assert_eq!(recorder.percentile("test".to_string(), 0.90), Some(90_000));
+        assert_eq!(recorder.percentile("test".to_string(), 0.95), Some(95_000));
+        assert_eq!(recorder.percentile("test".to_string(), 0.99), Some(99_000));
+        assert_eq!(recorder.percentile("test".to_string(), 0.999), Some(100_000));
+        assert_eq!(recorder.percentile("test".to_string(), 1.00), Some(100_000));
     }
 }

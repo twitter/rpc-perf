@@ -327,7 +327,7 @@ impl Simple {
 
     pub fn add_counter_channel<T: ToString>(&self, label: T) {
         self.inner
-            .add_channel(label.to_string(), Source::Counter, None);
+            .add_channel(label.to_string(), Source::Counter, None, 1);
         self.inner.add_output(label.to_string(), Output::Counter);
     }
 
@@ -337,6 +337,7 @@ impl Simple {
             label.to_string(),
             Source::TimeInterval,
             Some(histogram_config),
+            1,
         );
         self.inner.add_output(label.to_string(), Output::Counter);
         self.inner
@@ -359,6 +360,7 @@ impl Simple {
             label.to_string(),
             Source::Distribution,
             Some(histogram_config),
+            1,
         );
         self.inner.add_output(label.to_string(), Output::Counter);
         self.inner

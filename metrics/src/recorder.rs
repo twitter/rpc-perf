@@ -68,9 +68,10 @@ where
         name: String,
         source: Source,
         histogram_config: Option<HistogramBuilder<C>>,
+        scale: u64,
     ) {
         debug!("add channel: {} source: {:?}", name, source);
-        let channel = Channel::new(name.clone(), source, histogram_config);
+        let channel = Channel::new(name.clone(), source, histogram_config, scale);
         if self
             .data_read
             .get_and(&name, |channel| channel.len())
