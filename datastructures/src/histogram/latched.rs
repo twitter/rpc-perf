@@ -64,15 +64,15 @@ where
         } else if value <= self.exact_max() {
             Ok(value as usize)
         } else {
+            let exact_max = self.exact_max as usize;
             let power = (value as f64).log10().floor() as usize;
             let divisor = 10_u64.pow((power - self.precision) as u32 + 1);
-            let base_offset = 10_usize.pow(self.precision as u32);
             let power_offset = (0.9
-                * (10_usize.pow(self.precision as u32) * (power - self.precision)) as f64)
+                * (exact_max * (power - self.precision)) as f64)
                 as usize;
             let remainder = value / divisor;
-            let shift = 10_usize.pow(self.precision as u32 - 1);
-            let index = base_offset + power_offset + remainder as usize - shift;
+            let shift = exact_max / 10;
+            let index = exact_max + power_offset + remainder as usize - shift;
             Ok(index)
         }
     }
@@ -86,14 +86,14 @@ where
         } else if index == self.buckets.len() - 1 {
             Ok(self.max)
         } else {
-            let shift = 10_usize.pow(self.precision as u32 - 1);
-            let base_offset = 10_usize.pow(self.precision as u32);
+            let exact_max = self.exact_max as usize;
+            let shift = exact_max / 10;
             let power = self.precision
-                + (index - base_offset) / (9 * 10_usize.pow(self.precision as u32 - 1));
+                + (index - exact_max) / (0.9 * exact_max as f64) as usize;
             let power_offset = (0.9
-                * (10_usize.pow(self.precision as u32) * (power - self.precision)) as f64)
+                * (exact_max * (power - self.precision)) as f64)
                 as usize;
-            let value = (index + shift - base_offset - power_offset) as u64
+            let value = (index + shift - exact_max - power_offset) as u64
                 * 10_u64.pow((power - self.precision + 1) as u32);
             Ok(value)
         }

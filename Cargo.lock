@@ -258,6 +258,7 @@ dependencies = [
 name = "datastructures"
 version = "0.2.1"
 dependencies = [
+ "criterion 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "logger 0.1.0",
  "parking_lot 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.42 (registry+https://github.com/rust-lang/crates.io-index)",

@@ -8,3 +8,10 @@ edition = "2018"
 logger = { path = "../logger" }
 parking_lot = "0.7.1"
 time = "0.1.42"
+
+[dev-dependencies]
+criterion = "0.2"
+
+[[bench]]
+name = "latched_histogram"
+harness = false
