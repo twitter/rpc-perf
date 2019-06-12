@@ -18,6 +18,7 @@ use crate::client::SECOND;
 use crate::config::Config;
 pub use crate::stats::http::Http;
 use datastructures::Heatmap;
+use std::sync::Arc;
 
 use metrics::*;
 
@@ -299,19 +300,19 @@ fn delta_percent<T: ToString>(
 #[derive(Clone)]
 pub struct Simple {
     inner: Recorder<u64>,
-    heatmap: Option<Heatmap<u64>>,
+    heatmap: Option<Arc<Heatmap<u64>>>,
 }
 
 impl Simple {
     pub fn new(config: &Config) -> Self {
         let heatmap = if config.waterfall().is_some() {
             if let Some(windows) = config.windows() {
-                Some(Heatmap::new(
+                Some(Arc::new(Heatmap::new(
                     SECOND as u64,
                     2,
                     SECOND as u64,
                     (windows * config.interval() * SECOND) as u64,
-                ))
+                )))
             } else {
                 warn!("Unable to initialize waterfall output without fixed duration");
                 None
@@ -331,8 +332,8 @@ impl Simple {
         self.inner.add_output(label.to_string(), Output::Counter);
     }
 
-    pub fn add_histogram_channel<T: ToString>(&self, label: T, max: u64, precision: usize) {
-        let histogram_config = HistogramBuilder::new(max, precision, None, None);
+    pub fn add_histogram_channel<T: ToString>(&self, label: T, max: u64, precision: u32) {
+        let histogram_config = Histogram::new(max, precision, None, None);
         self.inner.add_channel(
             label.to_string(),
             Source::TimeInterval,
@@ -353,8 +354,8 @@ impl Simple {
             .add_output(label.to_string(), Output::Percentile(Percentile::p9999));
     }
 
-    pub fn add_distribution_channel<T: ToString>(&self, label: T, max: u64, precision: usize) {
-        let histogram_config = HistogramBuilder::new(max, precision, None, None);
+    pub fn add_distribution_channel<T: ToString>(&self, label: T, max: u64, precision: u32) {
+        let histogram_config = Histogram::new(max, precision, None, None);
         self.inner.add_channel(
             label.to_string(),
             Source::Distribution,

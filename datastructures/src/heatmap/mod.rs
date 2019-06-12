@@ -2,34 +2,32 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use crate::counter::Counting;
+use crate::counter::UnsignedCounterPrimitive;
+use atomics::AtomicCounter;
+use parking_lot::Mutex;
 use std::convert::From;
+use std::sync::Arc;
 
 use crate::counter::Counter;
-use crate::histogram::{Histogram, LatchedHistogram};
-use crate::wrapper::RwWrapper;
-use std::marker::PhantomData;
+use crate::histogram::Histogram;
 
 use time::Tm;
 
 const SECOND: u64 = 1_000_000_000;
 
-pub struct Slice<C>
-where
-    C: Counting,
-    u64: From<C>,
-{
+pub struct Slice<'a, T> {
     begin_utc: Tm,
     end_utc: Tm,
     begin_precise: u64,
     end_precise: u64,
-    histogram: LatchedHistogram<C>,
+    histogram: &'a Histogram<T>,
 }
 
-impl<C> Slice<C>
+impl<'a, T> Slice<'a, T>
 where
-    C: Counting,
-    u64: From<C>,
+    Box<AtomicCounter<Primitive = T>>: From<T>,
+    T: UnsignedCounterPrimitive,
+    u64: From<T>,
 {
     pub fn begin_utc(&self) -> Tm {
         self.begin_utc
@@ -47,65 +45,33 @@ where
         self.end_precise
     }
 
-    pub fn histogram(&self) -> &LatchedHistogram<C> {
+    pub fn histogram(&self) -> &Histogram<T> {
         &self.histogram
     }
 }
 
-pub struct Builder<C> {
-    max: u64,
-    precision: usize,
-    resolution: u64,
-    span: u64,
-    _counter: PhantomData<C>,
-}
-
-impl<C> Builder<C>
-where
-    C: Counting,
-    u64: From<C>,
-{
-    pub fn new(max: u64, precision: usize, resolution: u64, span: u64) -> Self {
-        Self {
-            max,
-            precision,
-            resolution,
-            span,
-            _counter: PhantomData::<C>,
-        }
-    }
-
-    pub fn build(&self) -> Heatmap<C> {
-        self::Heatmap::new(self.max, self.precision, self.resolution, self.span)
-    }
-}
-
-#[derive(Clone)]
-pub struct Heatmap<C>
-where
-    C: Counting,
-    u64: From<C>,
-{
+pub struct Heatmap<T> {
     oldest_begin_precise: Counter<u64>, // this is the start time of oldest slice
     newest_begin_precise: Counter<u64>, // start time of newest slice
     newest_end_precise: Counter<u64>,   // end time of the oldest slice
-    oldest_begin_utc: RwWrapper<Tm>,    // relates start time of oldest slice to wall-clock
+    oldest_begin_utc: Arc<Mutex<Tm>>,   // relates start time of oldest slice to wall-clock
     resolution: Counter<u64>,           // number of NS per slice
-    slices: Vec<LatchedHistogram<C>>,   // stores the `Histogram`s
-    offset: Counter<u32>,               // indicates which `Histogram` is the oldest
+    slices: Vec<Histogram<T>>,          // stores the `Histogram`s
+    offset: Counter<usize>,             // indicates which `Histogram` is the oldest
 }
 
-impl<C> Heatmap<C>
+impl<T> Heatmap<T>
 where
-    C: Counting,
-    u64: From<C>,
+    Box<AtomicCounter<Primitive = T>>: From<T>,
+    T: UnsignedCounterPrimitive,
+    u64: From<T>,
 {
-    pub fn new(max: u64, precision: usize, resolution: u64, span: u64) -> Self {
+    pub fn new(max: u64, precision: u32, resolution: u64, span: u64) -> Self {
         // build the Histograms
         let num_slices = span / resolution;
         let mut slices = Vec::with_capacity(num_slices as usize);
         for _ in 0..num_slices {
-            slices.push(LatchedHistogram::new(max, precision));
+            slices.push(Histogram::new(max, precision, None, None));
         }
 
         // get time and align with previous top of minute
@@ -117,12 +83,12 @@ where
             now_utc - time::Duration::nanoseconds((now_precise - adjusted_precise) as i64); // set backward to top of minute
 
         Heatmap {
-            oldest_begin_precise: Counter::new(adjusted_precise),
-            newest_begin_precise: Counter::new(adjusted_precise + span - resolution),
-            newest_end_precise: Counter::new(adjusted_precise + span),
-            oldest_begin_utc: RwWrapper::new(adjusted_utc),
-            offset: Counter::new(0),
-            resolution: Counter::new(resolution),
+            oldest_begin_precise: Counter::<u64>::new(adjusted_precise),
+            newest_begin_precise: Counter::<u64>::new(adjusted_precise + span - resolution),
+            newest_end_precise: Counter::<u64>::new(adjusted_precise + span),
+            oldest_begin_utc: Arc::new(Mutex::new(adjusted_utc)),
+            offset: Counter::<usize>::new(0),
+            resolution: Counter::<u64>::new(resolution),
             slices,
         }
     }
@@ -144,24 +110,23 @@ where
 
     // internal function to tick forward by one slice
     fn tick(&self) {
-        self.slices[self.offset.get() as usize].reset();
+        self.slices[self.offset.get() as usize].clear();
         if self.offset.get() as usize == (self.slices.len() - 1) {
             self.offset.set(0);
         } else {
-            self.offset.increment(1);
+            self.offset.add(1);
         }
-        self.oldest_begin_precise.increment(self.resolution.get());
-        self.newest_begin_precise.increment(self.resolution.get());
-        self.newest_end_precise.increment(self.resolution.get());
-        unsafe {
-            (*self.oldest_begin_utc.lock()) = (*self.oldest_begin_utc.get())
-                + time::Duration::nanoseconds(self.resolution.get() as i64);
-        }
+        self.oldest_begin_precise.add(self.resolution.get());
+        self.newest_begin_precise.add(self.resolution.get());
+        self.newest_end_precise.add(self.resolution.get());
+        let current = *self.oldest_begin_utc.lock();
+        *self.oldest_begin_utc.lock() =
+            current + time::Duration::nanoseconds(self.resolution.get() as i64);
     }
 
-    fn get_histogram(&self, index: usize) -> Option<LatchedHistogram<C>> {
+    fn get_histogram(&self, index: usize) -> Option<&Histogram<T>> {
         if let Some(h) = self.slices.get(index) {
-            Some(h.clone())
+            Some(h)
         } else {
             None
         }
@@ -172,14 +137,14 @@ where
     }
 
     /// increment a time-value pair by count
-    pub fn increment(&self, time: u64, value: u64, count: C) {
+    pub fn increment(&self, time: u64, value: u64, count: T) {
         if let Some(index) = self.get_index(time) {
             self.slices[index].increment(value, count);
         }
     }
 
     /// decrement a time-value pair by count
-    pub fn decrement(&self, time: u64, value: u64, count: C) {
+    pub fn decrement(&self, time: u64, value: u64, count: T) {
         if let Some(index) = self.get_index(time) {
             self.slices[index].decrement(value, count);
         }
@@ -199,26 +164,25 @@ where
     }
 
     /// get the total number of samples stored in the heatmap
-    pub fn samples(&self) -> u64 {
+    pub fn total_count(&self) -> u64 {
         let mut count = 0;
         for histogram in &self.slices {
-            count += histogram.samples();
+            count += histogram.total_count();
         }
         count
     }
 
     /// get the maximum number of samples in any time-value pair
     pub fn highest_count(&self) -> u64 {
-        let mut highest_index = 0;
         let mut highest_count = 0;
-        for (index, histogram) in self.slices.iter().enumerate() {
-            let c = histogram.highest_count().unwrap_or(0);
-            if c > highest_count {
-                highest_count = c;
-                highest_index = index;
+        for histogram in self.slices.iter() {
+            for bucket in histogram {
+                if u64::from(bucket.count()) > highest_count {
+                    highest_count = u64::from(bucket.count());
+                }
             }
         }
-        self.slices[highest_index].highest_count().unwrap()
+        highest_count
     }
 
     pub fn slices(&self) -> usize {
@@ -226,11 +190,11 @@ where
     }
 
     pub fn buckets(&self) -> usize {
-        self.slices[0].buckets()
+        self.slices[0].into_iter().count()
     }
 
     pub fn begin_utc(&self) -> Tm {
-        unsafe { (*self.oldest_begin_utc.get()) }
+        *self.oldest_begin_utc.lock()
     }
 
     pub fn begin_precise(&self) -> u64 {
@@ -242,33 +206,36 @@ where
     }
 }
 
-pub struct Iter<'a, C>
+pub struct Iter<'a, T>
 where
-    C: Counting,
-    u64: From<C>,
+    Box<AtomicCounter<Primitive = T>>: From<T>,
+    T: UnsignedCounterPrimitive,
+    u64: From<T>,
 {
-    inner: &'a Heatmap<C>,
+    inner: &'a Heatmap<T>,
     index: usize,
 }
 
-impl<'a, C> Iter<'a, C>
+impl<'a, T> Iter<'a, T>
 where
-    C: Counting,
-    u64: From<C>,
+    Box<AtomicCounter<Primitive = T>>: From<T>,
+    T: UnsignedCounterPrimitive,
+    u64: From<T>,
 {
-    fn new(inner: &'a Heatmap<C>) -> Iter<'a, C> {
+    fn new(inner: &'a Heatmap<T>) -> Iter<'a, T> {
         Iter { inner, index: 0 }
     }
 }
 
-impl<'a, C> Iterator for Iter<'a, C>
+impl<'a, T> Iterator for Iter<'a, T>
 where
-    C: Counting,
-    u64: From<C>,
+    Box<AtomicCounter<Primitive = T>>: From<T>,
+    T: UnsignedCounterPrimitive,
+    u64: From<T>,
 {
-    type Item = Slice<C>;
+    type Item = Slice<'a, T>;
 
-    fn next(&mut self) -> Option<Slice<C>> {
+    fn next(&mut self) -> Option<Slice<'a, T>> {
         if self.index >= self.inner.slices() {
             None
         } else {
@@ -295,13 +262,14 @@ where
     }
 }
 
-impl<'a, C> IntoIterator for &'a Heatmap<C>
+impl<'a, T> IntoIterator for &'a Heatmap<T>
 where
-    C: Counting,
-    u64: From<C>,
+    Box<AtomicCounter<Primitive = T>>: From<T>,
+    T: UnsignedCounterPrimitive,
+    u64: From<T>,
 {
-    type Item = Slice<C>;
-    type IntoIter = Iter<'a, C>;
+    type Item = Slice<'a, T>;
+    type IntoIter = Iter<'a, T>;
 
     fn into_iter(self) -> Self::IntoIter {
         Iter::new(self)
@@ -319,28 +287,28 @@ mod tests {
     fn age_out() {
         let heatmap = Heatmap::<u64>::new(60 * SECOND, 2, SECOND, 5 * SECOND);
         heatmap.latch();
-        assert_eq!(heatmap.samples(), 0);
+        assert_eq!(heatmap.total_count(), 0);
         heatmap.increment(time::precise_time_ns(), 1, 1);
-        assert_eq!(heatmap.samples(), 1);
+        assert_eq!(heatmap.total_count(), 1);
         std::thread::sleep(std::time::Duration::new(5, 0));
         heatmap.latch();
-        assert_eq!(heatmap.samples(), 0);
+        assert_eq!(heatmap.total_count(), 0);
     }
 
     #[test]
     fn out_of_bounds() {
         let heatmap = Heatmap::<u64>::new(60 * SECOND, 2, SECOND, 10 * SECOND);
         heatmap.latch();
-        assert_eq!(heatmap.samples(), 0);
+        assert_eq!(heatmap.total_count(), 0);
         heatmap.increment(time::precise_time_ns() - 11 * SECOND, 1, 1);
-        assert_eq!(heatmap.samples(), 0);
+        assert_eq!(heatmap.total_count(), 0);
         heatmap.increment(time::precise_time_ns() + 11 * SECOND, 1, 1);
-        assert_eq!(heatmap.samples(), 0);
+        assert_eq!(heatmap.total_count(), 0);
     }
 
     #[test]
     fn threaded_access() {
-        let heatmap = Heatmap::<u64>::new(SECOND, 2, SECOND, 60 * SECOND);
+        let heatmap = Arc::new(Heatmap::<u64>::new(SECOND, 2, SECOND, 60 * SECOND));
         let mut threads = Vec::new();
 
         for _ in 0..2 {
@@ -358,6 +326,6 @@ mod tests {
 
         std::thread::sleep(std::time::Duration::new(2, 0));
 
-        assert_eq!(heatmap.samples(), 2_000_000);
+        assert_eq!(heatmap.total_count(), 2_000_000);
     }
 }

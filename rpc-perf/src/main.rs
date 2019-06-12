@@ -24,14 +24,14 @@ use crate::config::Config;
 use crate::config::Protocol;
 use crate::stats::*;
 
-use datastructures::Bool;
+use atomics::Atomic;
 pub(crate) use logger::*;
 use metrics::Reading;
 use ratelimiter::Ratelimiter;
 
 use rand::thread_rng;
 
-use std::sync::{Arc, Mutex};
+use std::sync::{atomic::Ordering, Arc, Mutex};
 use std::thread;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -66,7 +66,7 @@ pub fn main() {
 
     do_warmup(&config, &recorder);
 
-    let control = Bool::new(true);
+    let control = Arc::new(Atomic::<bool>::new(true));
     launch_clients(&config, &recorder, control.clone());
 
     loop {
@@ -76,7 +76,7 @@ pub fn main() {
 
         if let Some(max_window) = config.windows() {
             if recorder.counter(Stat::Window) >= max_window as u64 {
-                control.set(false);
+                control.store(false, Ordering::SeqCst);
                 break;
             }
         }
@@ -94,7 +94,7 @@ fn do_warmup(config: &Config, recorder: &Simple) {
     if let Some(target) = config.warmup_hitrate() {
         info!("-----");
         info!("Warming the cache...");
-        let control = Bool::new(true);
+        let control = Arc::new(Atomic::<bool>::new(true));
         launch_clients(&config, &recorder, control.clone());
 
         let mut warm = 0;
@@ -116,7 +116,7 @@ fn do_warmup(config: &Config, recorder: &Simple) {
 
             if warm >= 3 {
                 recorder.clear();
-                control.set(false);
+                control.store(false, Ordering::SeqCst);
                 break;
             }
 
@@ -151,21 +151,33 @@ fn make_client(id: usize, codec: Box<Codec>, _config: &Config) -> Box<Client> {
     Box::new(PlainClient::new(id, codec))
 }
 
-fn launch_clients(config: &Config, recorder: &stats::Simple, control: Bool) {
+fn launch_clients(config: &Config, recorder: &stats::Simple, control: Arc<Atomic<bool>>) {
     let request_ratelimiter = if let Some(limit) = config.request_ratelimit() {
-        Some(Ratelimiter::new(config.clients() as u64, 1, limit as u64))
+        Some(Arc::new(Ratelimiter::new(
+            config.clients() as u64,
+            1,
+            limit as u64,
+        )))
     } else {
         None
     };
 
     let connect_ratelimiter = if let Some(limit) = config.connect_ratelimit() {
-        Some(Ratelimiter::new(config.clients() as u64, 1, limit as u64))
+        Some(Arc::new(Ratelimiter::new(
+            config.clients() as u64,
+            1,
+            limit as u64,
+        )))
     } else {
         None
     };
 
     let close_rate = if let Some(rate) = config.close_rate() {
-        Some(Ratelimiter::new(config.clients() as u64, 1, rate as u64))
+        Some(Arc::new(Ratelimiter::new(
+            config.clients() as u64,
+            1,
+            rate as u64,
+        )))
     } else {
         None
     };
@@ -208,7 +220,7 @@ fn launch_clients(config: &Config, recorder: &stats::Simple, control: Bool) {
             .name(format!("client{}", i).to_string())
             .spawn(move || {
                 let mut rng = thread_rng();
-                while control.get() {
+                while control.load(Ordering::SeqCst) {
                     client.run(&mut rng);
                 }
             });

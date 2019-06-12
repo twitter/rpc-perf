@@ -14,7 +14,6 @@
 
 use datastructures::Counter;
 
-#[derive(Clone)]
 pub struct Point {
     value: Counter<u64>,
     time: Counter<u64>,
@@ -41,7 +40,7 @@ impl Point {
     }
 
     pub fn reset(&self) {
-        self.value.reset();
-        self.time.reset();
+        self.value.set(0);
+        self.time.set(0);
     }
 }

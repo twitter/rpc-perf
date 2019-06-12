@@ -12,8 +12,8 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use datastructures::Counting;
-use datastructures::{Heatmap, Histogram, LatchedHistogram};
+use atomics::AtomicCounter;
+use datastructures::{Heatmap, Histogram, UnsignedCounterPrimitive};
 use hsl::HSL;
 use logger::*;
 use png::HasParameters;
@@ -24,14 +24,15 @@ use std::fs::File;
 use std::io::BufWriter;
 use std::path::Path;
 
-pub fn save_waterfall<S: ::std::hash::BuildHasher, C: 'static>(
-    heatmap: &Heatmap<C>,
+pub fn save_waterfall<S: ::std::hash::BuildHasher, T: 'static>(
+    heatmap: &Heatmap<T>,
     file: &str,
     labels: HashMap<u64, String, S>,
     interval: u64,
 ) where
-    C: Counting,
-    u64: From<C>,
+    Box<AtomicCounter<Primitive = T>>: From<T>,
+    T: UnsignedCounterPrimitive,
+    u64: From<T>,
 {
     debug!("saving waterfall");
     let height = heatmap.slices();
@@ -40,11 +41,11 @@ pub fn save_waterfall<S: ::std::hash::BuildHasher, C: 'static>(
     // create image buffer
     let mut buffer = ImageBuffer::<ColorRgb>::new(width, height);
 
-    let histogram = LatchedHistogram::new(heatmap.highest_count(), 3);
+    let histogram = Histogram::<u64>::new(heatmap.highest_count(), 3, None, None);
     for slice in heatmap {
         for b in slice.histogram().into_iter() {
-            if b.weighted_count() > 0 {
-                histogram.increment(b.weighted_count(), C::from(1_u8));
+            if (u64::from(b.count()) / b.width()) > 0 {
+                histogram.increment(u64::from(b.count()) / b.width(), 1);
             }
         }
     }
@@ -65,7 +66,8 @@ pub fn save_waterfall<S: ::std::hash::BuildHasher, C: 'static>(
         let mut l = 0;
         for (y, slice) in heatmap.into_iter().enumerate() {
             for (x, bucket) in slice.histogram().into_iter().enumerate() {
-                let value = color_from_value(bucket.weighted_count(), low, mid, high);
+                let value =
+                    color_from_value(u64::from(bucket.count()) / bucket.width(), low, mid, high);
                 buffer.set_pixel(x, y, value);
             }
         }

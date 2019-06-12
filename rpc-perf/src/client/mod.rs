@@ -43,7 +43,7 @@ pub const MICROSECOND: usize = 1_000;
 pub trait Client: Send {
     // configuration
     fn add_endpoint(&mut self, server: &SocketAddr);
-    fn set_connect_ratelimit(&mut self, ratelimiter: Option<Ratelimiter>) {
+    fn set_connect_ratelimit(&mut self, ratelimiter: Option<Arc<Ratelimiter>>) {
         self.common_mut().set_connect_ratelimit(ratelimiter)
     }
     fn set_connect_timeout(&mut self, microseconds: usize) {
@@ -61,7 +61,7 @@ pub trait Client: Send {
     fn tcp_nodelay(&self) -> bool {
         self.common().tcp_nodelay()
     }
-    fn set_request_ratelimit(&mut self, ratelimiter: Option<Ratelimiter>) {
+    fn set_request_ratelimit(&mut self, ratelimiter: Option<Arc<Ratelimiter>>) {
         self.common_mut().set_request_ratelimit(ratelimiter)
     }
     fn set_request_timeout(&mut self, microseconds: usize) {
@@ -70,7 +70,7 @@ pub trait Client: Send {
     fn set_stats(&mut self, recorder: Simple) {
         self.common_mut().set_stats(recorder);
     }
-    fn set_close_rate(&mut self, ratelimiter: Option<Ratelimiter>) {
+    fn set_close_rate(&mut self, ratelimiter: Option<Arc<Ratelimiter>>) {
         self.common_mut().set_close_rate(ratelimiter);
     }
 

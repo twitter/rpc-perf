@@ -12,33 +12,23 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use datastructures::{Histogram, LatchedHistogram};
-use libc::{c_float, uint64_t, uintptr_t};
+use datastructures::Histogram;
+use libc::{c_float, uint32_t, uint64_t};
 
 /// Create a new `histogram`
 #[no_mangle]
-pub extern "C" fn histogram_new(max: uint64_t, precision: uintptr_t) -> *mut Histogram<u64> {
-    Box::into_raw(Box::new(LatchedHistogram::new(max, precision)))
+pub extern "C" fn histogram_new(max: uint64_t, precision: uint32_t) -> *mut Histogram<u64> {
+    Box::into_raw(Box::new(Histogram::new(max, precision, None, None)))
 }
 
 /// Clear the count stored in the `histogram`
 #[no_mangle]
-pub unsafe extern "C" fn histogram_reset(ptr: *mut Histogram<u64>) {
+pub unsafe extern "C" fn histogram_clear(ptr: *mut Histogram<u64>) {
     let histogram = {
         assert!(!ptr.is_null());
         &mut *ptr
     };
-    histogram.reset();
-}
-
-/// Get the count stored in the `histogram` for value
-#[no_mangle]
-pub unsafe extern "C" fn histogram_count(ptr: *mut Histogram<u64>, value: uint64_t) -> uint64_t {
-    let histogram = {
-        assert!(!ptr.is_null());
-        &mut *ptr
-    };
-    histogram.count(value)
+    histogram.clear();
 }
 
 /// Decrement the value of the `Histogram` by count
@@ -93,12 +83,12 @@ pub unsafe extern "C" fn histogram_percentile(
 
 /// Get the total of all counts for the `histogram`
 #[no_mangle]
-pub unsafe extern "C" fn histogram_samples(ptr: *mut Histogram<u64>) -> uint64_t {
+pub unsafe extern "C" fn histogram_total_count(ptr: *mut Histogram<u64>) -> uint64_t {
     let histogram = {
         assert!(!ptr.is_null());
         &mut *ptr
     };
-    histogram.samples()
+    histogram.total_count()
 }
 
 #[allow(dead_code)]

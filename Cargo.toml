@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "atomics",
     "buffer",
     "codec",
     "datastructures",

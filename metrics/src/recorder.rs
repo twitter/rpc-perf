@@ -13,40 +13,42 @@
 //  limitations under the License.
 
 use crate::*;
-use datastructures::Counting;
-
-use datastructures::{RwWrapper, Wrapper};
+use atomics::AtomicCounter;
+use datastructures::UnsignedCounterPrimitive;
 use evmap::{ReadHandle, WriteHandle};
+use std::sync::Mutex;
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 #[derive(Clone)]
-pub struct Recorder<C: 'static>
+pub struct Recorder<T: 'static>
 where
-    C: Counting,
-    u64: From<C>,
+    Box<AtomicCounter<Primitive = T>>: From<T>,
+    T: UnsignedCounterPrimitive + From<u8>,
+    u64: From<T>,
 {
-    data_read: ReadHandle<String, Arc<Channel<C>>>,
-    data_write: Wrapper<WriteHandle<String, Arc<Channel<C>>>>,
-    labels: RwWrapper<HashSet<String>>,
+    data_read: ReadHandle<String, Arc<Channel<T>>>,
+    data_write: Arc<Mutex<WriteHandle<String, Arc<Channel<T>>>>>,
+    labels: Arc<Mutex<HashSet<String>>>,
 }
 
-impl<C> Recorder<C>
+impl<T> Recorder<T>
 where
-    C: Counting,
-    u64: From<C>,
+    Box<AtomicCounter<Primitive = T>>: From<T>,
+    T: UnsignedCounterPrimitive + From<u8>,
+    u64: From<T>,
 {
     pub fn new() -> Self {
         let (read, write) = evmap::new();
         Self {
             data_read: read,
-            data_write: Wrapper::new(write),
-            labels: RwWrapper::new(HashSet::new()),
+            data_write: Arc::new(Mutex::new(write)),
+            labels: Arc::new(Mutex::new(HashSet::new())),
         }
     }
 
-    pub fn record(&self, channel: String, measurement: Measurement<C>) {
+    pub fn record(&self, channel: String, measurement: Measurement<T>) {
         self.data_read
             .get_and(&channel, |channel| (*channel)[0].record(measurement));
     }
@@ -63,47 +65,41 @@ where
             .unwrap_or(None)
     }
 
-    pub fn add_channel(
-        &self,
-        name: String,
-        source: Source,
-        histogram_config: Option<HistogramBuilder<C>>,
-    ) {
+    pub fn add_channel(&self, name: String, source: Source, histogram: Option<Histogram<T>>) {
         debug!("add channel: {} source: {:?}", name, source);
-        let channel = Channel::new(name.clone(), source, histogram_config);
+        let channel = Channel::new(name.clone(), source, histogram);
         if self
             .data_read
             .get_and(&name, |channel| channel.len())
             .unwrap_or(0)
             == 0
         {
-            unsafe {
-                (*self.data_write.get()).insert(name.clone(), Arc::new(channel));
-                (*self.data_write.get()).refresh();
-                (*self.labels.lock()).insert(name);
-            }
+            let mut write = self.data_write.lock().unwrap();
+            write.insert(name.clone(), Arc::new(channel));
+            write.refresh();
+            let mut labels = self.labels.lock().unwrap();
+            labels.insert(name);
         }
     }
 
     pub fn delete_channel(&self, name: String) {
         debug!("delete channel: {}", name);
-        unsafe {
-            (*self.data_write.get()).empty(name.clone());
-            (*self.data_write.get()).refresh();
-            (*self.labels.lock()).remove(&name);
-        }
+        let mut write = self.data_write.lock().unwrap();
+        write.empty(name.clone());
+        write.refresh();
+        let mut labels = self.labels.lock().unwrap();
+        labels.remove(&name);
     }
 
     pub fn readings(&self) -> Vec<Reading> {
         let mut result = Vec::new();
-        unsafe {
-            for label in &*self.labels.get() {
-                let readings = self
-                    .data_read
-                    .get_and(label, |channel| (*channel)[0].readings());
-                if let Some(readings) = readings {
-                    result.extend(readings);
-                }
+        let labels = self.labels.lock().unwrap();
+        for label in &*labels {
+            let readings = self
+                .data_read
+                .get_and(label, |channel| (*channel)[0].readings());
+            if let Some(readings) = readings {
+                result.extend(readings);
             }
         }
         result
@@ -111,14 +107,13 @@ where
 
     pub fn hash_map(&self) -> HashMap<String, HashMap<Output, u64>> {
         let mut result = HashMap::new();
-        unsafe {
-            for label in &*self.labels.get() {
-                let readings = self
-                    .data_read
-                    .get_and(label, |channel| (*channel)[0].hash_map());
-                if let Some(readings) = readings {
-                    result.insert(label.to_owned(), readings);
-                }
+        let labels = self.labels.lock().unwrap();
+        for label in &*labels {
+            let readings = self
+                .data_read
+                .get_and(label, |channel| (*channel)[0].hash_map());
+            if let Some(readings) = readings {
+                result.insert(label.to_owned(), readings);
             }
         }
         result
@@ -146,28 +141,27 @@ where
     }
 
     pub fn latch(&self) {
-        unsafe {
-            for label in &*self.labels.get() {
-                self.data_read
-                    .get_and(label, |channel| (*channel)[0].latch());
-            }
+        let labels = self.labels.lock().unwrap();
+        for label in &*labels {
+            self.data_read
+                .get_and(label, |channel| (*channel)[0].latch());
         }
     }
 
     pub fn clear(&self) {
-        unsafe {
-            for label in &*self.labels.get() {
-                self.data_read
-                    .get_and(label, |channel| (*channel)[0].clear());
-            }
+        let labels = self.labels.lock().unwrap();
+        for label in &*labels {
+            self.data_read
+                .get_and(label, |channel| (*channel)[0].clear());
         }
     }
 }
 
-impl<C> Default for Recorder<C>
+impl<T> Default for Recorder<T>
 where
-    C: Counting,
-    u64: From<C>,
+    Box<AtomicCounter<Primitive = T>>: From<T>,
+    T: UnsignedCounterPrimitive + From<u8>,
+    u64: From<T>,
 {
     fn default() -> Self {
         Self::new()

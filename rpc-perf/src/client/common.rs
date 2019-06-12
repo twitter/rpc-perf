@@ -26,11 +26,12 @@ use ratelimiter::Ratelimiter;
 use timer::Wheel;
 
 use std::collections::VecDeque;
+use std::sync::Arc;
 
 pub struct Common {
     id: usize,
-    close_rate: Option<Ratelimiter>,
-    connect_ratelimiter: Option<Ratelimiter>,
+    close_rate: Option<Arc<Ratelimiter>>,
+    connect_ratelimiter: Option<Arc<Ratelimiter>>,
     connect_queue: VecDeque<Token>,
     connect_timeout: usize,
     events: Option<Events>,
@@ -38,7 +39,7 @@ pub struct Common {
     codec: Box<Codec>,
     poolsize: usize,
     ready_queue: VecDeque<Token>,
-    request_ratelimiter: Option<Ratelimiter>,
+    request_ratelimiter: Option<Arc<Ratelimiter>>,
     request_timeout: usize,
     stats: Option<Simple>,
     timers: Wheel<Token>,
@@ -72,7 +73,7 @@ impl Common {
         self.id
     }
 
-    pub fn set_connect_ratelimit(&mut self, ratelimiter: Option<Ratelimiter>) {
+    pub fn set_connect_ratelimit(&mut self, ratelimiter: Option<Arc<Ratelimiter>>) {
         self.connect_ratelimiter = ratelimiter;
     }
 
@@ -100,7 +101,7 @@ impl Common {
         self.request_timeout
     }
 
-    pub fn set_request_ratelimit(&mut self, ratelimiter: Option<Ratelimiter>) {
+    pub fn set_request_ratelimit(&mut self, ratelimiter: Option<Arc<Ratelimiter>>) {
         self.request_ratelimiter = ratelimiter;
     }
 
@@ -112,7 +113,7 @@ impl Common {
         }
     }
 
-    pub fn set_close_rate(&mut self, rate: Option<Ratelimiter>) {
+    pub fn set_close_rate(&mut self, rate: Option<Arc<Ratelimiter>>) {
         self.close_rate = rate;
     }
 

@@ -1,6 +1,6 @@
 [package]
 name = "rpc-perf"
-version = "3.0.0-pre"
+version = "3.1.0-pre"
 authors = ["Brian Martin <bmartin@twitter.com>"]
 edition = "2018"
 license = "Apache-2.0"
@@ -11,6 +11,7 @@ readme = "README.md"
 
 
 [dependencies]
+atomics = { path = "../atomics" }
 buffer = { path = "../buffer" }
 byteorder = "1.2.7"
 bytes = "0.4.11"

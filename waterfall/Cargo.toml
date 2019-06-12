@@ -1,6 +1,6 @@
 [package]
 name = "waterfall"
-version = "0.2.1"
+version = "0.3.0"
 authors = ["Brian Martin <bmartin@twitter.com>"]
 edition = "2018"
 license = "Apache-2.0"
@@ -10,6 +10,7 @@ repository = "https://github.com/twitter/rpc-perf"
 publish = false
 
 [dependencies]
+atomics = { path = "../atomics" }
 datastructures = { path = "../datastructures" }
 dejavu = "2.37.0"
 hsl = "0.1.1"
