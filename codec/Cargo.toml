@@ -13,7 +13,7 @@ publish = false
 criterion = "0.2"
 
 [dependencies]
-bytes = "0.4.11"
+bytes = "0.4.12"
 crc = "1.8.1"
 datastructures = { path = "../datastructures" }
 rand = "0.6.4"
