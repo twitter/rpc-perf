@@ -13,7 +13,6 @@
 //  limitations under the License.
 
 use datastructures::Counter;
-use libc::uint64_t;
 
 /// Create a new `Counter`
 #[no_mangle]
@@ -33,7 +32,7 @@ pub unsafe extern "C" fn counter_reset(ptr: *mut Counter<u64>) {
 
 /// Get the count stored in the `Counter`
 #[no_mangle]
-pub unsafe extern "C" fn counter_count(ptr: *mut Counter<u64>) -> uint64_t {
+pub unsafe extern "C" fn counter_count(ptr: *mut Counter<u64>) -> u64 {
     let counter = {
         assert!(!ptr.is_null());
         &mut *ptr
@@ -43,7 +42,7 @@ pub unsafe extern "C" fn counter_count(ptr: *mut Counter<u64>) -> uint64_t {
 
 /// Decrement the value of the `Counter` by count
 #[no_mangle]
-pub unsafe extern "C" fn counter_sub(ptr: *mut Counter<u64>, count: uint64_t) {
+pub unsafe extern "C" fn counter_sub(ptr: *mut Counter<u64>, count: u64) {
     let counter = {
         assert!(!ptr.is_null());
         &mut *ptr
@@ -62,7 +61,7 @@ pub unsafe extern "C" fn counter_free(ptr: *mut Counter<u64>) {
 
 /// Increment the value of the `Counter` by count
 #[no_mangle]
-pub unsafe extern "C" fn counter_add(ptr: *mut Counter<u64>, count: uint64_t) {
+pub unsafe extern "C" fn counter_add(ptr: *mut Counter<u64>, count: u64) {
     let counter = {
         assert!(!ptr.is_null());
         &mut *ptr

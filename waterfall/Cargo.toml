@@ -16,6 +16,9 @@ dejavu = "2.37.0"
 hsl = "0.1.1"
 logger = { path = "../logger" }
 png = "0.14.1"
-rand = "0.6.4"
 rusttype = "0.7.7"
 time = "0.1.42"
+
+[dev-dependencies]
+rand = "0.7.0"
+rand_distr = "0.2.1"

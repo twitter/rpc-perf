@@ -16,7 +16,7 @@ criterion = "0.2"
 bytes = "0.4.12"
 crc = "1.8.1"
 datastructures = { path = "../datastructures" }
-rand = "0.6.4"
+rand = "0.7.0"
 logger = { path = "../logger" }
 metrics = { path = "../metrics" }
 time = "0.1.42"
