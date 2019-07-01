@@ -110,15 +110,15 @@ where
         } else if value <= self.exact.get() {
             Ok(value as usize)
         } else {
+            let exact = self.exact.get() as usize;
             let power = (value as f64).log10().floor() as u32;
             let divisor = 10_u64.pow((power - self.precision.get()) as u32 + 1);
-            let base_offset = 10_usize.pow(self.precision.get());
             let power_offset = (0.9
-                * f64::from(10_u32.pow(self.precision.get()) * (power - self.precision.get())))
+                * f64::from(exact as u32 * (power - self.precision.get())))
                 as usize;
-            let remainder = value / divisor;
-            let shift = 10_usize.pow(self.precision.get() - 1);
-            let index = base_offset + power_offset + remainder as usize - shift;
+            let remainder = value / divisor as u64;
+            let shift = exact / 10;
+            let index = exact + power_offset + remainder as usize - shift;
             Ok(index)
         }
     }
