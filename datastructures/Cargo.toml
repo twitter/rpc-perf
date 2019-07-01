@@ -1,10 +1,11 @@
 [package]
 name = "datastructures"
-version = "0.2.1"
+version = "0.3.0"
 authors = ["Brian Martin <bmartin@twitter.com>"]
 edition = "2018"
 
 [dependencies]
+atomics = { path = "../atomics" }
 logger = { path = "../logger" }
 parking_lot = "0.7.1"
 time = "0.1.42"

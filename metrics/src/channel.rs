@@ -12,10 +12,15 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use crate::*;
-use datastructures::Counting;
+use atomics::{Atomic, AtomicCounter};
+use datastructures::UnsignedCounterPrimitive;
+use std::sync::atomic::Ordering;
+use std::sync::Arc;
+use std::sync::Mutex;
 
-use datastructures::{Bool, Counter, Histogram, RwWrapper};
+use crate::*;
+
+use datastructures::{Counter, Histogram};
 
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -44,73 +49,67 @@ pub enum Source {
 
 // #[derive(Clone)]
 pub struct Channel<C> {
-    name: RwWrapper<String>,
+    name: Arc<Mutex<String>>,
     source: Source,
     counter: Counter<u64>,
-    histogram: Option<Box<Histogram<C>>>,
+    histogram: Option<Histogram<C>>,
     last_write: Counter<u64>,
     latched: bool,
     max: Point,
     min: Point,
-    outputs: RwWrapper<HashSet<Output>>,
-    has_data: Bool,
+    outputs: Arc<Mutex<HashSet<Output>>>,
+    has_data: Atomic<bool>,
 }
 
-impl<C: 'static> PartialEq for Channel<C>
+impl<T: 'static> PartialEq for Channel<T>
 where
-    C: Counting,
-    u64: From<C>,
+    Box<AtomicCounter<Primitive = T>>: From<T>,
+    T: UnsignedCounterPrimitive + From<u8>,
+    u64: From<T>,
 {
-    fn eq(&self, other: &Channel<C>) -> bool {
+    fn eq(&self, other: &Channel<T>) -> bool {
         self.name() == other.name()
     }
 }
 
-impl<C: 'static> Eq for Channel<C>
+impl<T: 'static> Eq for Channel<T>
 where
-    C: Counting,
-    u64: From<C>,
+    Box<AtomicCounter<Primitive = T>>: From<T>,
+    T: UnsignedCounterPrimitive + From<u8>,
+    u64: From<T>,
 {
 }
 
-impl<C: 'static> Channel<C>
+impl<T: 'static> Channel<T>
 where
-    C: Counting,
-    u64: From<C>,
+    Box<AtomicCounter<Primitive = T>>: From<T>,
+    T: UnsignedCounterPrimitive + From<u8>,
+    u64: From<T>,
 {
-    pub fn new(
-        name: String,
-        source: Source,
-        histogram_config: Option<HistogramBuilder<C>>,
-    ) -> Self {
-        let histogram = if let Some(config) = histogram_config {
-            Some(config.build())
-        } else {
-            None
-        };
+    pub fn new(name: String, source: Source, histogram: Option<Histogram<T>>) -> Self {
         Self {
-            name: RwWrapper::new(name),
+            name: Arc::new(Mutex::new(name)),
             source,
-            counter: Counter::default(),
+            counter: Counter::<u64>::default(),
             histogram,
-            last_write: Counter::default(),
+            last_write: Counter::<u64>::default(),
             latched: true,
             max: Point::new(0, 0),
             min: Point::new(0, 0),
-            outputs: RwWrapper::new(HashSet::new()),
-            has_data: Bool::new(false),
+            outputs: Arc::new(Mutex::new(HashSet::new())),
+            has_data: Atomic::<bool>::new(false),
         }
     }
 
     pub fn name(&self) -> String {
-        unsafe { (*self.name.get()).clone() }
+        self.name.lock().unwrap().clone()
     }
 
     pub fn source(&self) -> Source {
         self.source
     }
 
-    pub fn record(&self, measurement: Measurement<C>) {
+    pub fn record(&self, measurement: Measurement<T>) {
         match measurement {
             Measurement::Counter { value, time } => {
                 self.record_counter(value, time);
@@ -131,14 +130,14 @@ where
     // histogram tracks rate of change
     fn record_counter(&self, value: u64, time: u64) {
         if self.source == Source::Counter {
-            if self.has_data.get() {
+            if self.has_data.load(Ordering::SeqCst) {
                 // calculate the difference between consecutive readings and the rate
                 let delta_value = value.wrapping_sub(self.counter.get());
                 let delta_time = time.wrapping_sub(self.last_write.get());
                 let rate = (delta_value as f64 * (1_000_000_000.0 / delta_time as f64)) as u64;
-                self.counter.increment(delta_value);
+                self.counter.add(delta_value);
                 if let Some(ref histogram) = self.histogram {
-                    histogram.increment(rate, C::from(1_u8));
+                    histogram.increment(rate, T::from(1_u8));
                 }
                 // track the point of max rate
                 if self.max.time() > 0 {
@@ -158,7 +157,7 @@ where
                 }
             } else {
                 self.counter.set(value);
-                self.has_data.set(true);
+                self.has_data.store(true, Ordering::SeqCst);
             }
             self.last_write.set(time);
         }
@@ -167,9 +166,9 @@ where
     // for Distribution measurements:
     // counter tracks sum of all counts
     // histogram tracks values
-    fn record_distribution(&self, value: u64, count: C, time: u64) {
+    fn record_distribution(&self, value: u64, count: T, time: u64) {
         if self.source == Source::Distribution {
-            self.counter.increment(u64::from(count));
+            self.counter.add(u64::from(count));
             if let Some(ref histogram) = self.histogram {
                 histogram.increment(value, count);
             }
@@ -186,7 +185,7 @@ where
         if self.source == Source::Gauge {
             self.counter.set(value);
             if let Some(ref histogram) = self.histogram {
-                histogram.increment(value, C::from(1_u8));
+                histogram.increment(value, T::from(1_u8));
             }
             // track the point of max gauge reading
             if self.max.time() > 0 {
@@ -211,11 +210,11 @@ where
     // for Increment measurements:
     // counter tracks sum of all increments
     // histogram tracks magnitude of increments
-    fn record_increment(&self, count: C, time: u64) {
+    fn record_increment(&self, count: T, time: u64) {
         if self.source == Source::Counter {
-            self.counter.increment(u64::from(count));
+            self.counter.add(u64::from(count));
             if let Some(ref histogram) = self.histogram {
-                histogram.increment(u64::from(count), C::from(1_u8));
+                histogram.increment(u64::from(count), T::from(1_u8));
             }
             self.last_write.set(time);
         }
@@ -224,10 +223,10 @@ where
     // for TimeInterval measurements, we increment the histogram with duration of event
     fn record_time_interval(&self, start: u64, stop: u64) {
         if self.source == Source::TimeInterval {
-            self.counter.increment(1);
+            self.counter.add(1);
             let duration = stop - start;
             if let Some(ref histogram) = self.histogram {
-                histogram.increment(duration, C::from(1_u8));
+                histogram.increment(duration, T::from(1_u8));
             }
             // track point of largest interval
             if self.max.time() > 0 {
@@ -261,21 +260,19 @@ where
     }
 
     pub fn add_output(&self, output: Output) {
-        unsafe {
-            (*self.outputs.lock()).insert(output);
-        }
+        let mut outputs = self.outputs.lock().unwrap();
+        outputs.insert(output);
     }
 
     pub fn delete_output(&self, output: Output) {
-        unsafe {
-            (*self.outputs.lock()).remove(&output);
-        }
+        let mut outputs = self.outputs.lock().unwrap();
+        outputs.remove(&output);
     }
 
     pub fn latch(&self) {
         if self.latched {
             if let Some(ref histogram) = self.histogram {
-                histogram.reset();
+                histogram.clear();
             }
         }
         self.max.set(0, 0);
@@ -283,11 +280,11 @@ where
     }
 
     pub fn clear(&self) {
-        self.has_data.set(false);
+        self.has_data.store(false, Ordering::SeqCst);
         self.last_write.set(0);
         self.counter.set(0);
         if let Some(ref histogram) = self.histogram {
-            histogram.reset();
+            histogram.clear();
         }
         self.max.set(0, 0);
         self.min.set(0, 0);
@@ -295,26 +292,25 @@ where
 
     pub fn readings(&self) -> Vec<Reading> {
         let mut result = Vec::new();
-        unsafe {
-            for output in (*self.outputs.lock()).iter() {
-                match output {
-                    Output::Counter => {
-                        result.push(Reading::new(self.name(), output.clone(), self.counter()));
+        let outputs = self.outputs.lock().unwrap();
+        for output in &*outputs {
+            match output {
+                Output::Counter => {
+                    result.push(Reading::new(self.name(), output.clone(), self.counter()));
+                }
+                Output::MaxPointTime => {
+                    if self.max.time() > 0 {
+                        result.push(Reading::new(self.name(), output.clone(), self.max.time()));
                     }
-                    Output::MaxPointTime => {
-                        if self.max.time() > 0 {
-                            result.push(Reading::new(self.name(), output.clone(), self.max.time()));
-                        }
+                }
+                Output::MinPointTime => {
+                    if self.max.time() > 0 {
+                        result.push(Reading::new(self.name(), output.clone(), self.min.time()));
                     }
-                    Output::MinPointTime => {
-                        if self.max.time() > 0 {
-                            result.push(Reading::new(self.name(), output.clone(), self.min.time()));
-                        }
-                    }
-                    Output::Percentile(percentile) => {
-                        if let Some(value) = self.percentile(percentile.as_f64()) {
-                            result.push(Reading::new(self.name(), output.clone(), value));
-                        }
+                }
+                Output::Percentile(percentile) => {
+                    if let Some(value) = self.percentile(percentile.as_f64()) {
+                        result.push(Reading::new(self.name(), output.clone(), value));
                     }
                 }
             }
@@ -324,26 +320,25 @@ where
 
     pub fn hash_map(&self) -> HashMap<Output, u64> {
         let mut result = HashMap::new();
-        unsafe {
-            for output in (*self.outputs.lock()).iter() {
-                match output {
-                    Output::Counter => {
-                        result.insert(output.clone(), self.counter());
+        let outputs = self.outputs.lock().unwrap();
+        for output in &*outputs {
+            match output {
+                Output::Counter => {
+                    result.insert(output.clone(), self.counter());
+                }
+                Output::MaxPointTime => {
+                    if self.max.time() > 0 {
+                        result.insert(output.clone(), self.max.time());
                     }
-                    Output::MaxPointTime => {
-                        if self.max.time() > 0 {
-                            result.insert(output.clone(), self.max.time());
-                        }
+                }
+                Output::MinPointTime => {
+                    if self.max.time() > 0 {
+                        result.insert(output.clone(), self.min.time());
                     }
-                    Output::MinPointTime => {
-                        if self.max.time() > 0 {
-                            result.insert(output.clone(), self.min.time());
-                        }
-                    }
-                    Output::Percentile(percentile) => {
-                        if let Some(value) = self.percentile(percentile.as_f64()) {
-                            result.insert(output.clone(), value);
-                        }
+                }
+                Output::Percentile(percentile) => {
+                    if let Some(value) = self.percentile(percentile.as_f64()) {
+                        result.insert(output.clone(), value);
                     }
                 }
             }

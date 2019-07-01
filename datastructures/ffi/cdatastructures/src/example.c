@@ -23,11 +23,11 @@ int main() {
     printf("Counter:\n");
     counter_t *counter = counter_new();
     printf("count is: %d\n", counter_count(counter));
-    counter_incr(counter, 1);
+    counter_add(counter, 1);
     printf("count is: %d\n", counter_count(counter));
-    counter_decr(counter, 1);
+    counter_sub(counter, 1);
     printf("count is: %d\n", counter_count(counter));
-    counter_decr(counter, 1);
+    counter_sub(counter, 1);
     printf("count is: %d\n", counter_count(counter));
     counter_clear(counter);
     printf("count is: %d\n", counter_count(counter));

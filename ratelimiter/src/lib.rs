@@ -14,7 +14,6 @@
 
 use datastructures::Counter;
 
-#[derive(Clone)]
 pub struct Ratelimiter {
     available: Counter<u64>,
     capacity: Counter<u64>,
@@ -40,8 +39,8 @@ impl Ratelimiter {
         let now = time::precise_time_ns();
         let next = self.next.get();
         if now >= next {
-            self.next.increment(self.tick.get());
-            self.available.increment(self.quantum.get());
+            self.next.add(self.tick.get());
+            self.available.add(self.quantum.get());
             if self.available.get() > self.capacity.get() {
                 self.available.set(self.capacity.get());
             }
@@ -50,14 +49,19 @@ impl Ratelimiter {
 
     pub fn try_wait(&self) -> Result<(), ()> {
         self.tick();
-        self.available.try_decrement(1)
+        if self.available.get() > 0 {
+            self.available.saturating_sub(1);
+            Ok(())
+        } else {
+            Err(())
+        }
+        // self.available.try_decrement(1)
     }
 
     pub fn wait(&self) {
         // TODO: this can be rewritten as a while loop
         loop {
-            self.tick();
-            if self.available.try_decrement(1).is_ok() {
+            if self.try_wait().is_ok() {
                 break;
             }
         }

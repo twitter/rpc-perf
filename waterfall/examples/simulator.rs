@@ -13,7 +13,7 @@
 //  limitations under the License.
 
 #![allow(unused_imports)]
-use datastructures::{Heatmap, HeatmapBuilder, Histogram, HistogramBuilder};
+use datastructures::{Heatmap, Histogram};
 use logger::*;
 use rand::distributions::{Alphanumeric, Distribution, Gamma, LogNormal, Normal, Pareto, Uniform};
 use rand::{thread_rng, Rng};
@@ -28,7 +28,7 @@ fn main() {
 
     info!("Welcome to the simulator!");
 
-    let histogram = HistogramBuilder::<u64>::new(1_000_000, 2, None, None).build();
+    let histogram = Histogram::<u64>::new(1_000_000, 2, None, None);
     let heatmap = Heatmap::<u64>::new(1_000_000, 2, 1_000_000, 5_000_000_000);
 
     let distribution = Normal::new(500.0, 250.0);
@@ -50,12 +50,11 @@ fn main() {
     }
 
     info!(
-        "data: samples: {} too_high: {} mean: {:?} mode: {:?} std_dev: {:?}",
-        histogram.samples(),
+        "data: samples: {} too_high: {} mean: {:?} mode: {:?}",
+        histogram.total_count(),
         histogram.too_high(),
         histogram.mean(),
         histogram.mode(),
-        histogram.std_dev(),
     );
     let mut labels = HashMap::new();
     labels.insert(0, "0".to_string());

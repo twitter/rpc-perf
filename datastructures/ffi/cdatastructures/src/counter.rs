@@ -28,7 +28,7 @@ pub unsafe extern "C" fn counter_reset(ptr: *mut Counter<u64>) {
         assert!(!ptr.is_null());
         &mut *ptr
     };
-    counter.reset();
+    counter.set(0);
 }
 
 /// Get the count stored in the `Counter`
@@ -43,12 +43,12 @@ pub unsafe extern "C" fn counter_count(ptr: *mut Counter<u64>) -> uint64_t {
 
 /// Decrement the value of the `Counter` by count
 #[no_mangle]
-pub unsafe extern "C" fn counter_decr(ptr: *mut Counter<u64>, count: uint64_t) {
+pub unsafe extern "C" fn counter_sub(ptr: *mut Counter<u64>, count: uint64_t) {
     let counter = {
         assert!(!ptr.is_null());
         &mut *ptr
     };
-    counter.decrement(count);
+    counter.sub(count);
 }
 
 /// Free the `Counter`
@@ -62,12 +62,12 @@ pub unsafe extern "C" fn counter_free(ptr: *mut Counter<u64>) {
 
 /// Increment the value of the `Counter` by count
 #[no_mangle]
-pub unsafe extern "C" fn counter_incr(ptr: *mut Counter<u64>, count: uint64_t) {
+pub unsafe extern "C" fn counter_add(ptr: *mut Counter<u64>, count: uint64_t) {
     let counter = {
         assert!(!ptr.is_null());
         &mut *ptr
     };
-    counter.increment(count);
+    counter.add(count);
 }
 
 #[allow(dead_code)]

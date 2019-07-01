@@ -3,6 +3,7 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 use datastructures::*;
+use std::sync::Arc;
 use std::{thread, time};
 
 pub const NS_PER_SEC: u64 = 1_000_000_000;
@@ -11,9 +12,7 @@ pub const NS_PER_MINUTE: u64 = 60 * NS_PER_SEC;
 #[derive(Debug, Copy, Clone)]
 pub enum Structure {
     Counter,
-    CircularHistogram,
-    LatchedHistogram,
-    MovingHistogram,
+    Histogram,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -33,39 +32,15 @@ pub fn main() {
     );
     runner(
         runtime,
-        Structure::LatchedHistogram,
+        Structure::Histogram,
         Operation::Increment,
-        "LatchedHistogram Incr/s".to_string(),
+        "Histogram Incr/s".to_string(),
     );
     runner(
         runtime,
-        Structure::LatchedHistogram,
+        Structure::Histogram,
         Operation::Percentile,
-        "LatchedHistogram Percentile/s".to_string(),
-    );
-    runner(
-        runtime,
-        Structure::MovingHistogram,
-        Operation::Increment,
-        "MovingHistogram Incr/s".to_string(),
-    );
-    runner(
-        runtime,
-        Structure::MovingHistogram,
-        Operation::Percentile,
-        "MovingHistogram Percentile/s".to_string(),
-    );
-    runner(
-        runtime,
-        Structure::CircularHistogram,
-        Operation::Increment,
-        "CircularHistogram Incr/s".to_string(),
-    );
-    runner(
-        runtime,
-        Structure::CircularHistogram,
-        Operation::Percentile,
-        "CircularHistogram Percentile/s".to_string(),
+        "Histogram Percentile/s".to_string(),
     );
 }
 
@@ -132,14 +107,14 @@ pub fn sized_run(
     match structure {
         Structure::Counter => {
             if contended {
-                let counter = Counter::<u64>::default();
+                let counter = Arc::new(Counter::<u64>::default());
                 for _ in 0..threads {
                     let counter = counter.clone();
                     match operation {
                         Operation::Increment => {
                             thread_pool.push(thread::spawn(move || {
                                 for _ in 0..(max / threads) {
-                                    counter.increment(1);
+                                    counter.add(1);
                                 }
                             }));
                         }
@@ -153,7 +128,7 @@ pub fn sized_run(
                         Operation::Increment => {
                             thread_pool.push(thread::spawn(move || {
                                 for _ in 0..(max / threads) {
-                                    counter.increment(1);
+                                    counter.add(1);
                                 }
                             }));
                         }
@@ -162,11 +137,11 @@ pub fn sized_run(
                 }
             }
         }
-        Structure::LatchedHistogram => {
-            let histogram = LatchedHistogram::<u64>::new(NS_PER_SEC, 3);
+        Structure::Histogram => {
+            let histogram = Arc::new(Histogram::<u64>::new(NS_PER_SEC, 3, None, None));
             if operation == Operation::Percentile {
                 for i in 0..50_000 {
-                    histogram.increment(i, 1);
+                    let _ = histogram.increment(i, 1);
                 }
             }
             for mut tid in 0..threads {
@@ -178,68 +153,7 @@ pub fn sized_run(
                     Operation::Increment => {
                         thread_pool.push(thread::spawn(move || {
                             for _ in 0..(max / threads) {
-                                histogram.increment(tid as u64 * 1_000_000, 1);
-                            }
-                        }));
-                    }
-                    Operation::Percentile => {
-                        thread_pool.push(thread::spawn(move || {
-                            for _ in 0..(max / threads) {
-                                let _ = histogram.percentile(1.0);
-                            }
-                        }));
-                    }
-                }
-            }
-        }
-        Structure::MovingHistogram => {
-            let histogram =
-                MovingHistogram::<u64>::new(NS_PER_SEC, 3, time::Duration::new(3600, 0));
-            if operation == Operation::Percentile {
-                for i in 0..50_000 {
-                    histogram.increment(i, 1);
-                }
-            }
-            for mut tid in 0..threads {
-                let histogram = histogram.clone();
-                if contended {
-                    tid = 1;
-                }
-                match operation {
-                    Operation::Increment => {
-                        thread_pool.push(thread::spawn(move || {
-                            for _ in 0..(max / threads) {
-                                histogram.increment(tid as u64 * 1_000_000, 1);
-                            }
-                        }));
-                    }
-                    Operation::Percentile => {
-                        thread_pool.push(thread::spawn(move || {
-                            for _ in 0..(max / threads) {
-                                let _ = histogram.percentile(1.0);
-                            }
-                        }));
-                    }
-                }
-            }
-        }
-        Structure::CircularHistogram => {
-            let histogram = CircularHistogram::<u64>::new(NS_PER_SEC, 3, 60_000_000_000, 60_000);
-            if operation == Operation::Percentile {
-                for i in 0..50_000 {
-                    histogram.increment(i, 1);
-                }
-            }
-            for mut tid in 0..threads {
-                let histogram = histogram.clone();
-                if contended {
-                    tid = 1;
-                }
-                match operation {
-                    Operation::Increment => {
-                        thread_pool.push(thread::spawn(move || {
-                            for _ in 0..(max / threads) {
-                                histogram.increment(tid as u64 * 1_000_000, 1);
+                                let _ = histogram.increment(tid as u64 * 1_000_000, 1);
                             }
                         }));
                     }

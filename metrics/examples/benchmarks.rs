@@ -117,8 +117,8 @@ pub fn sized_run(
         } else {
             "test".to_string()
         };
-        let histogram_config = HistogramBuilder::new(2_000_000_000, 3, None, None);
-        recorder.add_channel(label.clone(), source, Some(histogram_config));
+        let histogram = Histogram::new(2_000_000_000, 3, None, None);
+        recorder.add_channel(label.clone(), source, Some(histogram));
         thread_pool.push(thread::spawn(move || {
             for value in 0..(max / threads) {
                 let measurement = match measurement_type {
