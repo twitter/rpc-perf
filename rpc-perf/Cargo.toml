@@ -22,7 +22,7 @@ datastructures = { path = "../datastructures" }
 logger = { path = "../logger" }
 metrics = { path = "../metrics" }
 mio = "0.6.19"
-rand = "0.6.1"
+rand = "0.7.0"
 ratelimiter = { path = "../ratelimiter" }
 rustls = { version = "0.15.2", optional = true }
 serde = "1.0.94"

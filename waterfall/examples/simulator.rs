@@ -15,8 +15,8 @@
 #![allow(unused_imports)]
 use datastructures::{Heatmap, Histogram};
 use logger::*;
-use rand::distributions::{Alphanumeric, Distribution, Gamma, LogNormal, Normal, Pareto, Uniform};
 use rand::{thread_rng, Rng};
+use rand_distr::{Distribution, Normal};
 use std::collections::HashMap;
 
 fn main() {
@@ -31,7 +31,7 @@ fn main() {
     let histogram = Histogram::<u64>::new(1_000_000, 2, None, None);
     let heatmap = Heatmap::<u64>::new(1_000_000, 2, 1_000_000, 5_000_000_000);
 
-    let distribution = Normal::new(500.0, 250.0);
+    let distribution = Normal::new(500.0, 250.0).unwrap();
 
     let start = std::time::Instant::now();
 
@@ -43,7 +43,7 @@ fn main() {
         if now - start >= std::time::Duration::new(0, 1_000_000) {
             heatmap.latch();
         }
-        let value = distribution.sample(&mut thread_rng()).abs();
+        let value: f64 = distribution.sample(&mut thread_rng());
         let value = value.floor() as u64;
         histogram.increment(value, 1);
         heatmap.increment(time::precise_time_ns(), value, 1);
