@@ -115,12 +115,12 @@ fn do_warmup(config: &Config, recorder: &Simple) {
             }
 
             if warm >= 3 {
-                recorder.clear();
+                recorder.zero();
                 control.store(false, Ordering::SeqCst);
                 break;
             }
 
-            recorder.clear();
+            recorder.zero();
         }
 
         info!("Warmup complete.");

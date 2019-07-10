@@ -279,7 +279,7 @@ where
         self.min.set(0, 0);
     }
 
-    pub fn clear(&self) {
+    pub fn zero(&self) {
         self.has_data.store(false, Ordering::SeqCst);
         self.last_write.set(0);
         self.counter.set(0);

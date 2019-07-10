@@ -148,11 +148,18 @@ where
         }
     }
 
-    pub fn clear(&self) {
+    pub fn zero(&self) {
         let labels = self.labels.lock().unwrap();
         for label in &*labels {
             self.data_read
-                .get_and(label, |channel| (*channel)[0].clear());
+                .get_and(label, |channel| (*channel)[0].zero());
+        }
+    }
+
+    pub fn clear(&self) {
+        let labels = self.labels.lock().unwrap();
+        for label in &*labels {
+            self.delete_channel(label.to_string());
         }
     }
 }
