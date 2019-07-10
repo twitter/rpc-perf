@@ -254,7 +254,7 @@ mod tests {
             1,
             3
         ));
-        recorder.clear();
+        recorder.zero();
         assert_eq!(recorder.counter("test".to_string()), 0);
         recorder.record(
             "test".to_string(),

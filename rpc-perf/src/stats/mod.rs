@@ -424,8 +424,8 @@ impl Simple {
         self.inner.hash_map()
     }
 
-    pub fn clear(&self) {
-        self.inner.clear();
+    pub fn zero(&self) {
+        self.inner.zero();
     }
 
     pub fn readings(&self) -> Vec<Reading> {
