@@ -157,10 +157,17 @@ where
     }
 
     pub fn clear(&self) {
-        let labels = self.labels.lock().unwrap();
-        for label in &*labels {
-            self.delete_channel(label.to_string());
-        }
+        let mut labels = self.labels.lock().unwrap();
+        let mut write = self.data_write.lock().unwrap();
+        labels.clear();
+        write.purge();
+        write.refresh();
+    }
+
+    pub fn shrink_to_fit(&self) {
+        let mut write = self.data_write.lock().unwrap();
+        write.fit_all();
+        write.refresh();
     }
 }
 
