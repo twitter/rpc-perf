@@ -1,6 +1,6 @@
 [package]
 name = "metrics"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Brian Martin <bmartin@twitter.com>"]
 edition = "2018"
 license = "Apache-2.0"
@@ -10,7 +10,6 @@ repository = "https://github.com/twitter/rpc-perf"
 publish = false
 
 [dependencies]
-atomics = { path = "../atomics" }
 evmap = "4.1.1"
 datastructures = { path = "../datastructures" }
 logger = { path = "../logger" }

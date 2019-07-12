@@ -2,20 +2,23 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use crate::counter::UnsignedCounterPrimitive;
-use atomics::AtomicCounter;
+use crate::counter::*;
+use atomics::*;
 use parking_lot::Mutex;
 use std::convert::From;
 use std::sync::Arc;
 
-use crate::counter::Counter;
 use crate::histogram::Histogram;
 
 use time::Tm;
 
 const SECOND: u64 = 1_000_000_000;
 
-pub struct Slice<'a, T> {
+pub struct Slice<'a, T>
+where
+    T: Counter + Unsigned,
+    <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating,
+{
     begin_utc: Tm,
     end_utc: Tm,
     begin_precise: u64,
@@ -25,9 +28,9 @@ pub struct Slice<'a, T> {
 
 impl<'a, T> Slice<'a, T>
 where
-    Box<AtomicCounter<Primitive = T>>: From<T>,
-    T: UnsignedCounterPrimitive,
-    u64: From<T>,
+    T: Counter + Unsigned,
+    <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating,
+    u64: From<<T as AtomicPrimitive>::Primitive>,
 {
     pub fn begin_utc(&self) -> Tm {
         self.begin_utc
@@ -50,21 +53,25 @@ where
     }
 }
 
-pub struct Heatmap<T> {
-    oldest_begin_precise: Counter<u64>, // this is the start time of oldest slice
-    newest_begin_precise: Counter<u64>, // start time of newest slice
-    newest_end_precise: Counter<u64>,   // end time of the oldest slice
-    oldest_begin_utc: Arc<Mutex<Tm>>,   // relates start time of oldest slice to wall-clock
-    resolution: Counter<u64>,           // number of NS per slice
-    slices: Vec<Histogram<T>>,          // stores the `Histogram`s
-    offset: Counter<usize>,             // indicates which `Histogram` is the oldest
+pub struct Heatmap<T>
+where
+    T: Counter + Unsigned,
+    <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating,
+{
+    oldest_begin_precise: AtomicU64, // this is the start time of oldest slice
+    newest_begin_precise: AtomicU64, // start time of newest slice
+    newest_end_precise: AtomicU64,   // end time of the oldest slice
+    oldest_begin_utc: Arc<Mutex<Tm>>, // relates start time of oldest slice to wall-clock
+    resolution: AtomicU64,           // number of NS per slice
+    slices: Vec<Histogram<T>>,       // stores the `Histogram`s
+    offset: AtomicUsize,             // indicates which `Histogram` is the oldest
 }
 
 impl<T> Heatmap<T>
 where
-    Box<AtomicCounter<Primitive = T>>: From<T>,
-    T: UnsignedCounterPrimitive,
-    u64: From<T>,
+    T: Counter + Unsigned,
+    <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating,
+    u64: From<<T as AtomicPrimitive>::Primitive>,
 {
     pub fn new(max: u64, precision: u32, resolution: u64, span: u64) -> Self {
         // build the Histograms
@@ -83,12 +90,12 @@ where
             now_utc - time::Duration::nanoseconds((now_precise - adjusted_precise) as i64); // set backward to top of minute
 
         Heatmap {
-            oldest_begin_precise: Counter::<u64>::new(adjusted_precise),
-            newest_begin_precise: Counter::<u64>::new(adjusted_precise + span - resolution),
-            newest_end_precise: Counter::<u64>::new(adjusted_precise + span),
+            oldest_begin_precise: AtomicU64::new(adjusted_precise),
+            newest_begin_precise: AtomicU64::new(adjusted_precise + span - resolution),
+            newest_end_precise: AtomicU64::new(adjusted_precise + span),
             oldest_begin_utc: Arc::new(Mutex::new(adjusted_utc)),
-            offset: Counter::<usize>::new(0),
-            resolution: Counter::<u64>::new(resolution),
+            offset: AtomicUsize::new(0),
+            resolution: AtomicU64::new(resolution),
             slices,
         }
     }
@@ -137,14 +144,14 @@ where
     }
 
     /// increment a time-value pair by count
-    pub fn increment(&self, time: u64, value: u64, count: T) {
+    pub fn increment(&self, time: u64, value: u64, count: <T as AtomicPrimitive>::Primitive) {
         if let Some(index) = self.get_index(time) {
             self.slices[index].increment(value, count);
         }
     }
 
     /// decrement a time-value pair by count
-    pub fn decrement(&self, time: u64, value: u64, count: T) {
+    pub fn decrement(&self, time: u64, value: u64, count: <T as AtomicPrimitive>::Primitive) {
         if let Some(index) = self.get_index(time) {
             self.slices[index].decrement(value, count);
         }
@@ -208,9 +215,9 @@ where
 
 pub struct Iter<'a, T>
 where
-    Box<AtomicCounter<Primitive = T>>: From<T>,
-    T: UnsignedCounterPrimitive,
-    u64: From<T>,
+    T: Counter + Unsigned,
+    <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating,
+    u64: From<<T as AtomicPrimitive>::Primitive>,
 {
     inner: &'a Heatmap<T>,
     index: usize,
@@ -218,9 +225,9 @@ where
 
 impl<'a, T> Iter<'a, T>
 where
-    Box<AtomicCounter<Primitive = T>>: From<T>,
-    T: UnsignedCounterPrimitive,
-    u64: From<T>,
+    T: Counter + Unsigned,
+    <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating,
+    u64: From<<T as AtomicPrimitive>::Primitive>,
 {
     fn new(inner: &'a Heatmap<T>) -> Iter<'a, T> {
         Iter { inner, index: 0 }
@@ -229,9 +236,9 @@ where
 
 impl<'a, T> Iterator for Iter<'a, T>
 where
-    Box<AtomicCounter<Primitive = T>>: From<T>,
-    T: UnsignedCounterPrimitive,
-    u64: From<T>,
+    T: Counter + Unsigned,
+    <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating,
+    u64: From<<T as AtomicPrimitive>::Primitive>,
 {
     type Item = Slice<'a, T>;
 
@@ -264,9 +271,9 @@ where
 
 impl<'a, T> IntoIterator for &'a Heatmap<T>
 where
-    Box<AtomicCounter<Primitive = T>>: From<T>,
-    T: UnsignedCounterPrimitive,
-    u64: From<T>,
+    T: Counter + Unsigned,
+    <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating,
+    u64: From<<T as AtomicPrimitive>::Primitive>,
 {
     type Item = Slice<'a, T>;
     type IntoIter = Iter<'a, T>;
@@ -285,7 +292,7 @@ mod tests {
 
     #[test]
     fn age_out() {
-        let heatmap = Heatmap::<u64>::new(60 * SECOND, 2, SECOND, 5 * SECOND);
+        let heatmap = Heatmap::<AtomicU64>::new(60 * SECOND, 2, SECOND, 5 * SECOND);
         heatmap.latch();
         assert_eq!(heatmap.total_count(), 0);
         heatmap.increment(time::precise_time_ns(), 1, 1);
@@ -297,7 +304,7 @@ mod tests {
 
     #[test]
     fn out_of_bounds() {
-        let heatmap = Heatmap::<u64>::new(60 * SECOND, 2, SECOND, 10 * SECOND);
+        let heatmap = Heatmap::<AtomicU64>::new(60 * SECOND, 2, SECOND, 10 * SECOND);
         heatmap.latch();
         assert_eq!(heatmap.total_count(), 0);
         heatmap.increment(time::precise_time_ns() - 11 * SECOND, 1, 1);
@@ -308,7 +315,7 @@ mod tests {
 
     #[test]
     fn threaded_access() {
-        let heatmap = Arc::new(Heatmap::<u64>::new(SECOND, 2, SECOND, 60 * SECOND));
+        let heatmap = Arc::new(Heatmap::<AtomicU64>::new(SECOND, 2, SECOND, 60 * SECOND));
         let mut threads = Vec::new();
 
         for _ in 0..2 {

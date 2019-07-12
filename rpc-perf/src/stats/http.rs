@@ -12,27 +12,28 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use crate::stats::Simple;
+use crate::stats::SimpleRecorder;
+
 use logger::*;
 use metrics::{Output, Percentile, Reading};
 use std::net::SocketAddr;
 use tiny_http::{Method, Response, Server};
 
 pub struct Http {
-    recorder: Simple,
+    recorder: SimpleRecorder,
     server: Server,
     snapshot: Vec<Reading>,
     refreshed: u64,
 }
 
 impl Http {
-    pub fn new(address: SocketAddr, recorder: &Simple) -> Self {
+    pub fn new(address: SocketAddr, recorder: SimpleRecorder) -> Self {
         let server = tiny_http::Server::http(address);
         if server.is_err() {
             fatal!("Failed to open {} for HTTP Stats listener", address);
         }
         Self {
-            recorder: recorder.clone(),
+            recorder: recorder,
             server: server.unwrap(),
             snapshot: Vec::new(),
             refreshed: 0,

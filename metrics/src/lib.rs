@@ -50,8 +50,8 @@ mod recorder;
 
 pub use crate::channel::{Channel, Measurement, Source};
 pub use crate::point::Point;
-pub use crate::recorder::Recorder;
-pub use datastructures::Histogram;
+pub use crate::recorder::*;
+pub use datastructures::*;
 pub(crate) use logger::*;
 
 use std::fmt;
@@ -175,9 +175,10 @@ mod tests {
 
     #[test]
     fn counter_channel() {
-        let recorder = Recorder::<u64>::new();
+        let metrics = Metrics::<AtomicU64>::new();
+        let recorder = metrics.recorder();
         let name = "test".to_string();
-        let histogram_config = Histogram::<u64>::new(2_000_000_000, 3, None, None);
+        let histogram_config = Histogram::<AtomicU64>::new(2_000_000_000, 3, None, None);
         recorder.add_channel(name.clone(), Source::Counter, Some(histogram_config));
         assert_eq!(recorder.counter("test".to_string()), 0);
         assert_eq!(recorder.percentile("test".to_string(), 0.0), None);
@@ -224,9 +225,10 @@ mod tests {
 
     #[test]
     fn counter_wraparound() {
-        let recorder = Recorder::<u64>::new();
+        let metrics = Metrics::<AtomicU64>::new();
         let name = "test".to_string();
         let histogram = Histogram::new(2_000_000_000, 3, None, None);
+        let recorder = metrics.recorder();
         recorder.add_channel(name.clone(), Source::Counter, Some(histogram));
         assert_eq!(recorder.counter("test".to_string()), 0);
         recorder.record(
@@ -279,7 +281,8 @@ mod tests {
 
     #[test]
     fn counter_data() {
-        let recorder = Recorder::<u64>::new();
+        let metrics = Metrics::<AtomicU64>::new();
+        let recorder = metrics.recorder();
         let name = "test".to_string();
         let histogram = Histogram::new(80_000_000_000, 3, None, None);
         recorder.add_channel(name.clone(), Source::Counter, Some(histogram));
@@ -334,7 +337,8 @@ mod tests {
 
     #[test]
     fn distribution_channel() {
-        let recorder = Recorder::<u64>::new();
+        let metrics = Metrics::<AtomicU64>::new();
+        let recorder = metrics.recorder();
         let name = "test".to_string();
         let histogram = Histogram::new(100, 3, None, None);
         recorder.add_channel(name.clone(), Source::Distribution, Some(histogram));
@@ -370,7 +374,8 @@ mod tests {
 
     #[test]
     fn gauge_channel() {
-        let recorder = Recorder::<u64>::new();
+        let metrics = Metrics::<AtomicU64>::new();
+        let recorder = metrics.recorder();
         let name = "test".to_string();
         let histogram = Histogram::new(100, 3, None, None);
         recorder.add_channel(name.clone(), Source::Gauge, Some(histogram));
@@ -396,7 +401,8 @@ mod tests {
 
     #[test]
     fn time_interval_channel() {
-        let recorder = Recorder::<u64>::new();
+        let metrics = Metrics::<AtomicU64>::new();
+        let recorder = metrics.recorder();
         let name = "test".to_string();
         let histogram = Histogram::new(100, 3, None, None);
         recorder.add_channel(name.clone(), Source::TimeInterval, Some(histogram));

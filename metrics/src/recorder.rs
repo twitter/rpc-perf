@@ -13,42 +13,70 @@
 //  limitations under the License.
 
 use crate::*;
-use atomics::AtomicCounter;
-use datastructures::UnsignedCounterPrimitive;
-use evmap::{ReadHandle, WriteHandle};
-use std::sync::Mutex;
+
+use datastructures::*;
+use evmap::{ReadHandle, ReadHandleFactory, WriteHandle};
 
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
-#[derive(Clone)]
+pub struct Metrics<T: 'static>
+where
+    T: Counter + Unsigned,
+    <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating + From<u8>,
+    u64: From<<T as AtomicPrimitive>::Primitive>,
+{
+    data_read: ReadHandleFactory<String, Arc<Channel<T>>>,
+    data_write: Arc<Mutex<WriteHandle<String, Arc<Channel<T>>>>>,
+    labels: Arc<Mutex<HashSet<String>>>,
+}
+
 pub struct Recorder<T: 'static>
 where
-    Box<AtomicCounter<Primitive = T>>: From<T>,
-    T: UnsignedCounterPrimitive + From<u8>,
-    u64: From<T>,
+    T: Counter + Unsigned,
+    <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating + From<u8>,
+    u64: From<<T as AtomicPrimitive>::Primitive>,
 {
     data_read: ReadHandle<String, Arc<Channel<T>>>,
     data_write: Arc<Mutex<WriteHandle<String, Arc<Channel<T>>>>>,
     labels: Arc<Mutex<HashSet<String>>>,
 }
 
-impl<T> Recorder<T>
+impl<T> Metrics<T>
 where
-    Box<AtomicCounter<Primitive = T>>: From<T>,
-    T: UnsignedCounterPrimitive + From<u8>,
-    u64: From<T>,
+    T: Counter + Unsigned,
+    <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating + From<u8>,
+    u64: From<<T as AtomicPrimitive>::Primitive>,
 {
     pub fn new() -> Self {
         let (read, write) = evmap::new();
         Self {
-            data_read: read,
+            data_read: read.factory(),
             data_write: Arc::new(Mutex::new(write)),
             labels: Arc::new(Mutex::new(HashSet::new())),
         }
     }
 
-    pub fn record(&self, channel: String, measurement: Measurement<T>) {
+    pub fn recorder(&self) -> Recorder<T> {
+        Recorder {
+            data_read: self.data_read.handle(),
+            data_write: self.data_write.clone(),
+            labels: self.labels.clone(),
+        }
+    }
+}
+
+impl<T> Recorder<T>
+where
+    T: Counter + Unsigned,
+    <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating + From<u8>,
+    u64: From<<T as AtomicPrimitive>::Primitive>,
+{
+    pub fn record(
+        &self,
+        channel: String,
+        measurement: Measurement<<T as AtomicPrimitive>::Primitive>,
+    ) {
         self.data_read
             .get_and(&channel, |channel| (*channel)[0].record(measurement));
     }
@@ -171,11 +199,11 @@ where
     }
 }
 
-impl<T> Default for Recorder<T>
+impl<T> Default for Metrics<T>
 where
-    Box<AtomicCounter<Primitive = T>>: From<T>,
-    T: UnsignedCounterPrimitive + From<u8>,
-    u64: From<T>,
+    T: Counter + Unsigned,
+    <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating + From<u8>,
+    u64: From<<T as AtomicPrimitive>::Primitive>,
 {
     fn default() -> Self {
         Self::new()

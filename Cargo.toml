@@ -4,7 +4,6 @@ members = [
     "buffer",
     "codec",
     "datastructures",
-    "datastructures/ffi/cdatastructures",
     "logger",
     "metrics",
     "ratelimiter",

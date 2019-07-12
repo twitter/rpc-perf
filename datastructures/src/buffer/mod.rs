@@ -1,31 +1,29 @@
-use crate::counter::Counter;
-use atomics::{Atomic, AtomicPrimitive};
-use core::sync::atomic::Ordering;
+use crate::counter::*;
+use atomics::*;
 
 pub struct Buffer<T> {
-    data: Vec<Atomic<T>>,
-    read: Counter<usize>,
-    write: Counter<usize>,
-    len: Counter<usize>,
+    data: Vec<T>,
+    read: AtomicUsize,
+    write: AtomicUsize,
+    len: AtomicUsize,
 }
 
 impl<T> Buffer<T>
 where
-    Box<AtomicPrimitive<Primitive = T>>: From<T>,
-    T: Default,
+    T: AtomicPrimitive + Default,
 {
     /// Creates a new buffer which can hold `capacity` elements
     pub fn new(capacity: usize) -> Buffer<T> {
         let mut data = Vec::with_capacity(capacity);
         for _ in 0..capacity {
-            data.push(Atomic::new(T::default()))
+            data.push(T::default())
         }
         data.shrink_to_fit();
         Buffer {
             data,
-            read: Counter::new(0),
-            write: Counter::new(0),
-            len: Counter::new(0),
+            read: AtomicUsize::new(0),
+            write: AtomicUsize::new(0),
+            len: AtomicUsize::new(0),
         }
     }
 
@@ -40,7 +38,7 @@ where
     /// Returns Ok(None) if the buffer is empty
     /// Returns Ok(Some(T)) if we were able to read a value
     /// Returns Err(()) if there is a concurrent operation which interferes with read
-    pub fn try_pop(&self) -> Result<Option<T>, ()> {
+    pub fn try_pop(&self) -> Result<Option<<T as AtomicPrimitive>::Primitive>, ()> {
         if self.len.load(Ordering::SeqCst) == 0 {
             Ok(None)
         } else {
@@ -60,7 +58,7 @@ where
     }
 
     /// Loops try_pop() until it successfully returns an `Option<T>`
-    pub fn pop(&self) -> Option<T> {
+    pub fn pop(&self) -> Option<<T as AtomicPrimitive>::Primitive> {
         loop {
             if let Ok(result) = self.try_pop() {
                 return result;
@@ -71,7 +69,10 @@ where
     /// Tries to add one element to the buffer
     /// Returns Ok(()) if the element is added
     /// Returns Err(T) if there is a concurrent operation which interferes
-    pub fn try_push(&self, value: T) -> Result<(), T> {
+    pub fn try_push(
+        &self,
+        value: <T as AtomicPrimitive>::Primitive,
+    ) -> Result<(), <T as AtomicPrimitive>::Primitive> {
         while self.len.load(Ordering::SeqCst) >= self.data.len() {
             if self.try_pop().is_err() {
                 return Err(value);
@@ -99,7 +100,7 @@ where
     }
 
     /// Loops try_push() until success
-    pub fn push(&self, value: T) {
+    pub fn push(&self, value: <T as AtomicPrimitive>::Primitive) {
         let mut result = self.try_push(value);
         loop {
             if let Err(value) = result {
@@ -111,7 +112,7 @@ where
     }
 
     /// Reads the contents of the buffer into a new Vec<T>
-    pub fn as_vec(&self) -> Vec<T> {
+    pub fn as_vec(&self) -> Vec<<T as AtomicPrimitive>::Primitive> {
         let mut data = Vec::with_capacity(self.len.get());
         let mut read = self.read.get();
         for _ in 0..self.len.get() {
@@ -131,7 +132,7 @@ mod tests {
 
     #[test]
     fn basic() {
-        let buffer = Buffer::<usize>::new(4);
+        let buffer = Buffer::<AtomicUsize>::new(4);
         for i in 1..=4 {
             assert!(buffer.try_push(i).is_ok());
         }
@@ -143,7 +144,7 @@ mod tests {
 
     #[test]
     fn blocking() {
-        let buffer = Buffer::<usize>::new(4);
+        let buffer = Buffer::<AtomicUsize>::new(4);
         for i in 1..=4 {
             buffer.push(i);
         }
@@ -155,7 +156,7 @@ mod tests {
 
     #[test]
     fn wrapping() {
-        let buffer = Buffer::<usize>::new(4);
+        let buffer = Buffer::<AtomicUsize>::new(4);
         for i in 1..=7 {
             assert!(buffer.try_push(i).is_ok());
         }
@@ -167,7 +168,7 @@ mod tests {
 
     #[test]
     fn chasing() {
-        let buffer = Buffer::<usize>::new(4);
+        let buffer = Buffer::<AtomicUsize>::new(4);
         for i in 1..=100 {
             assert!(buffer.try_push(i).is_ok());
             assert_eq!(buffer.try_pop(), Ok(Some(i)));

@@ -107,7 +107,7 @@ pub fn sized_run(
     match structure {
         Structure::Counter => {
             if contended {
-                let counter = Arc::new(Counter::<u64>::default());
+                let counter = Arc::new(AtomicU64::default());
                 for _ in 0..threads {
                     let counter = counter.clone();
                     match operation {
@@ -123,7 +123,7 @@ pub fn sized_run(
                 }
             } else {
                 for _ in 0..threads {
-                    let counter = Counter::<u64>::default();
+                    let counter = AtomicU64::default();
                     match operation {
                         Operation::Increment => {
                             thread_pool.push(thread::spawn(move || {
@@ -138,7 +138,7 @@ pub fn sized_run(
             }
         }
         Structure::Histogram => {
-            let histogram = Arc::new(Histogram::<u64>::new(NS_PER_SEC, 3, None, None));
+            let histogram = Arc::new(Histogram::<AtomicU64>::new(NS_PER_SEC, 3, None, None));
             if operation == Operation::Percentile {
                 for i in 0..50_000 {
                     let _ = histogram.increment(i, 1);

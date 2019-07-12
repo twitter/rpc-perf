@@ -12,8 +12,7 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use atomics::AtomicCounter;
-use datastructures::{Heatmap, Histogram, UnsignedCounterPrimitive};
+use datastructures::*;
 use hsl::HSL;
 use logger::*;
 use png::HasParameters;
@@ -30,9 +29,9 @@ pub fn save_waterfall<S: ::std::hash::BuildHasher, T: 'static>(
     labels: HashMap<u64, String, S>,
     interval: u64,
 ) where
-    Box<AtomicCounter<Primitive = T>>: From<T>,
-    T: UnsignedCounterPrimitive,
-    u64: From<T>,
+    T: Counter + Unsigned,
+    <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating,
+    u64: From<<T as AtomicPrimitive>::Primitive>,
 {
     debug!("saving waterfall");
     let height = heatmap.slices();
@@ -41,7 +40,7 @@ pub fn save_waterfall<S: ::std::hash::BuildHasher, T: 'static>(
     // create image buffer
     let mut buffer = ImageBuffer::<ColorRgb>::new(width, height);
 
-    let histogram = Histogram::<u64>::new(heatmap.highest_count(), 3, None, None);
+    let histogram = Histogram::<AtomicU64>::new(heatmap.highest_count(), 3, None, None);
     for slice in heatmap {
         for b in slice.histogram().into_iter() {
             if (u64::from(b.count()) / b.width()) > 0 {

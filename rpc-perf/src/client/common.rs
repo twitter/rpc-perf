@@ -14,7 +14,7 @@
 
 use crate::client::{MICROSECOND, MILLISECOND, SECOND};
 use crate::codec::Codec;
-use crate::stats::Simple;
+use crate::stats::SimpleRecorder;
 use crate::stats::Stat;
 use rand::rngs::ThreadRng;
 use rand::seq::SliceRandom;
@@ -41,7 +41,7 @@ pub struct Common {
     ready_queue: VecDeque<Token>,
     request_ratelimiter: Option<Arc<Ratelimiter>>,
     request_timeout: usize,
-    stats: Option<Simple>,
+    stats: Option<SimpleRecorder>,
     timers: Wheel<Token>,
     last_timeouts: u64,
     tcp_nodelay: bool,
@@ -162,7 +162,7 @@ impl Common {
         self.ready_queue.pop_front()
     }
 
-    pub fn set_stats(&mut self, recorder: Simple) {
+    pub fn set_stats(&mut self, recorder: SimpleRecorder) {
         self.stats = Some(recorder);
     }
 

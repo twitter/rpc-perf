@@ -12,14 +12,14 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use datastructures::Counter;
+use datastructures::*;
 
 pub struct Ratelimiter {
-    available: Counter<u64>,
-    capacity: Counter<u64>,
-    quantum: Counter<u64>,
-    tick: Counter<u64>,
-    next: Counter<u64>,
+    available: AtomicU64,
+    capacity: AtomicU64,
+    quantum: AtomicU64,
+    tick: AtomicU64,
+    next: AtomicU64,
 }
 
 const SECOND: u64 = 1_000_000_000;
@@ -27,11 +27,11 @@ const SECOND: u64 = 1_000_000_000;
 impl Ratelimiter {
     pub fn new(capacity: u64, quantum: u64, rate: u64) -> Self {
         Self {
-            available: Counter::default(),
-            capacity: Counter::new(capacity),
-            quantum: Counter::new(quantum),
-            tick: Counter::new(SECOND / (rate / quantum)),
-            next: Counter::new(time::precise_time_ns()),
+            available: AtomicU64::default(),
+            capacity: AtomicU64::new(capacity),
+            quantum: AtomicU64::new(quantum),
+            tick: AtomicU64::new(SECOND / (rate / quantum)),
+            next: AtomicU64::new(time::precise_time_ns()),
         }
     }
 

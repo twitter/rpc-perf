@@ -13,7 +13,7 @@
 //  limitations under the License.
 
 #![allow(unused_imports)]
-use datastructures::{Heatmap, Histogram};
+use datastructures::*;
 use logger::*;
 use rand::{thread_rng, Rng};
 use rand_distr::{Distribution, Normal};
@@ -28,8 +28,8 @@ fn main() {
 
     info!("Welcome to the simulator!");
 
-    let histogram = Histogram::<u64>::new(1_000_000, 2, None, None);
-    let heatmap = Heatmap::<u64>::new(1_000_000, 2, 1_000_000, 5_000_000_000);
+    let histogram = Histogram::<AtomicU64>::new(1_000_000, 2, None, None);
+    let heatmap = Heatmap::<AtomicU64>::new(1_000_000, 2, 1_000_000, 5_000_000_000);
 
     let distribution = Normal::new(500.0, 250.0).unwrap();
 

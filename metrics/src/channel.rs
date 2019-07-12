@@ -12,18 +12,12 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use atomics::{Atomic, AtomicCounter};
-use datastructures::UnsignedCounterPrimitive;
-use std::sync::atomic::Ordering;
-use std::sync::Arc;
-use std::sync::Mutex;
-
 use crate::*;
 
-use datastructures::{Counter, Histogram};
+use datastructures::*;
 
-use std::collections::HashMap;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug)]
 pub enum Measurement<C> {
@@ -48,24 +42,28 @@ pub enum Source {
 }
 
 // #[derive(Clone)]
-pub struct Channel<C> {
+pub struct Channel<T>
+where
+    T: Counter + Unsigned,
+    <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating + From<u8>,
+{
     name: Arc<Mutex<String>>,
     source: Source,
-    counter: Counter<u64>,
-    histogram: Option<Histogram<C>>,
-    last_write: Counter<u64>,
+    counter: AtomicU64,
+    histogram: Option<Histogram<T>>,
+    last_write: AtomicU64,
     latched: bool,
     max: Point,
     min: Point,
     outputs: Arc<Mutex<HashSet<Output>>>,
-    has_data: Atomic<bool>,
+    has_data: AtomicBool,
 }
 
 impl<T: 'static> PartialEq for Channel<T>
 where
-    Box<AtomicCounter<Primitive = T>>: From<T>,
-    T: UnsignedCounterPrimitive + From<u8>,
-    u64: From<T>,
+    T: Counter + Unsigned,
+    <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating + From<u8>,
+    u64: From<<T as AtomicPrimitive>::Primitive>,
 {
     fn eq(&self, other: &Channel<T>) -> bool {
         self.name() == other.name()
@@ -74,30 +72,30 @@ where
 
 impl<T: 'static> Eq for Channel<T>
 where
-    Box<AtomicCounter<Primitive = T>>: From<T>,
-    T: UnsignedCounterPrimitive + From<u8>,
-    u64: From<T>,
+    T: Counter + Unsigned,
+    <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating + From<u8>,
+    u64: From<<T as AtomicPrimitive>::Primitive>,
 {
 }
 
 impl<T: 'static> Channel<T>
 where
-    Box<AtomicCounter<Primitive = T>>: From<T>,
-    T: UnsignedCounterPrimitive + From<u8>,
-    u64: From<T>,
+    T: Counter + Unsigned,
+    <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating + From<u8>,
+    u64: From<<T as AtomicPrimitive>::Primitive>,
 {
     pub fn new(name: String, source: Source, histogram: Option<Histogram<T>>) -> Self {
         Self {
             name: Arc::new(Mutex::new(name)),
             source,
-            counter: Counter::<u64>::default(),
+            counter: AtomicU64::default(),
             histogram,
-            last_write: Counter::<u64>::default(),
+            last_write: AtomicU64::default(),
             latched: true,
             max: Point::new(0, 0),
             min: Point::new(0, 0),
             outputs: Arc::new(Mutex::new(HashSet::new())),
-            has_data: Atomic::<bool>::new(false),
+            has_data: AtomicBool::new(false),
         }
     }
 
@@ -109,7 +107,7 @@ where
         self.source
     }
 
-    pub fn record(&self, measurement: Measurement<T>) {
+    pub fn record(&self, measurement: Measurement<<T as AtomicPrimitive>::Primitive>) {
         match measurement {
             Measurement::Counter { value, time } => {
                 self.record_counter(value, time);
@@ -137,7 +135,7 @@ where
                 let rate = (delta_value as f64 * (1_000_000_000.0 / delta_time as f64)) as u64;
                 self.counter.add(delta_value);
                 if let Some(ref histogram) = self.histogram {
-                    histogram.increment(rate, T::from(1_u8));
+                    histogram.increment(rate, <T as AtomicPrimitive>::Primitive::from(1_u8));
                 }
                 // track the point of max rate
                 if self.max.time() > 0 {
@@ -166,7 +164,7 @@ where
     // for Distribution measurements:
     // counter tracks sum of all counts
     // histogram tracks values
-    fn record_distribution(&self, value: u64, count: T, time: u64) {
+    fn record_distribution(&self, value: u64, count: <T as AtomicPrimitive>::Primitive, time: u64) {
         if self.source == Source::Distribution {
             self.counter.add(u64::from(count));
             if let Some(ref histogram) = self.histogram {
@@ -185,7 +183,7 @@ where
         if self.source == Source::Gauge {
             self.counter.set(value);
             if let Some(ref histogram) = self.histogram {
-                histogram.increment(value, T::from(1_u8));
+                histogram.increment(value, <T as AtomicPrimitive>::Primitive::from(1_u8));
             }
             // track the point of max gauge reading
             if self.max.time() > 0 {
@@ -210,11 +208,14 @@ where
     // for Increment measurements:
     // counter tracks sum of all increments
     // histogram tracks magnitude of increments
-    fn record_increment(&self, count: T, time: u64) {
+    fn record_increment(&self, count: <T as AtomicPrimitive>::Primitive, time: u64) {
         if self.source == Source::Counter {
             self.counter.add(u64::from(count));
             if let Some(ref histogram) = self.histogram {
-                histogram.increment(u64::from(count), T::from(1_u8));
+                histogram.increment(
+                    u64::from(count),
+                    <T as AtomicPrimitive>::Primitive::from(1_u8),
+                );
             }
             self.last_write.set(time);
         }
@@ -226,7 +227,7 @@ where
             self.counter.add(1);
             let duration = stop - start;
             if let Some(ref histogram) = self.histogram {
-                histogram.increment(duration, T::from(1_u8));
+                histogram.increment(duration, <T as AtomicPrimitive>::Primitive::from(1_u8));
             }
             // track point of largest interval
             if self.max.time() > 0 {
