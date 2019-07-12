@@ -1,22 +1,30 @@
-use crate::atomic_primitive::AtomicPrimitive;
-use core::sync::atomic::{AtomicI8, Ordering};
+use crate::*;
+
+pub struct AtomicI8 {
+    pub(crate) inner: core::sync::atomic::AtomicI8,
+}
 
 impl AtomicPrimitive for AtomicI8 {
     type Primitive = i8;
+    fn new(value: Self::Primitive) -> Self {
+        Self {
+            inner: core::sync::atomic::AtomicI8::new(value),
+        }
+    }
     fn get_mut(&mut self) -> &mut Self::Primitive {
-        self.get_mut()
+        self.inner.get_mut()
     }
     fn into_inner(self) -> Self::Primitive {
-        self.into_inner()
+        self.inner.into_inner()
     }
     fn load(&self, order: Ordering) -> Self::Primitive {
-        self.load(order)
+        self.inner.load(order)
     }
     fn store(&self, value: Self::Primitive, order: Ordering) {
-        self.store(value, order);
+        self.inner.store(value, order);
     }
     fn swap(&self, value: Self::Primitive, order: Ordering) -> Self::Primitive {
-        self.swap(value, order)
+        self.inner.swap(value, order)
     }
     fn compare_and_swap(
         &self,
@@ -24,7 +32,7 @@ impl AtomicPrimitive for AtomicI8 {
         new: Self::Primitive,
         order: Ordering,
     ) -> Self::Primitive {
-        self.compare_and_swap(current, new, order)
+        self.inner.compare_and_swap(current, new, order)
     }
     fn compare_exchange(
         &self,
@@ -33,7 +41,7 @@ impl AtomicPrimitive for AtomicI8 {
         success: Ordering,
         failure: Ordering,
     ) -> Result<Self::Primitive, Self::Primitive> {
-        self.compare_exchange(current, new, success, failure)
+        self.inner.compare_exchange(current, new, success, failure)
     }
     fn compare_exchange_weak(
         &self,
@@ -42,12 +50,13 @@ impl AtomicPrimitive for AtomicI8 {
         success: Ordering,
         failure: Ordering,
     ) -> Result<Self::Primitive, Self::Primitive> {
-        self.compare_exchange_weak(current, new, success, failure)
+        self.inner
+            .compare_exchange_weak(current, new, success, failure)
     }
 }
 
-impl From<i8> for Box<AtomicPrimitive<Primitive = i8>> {
-    fn from(value: i8) -> Box<AtomicPrimitive<Primitive = i8>> {
-        Box::new(AtomicI8::new(value))
+impl Default for AtomicI8 {
+    fn default() -> Self {
+        Self::new(Default::default())
     }
 }

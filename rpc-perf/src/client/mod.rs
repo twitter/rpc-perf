@@ -18,7 +18,7 @@ mod plain_client;
 mod tls_client;
 
 use crate::codec::*;
-use crate::stats::Simple;
+use crate::stats::SimpleRecorder;
 use rand::rngs::ThreadRng;
 
 pub use crate::client::common::Common;
@@ -67,7 +67,7 @@ pub trait Client: Send {
     fn set_request_timeout(&mut self, microseconds: usize) {
         self.common_mut().set_request_timeout(microseconds)
     }
-    fn set_stats(&mut self, recorder: Simple) {
+    fn set_stats(&mut self, recorder: SimpleRecorder) {
         self.common_mut().set_stats(recorder);
     }
     fn set_close_rate(&mut self, ratelimiter: Option<Arc<Ratelimiter>>) {

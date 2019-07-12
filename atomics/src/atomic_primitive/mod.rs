@@ -1,4 +1,4 @@
-use core::sync::atomic::Ordering;
+use crate::*;
 
 mod atomic_bool;
 mod atomic_i16;
@@ -28,6 +28,7 @@ pub use self::atomic_usize::*;
 
 pub trait AtomicPrimitive: Send + Sync {
     type Primitive;
+    fn new(value: Self::Primitive) -> Self;
     fn get_mut(&mut self) -> &mut Self::Primitive;
     fn into_inner(self) -> Self::Primitive;
     fn load(&self, order: Ordering) -> Self::Primitive;

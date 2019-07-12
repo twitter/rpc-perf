@@ -1,22 +1,24 @@
+use crate::counter::*;
+use atomics::*;
 use parking_lot::Mutex;
 use std::collections::VecDeque;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use crate::counter::Counter;
-use crate::counter::UnsignedCounterPrimitive;
-use atomics::AtomicCounter;
-use std::sync::Arc;
-
-pub struct Histogram<T> {
-    exact: Counter<u64>,
-    max: Counter<u64>,
-    buckets: Vec<Counter<T>>,
-    index: Vec<Counter<u64>>,
-    too_high: Counter<u64>,
-    precision: Counter<u32>,
-    samples: Option<Arc<Mutex<VecDeque<Sample<T>>>>>,
+pub struct Histogram<T>
+where
+    T: Counter + Unsigned,
+    <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating,
+{
+    exact: AtomicU64,
+    max: AtomicU64,
+    buckets: Vec<T>,
+    index: Vec<AtomicU64>,
+    too_high: AtomicU64,
+    precision: AtomicU32,
+    samples: Option<Arc<Mutex<VecDeque<Sample<<T as AtomicPrimitive>::Primitive>>>>>,
     window: Option<Arc<Mutex<Duration>>>,
-    capacity: Option<Counter<usize>>,
+    capacity: Option<AtomicUsize>,
 }
 
 enum Direction {
@@ -61,9 +63,9 @@ where
 
 impl<T> Histogram<T>
 where
-    Box<AtomicCounter<Primitive = T>>: From<T>,
-    T: UnsignedCounterPrimitive,
-    u64: From<T>,
+    T: Counter + Unsigned,
+    u64: std::convert::From<<T as AtomicPrimitive>::Primitive>,
+    <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating,
 {
     pub fn new(
         max: u64,
@@ -72,12 +74,12 @@ where
         capacity: Option<usize>,
     ) -> Self {
         let mut histogram: Histogram<T> = Histogram {
-            exact: Counter::<u64>::new(10_u64.pow(precision)),
-            max: Counter::<u64>::new(max),
+            exact: AtomicU64::new(10_u64.pow(precision)),
+            max: AtomicU64::new(max),
             buckets: Vec::new(),
             index: Vec::new(),
-            too_high: Counter::<u64>::new(0),
-            precision: Counter::<u32>::new(precision),
+            too_high: AtomicU64::new(0),
+            precision: AtomicU32::new(precision),
             samples: None,
             window: None,
             capacity: None,
@@ -86,21 +88,40 @@ where
             histogram.window = Some(Arc::new(Mutex::new(window)));
             if let Some(capacity) = capacity {
                 histogram.samples = Some(Arc::new(Mutex::new(VecDeque::with_capacity(capacity))));
-                histogram.capacity = Some(Counter::<usize>::new(capacity));
+                histogram.capacity = Some(AtomicUsize::new(capacity));
             } else {
-                histogram.samples = Some(Arc::new(Mutex::new(VecDeque::new())));
+                histogram.samples = Some(Arc::new(Mutex::new(VecDeque::with_capacity(1))));
             }
         } else if let Some(capacity) = capacity {
             histogram.samples = Some(Arc::new(Mutex::new(VecDeque::with_capacity(capacity))));
-            histogram.capacity = Some(Counter::<usize>::new(capacity));
+            histogram.capacity = Some(AtomicUsize::new(capacity));
         }
         for _ in 0..=histogram.get_index(max).unwrap() {
-            histogram.buckets.push(Counter::default());
+            histogram.buckets.push(T::default());
         }
+        histogram.buckets.shrink_to_fit();
         for _ in 0..=(histogram.get_index(max).unwrap() / 100) {
-            histogram.index.push(Counter::<u64>::default());
+            histogram.index.push(AtomicU64::default());
         }
+        histogram.index.shrink_to_fit();
         histogram
+    }
+
+    /// Returns the total size of the `Histogram` in bytes
+    pub fn size(&self) -> usize {
+        let mut total_size = 0;
+        // add the struct overhead
+        total_size += std::mem::size_of::<Histogram<T>>();
+        // add the bucket storage
+        total_size += std::mem::size_of::<T>() * self.buckets.capacity();
+        // add the index storage
+        total_size += std::mem::size_of::<AtomicU64>() * self.index.capacity();
+        // add the samples storage
+        if let Some(samples) = &self.samples {
+            let samples = samples.lock();
+            total_size += std::mem::size_of::<Sample<T>>() * samples.capacity();
+        }
+        total_size
     }
 
     // Internal function to get the index for a given value
@@ -113,9 +134,8 @@ where
             let exact = self.exact.get() as usize;
             let power = (value as f64).log10().floor() as u32;
             let divisor = 10_u64.pow((power - self.precision.get()) as u32 + 1);
-            let power_offset = (0.9
-                * f64::from(exact as u32 * (power - self.precision.get())))
-                as usize;
+            let power_offset =
+                (0.9 * f64::from(exact as u32 * (power - self.precision.get()))) as usize;
             let remainder = value / divisor as u64;
             let shift = exact / 10;
             let index = exact + power_offset + remainder as usize - shift;
@@ -153,7 +173,7 @@ where
     }
 
     // Internal function to get the bucket at a given index
-    fn get_bucket(&self, index: usize) -> Option<Bucket<T>> {
+    fn get_bucket(&self, index: usize) -> Option<Bucket<<T as AtomicPrimitive>::Primitive>> {
         if let Some(counter) = self.buckets.get(index) {
             Some(Bucket {
                 min: self.get_min_value(index).unwrap(),
@@ -170,7 +190,7 @@ where
         self.get_max_value(index).map(|v| v - 1)
     }
 
-    pub fn increment(&self, value: u64, count: T) {
+    pub fn increment(&self, value: u64, count: <T as AtomicPrimitive>::Primitive) {
         match self.get_index(value) {
             Ok(index) => {
                 self.buckets[index].saturating_add(count);
@@ -193,7 +213,7 @@ where
         }
     }
 
-    pub fn decrement(&self, value: u64, count: T) {
+    pub fn decrement(&self, value: u64, count: <T as AtomicPrimitive>::Primitive) {
         match self.get_index(value) {
             Ok(index) => {
                 self.buckets[index].saturating_sub(count);
@@ -222,7 +242,7 @@ where
             samples.clear();
         }
         for i in 0..self.buckets.len() {
-            self.buckets[i].set(T::default());
+            self.buckets[i].set(<T as AtomicPrimitive>::Primitive::default());
         }
         for i in 0..self.index.len() {
             self.index[i].set(0);
@@ -263,6 +283,7 @@ where
                         break;
                     }
                 }
+                samples.shrink_to_fit();
             }
             if let Some(capacity) = &self.capacity {
                 let capacity = capacity.get();
@@ -291,6 +312,7 @@ where
                         }
                     }
                 }
+                samples.shrink_to_fit();
             }
         }
     }
@@ -342,7 +364,7 @@ where
     pub fn mean(&self) -> u64 {
         let mut result = 0;
         for bucket in self.into_iter() {
-            result += u64::from(bucket.count()) * bucket.value();
+            result += u64::from(bucket.count) * bucket.value;
         }
         result / self.total_count()
     }
@@ -360,12 +382,20 @@ where
     }
 }
 
-pub struct Iter<'a, C> {
+pub struct Iter<'a, C>
+where
+    C: Counter + Unsigned,
+    <C as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating,
+{
     inner: &'a Histogram<C>,
     index: usize,
 }
 
-impl<'a, C> Iter<'a, C> {
+impl<'a, C> Iter<'a, C>
+where
+    C: Counter + Unsigned,
+    <C as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating,
+{
     fn new(inner: &'a Histogram<C>) -> Iter<'a, C> {
         Iter { inner, index: 0 }
     }
@@ -373,13 +403,13 @@ impl<'a, C> Iter<'a, C> {
 
 impl<'a, C> Iterator for Iter<'a, C>
 where
-    C: UnsignedCounterPrimitive,
-    u64: From<C>,
-    Box<AtomicCounter<Primitive = C>>: From<C>,
+    C: Counter + Unsigned,
+    <C as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating,
+    u64: From<<C as AtomicPrimitive>::Primitive>,
 {
-    type Item = Bucket<C>;
+    type Item = Bucket<<C as AtomicPrimitive>::Primitive>;
 
-    fn next(&mut self) -> Option<Bucket<C>> {
+    fn next(&mut self) -> Option<Bucket<<C as AtomicPrimitive>::Primitive>> {
         let bucket = self.inner.get_bucket(self.index);
         self.index += 1;
         bucket
@@ -388,11 +418,11 @@ where
 
 impl<'a, C> IntoIterator for &'a Histogram<C>
 where
-    C: UnsignedCounterPrimitive,
-    u64: From<C>,
-    Box<AtomicCounter<Primitive = C>>: From<C>,
+    C: Counter + Unsigned,
+    <C as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating,
+    u64: From<<C as AtomicPrimitive>::Primitive>,
 {
-    type Item = Bucket<C>;
+    type Item = Bucket<<C as AtomicPrimitive>::Primitive>;
     type IntoIter = Iter<'a, C>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -406,7 +436,7 @@ mod tests {
 
     #[test]
     fn basic_latched() {
-        let h = Histogram::<u64>::new(100, 3, None, None);
+        let h = Histogram::<AtomicU64>::new(100, 3, None, None);
         assert_eq!(h.total_count(), 0);
         for i in 1..=100 {
             let _ = h.increment(i, 1);
@@ -426,11 +456,43 @@ mod tests {
         h.clear();
         assert_eq!(h.percentile(0.0), None);
         assert_eq!(h.total_count(), 0);
+        assert_eq!(h.size(), 936);
+    }
+
+    #[test]
+    fn size() {
+        let h = Histogram::<AtomicU8>::new(1_000_000_000, 3, None, None);
+        assert_eq!(h.size() / 1024, 6); // ~6KB
+
+        let h = Histogram::<AtomicU16>::new(1_000_000_000, 3, None, None);
+        assert_eq!(h.size() / 1024, 13); // ~13KB
+
+        let h = Histogram::<AtomicU32>::new(1_000_000_000, 3, None, None);
+        assert_eq!(h.size() / 1024, 25); // ~25KB
+
+        let h = Histogram::<AtomicU32>::new(60_000_000_000, 3, None, None);
+        assert_eq!(h.size() / 1024, 31); // ~31KB
+
+        let h = Histogram::<AtomicU64>::new(1_000_000_000, 3, None, None);
+        assert_eq!(h.size() / 1024, 50); // ~50KB
+
+        let h =
+            Histogram::<AtomicU64>::new(1_000_000_000, 3, Some(<Duration>::from_millis(1)), None);
+        assert_eq!(h.size() / 1024, 50); // ~50KB
+
+        let h = Histogram::<AtomicU64>::new(
+            1_000_000_000,
+            3,
+            Some(<Duration>::from_millis(1)),
+            Some(60),
+        );
+        assert!(h.size() / 1024 >= 52); // ~52KB
+        assert!(h.size() / 1024 <= 53); // ~52KB
     }
 
     #[test]
     fn basic_moving() {
-        let h = Histogram::<u64>::new(100, 3, Some(<Duration>::from_millis(1)), None);
+        let h = Histogram::<AtomicU64>::new(100, 3, Some(<Duration>::from_millis(1)), None);
         assert_eq!(h.total_count(), 0);
         for i in 1..100 {
             let _ = h.increment(i, 1);
@@ -444,7 +506,7 @@ mod tests {
 
     #[test]
     fn basic_capacity() {
-        let h = Histogram::<u64>::new(100, 3, None, Some(1));
+        let h = Histogram::<AtomicU64>::new(100, 3, None, Some(1));
         assert_eq!(h.total_count(), 0);
         for i in 1..100 {
             let _ = h.increment(i, 1);
@@ -458,7 +520,7 @@ mod tests {
 
     #[test]
     fn basic_moving_capacity() {
-        let h = Histogram::<u64>::new(100, 3, Some(<Duration>::from_millis(1)), Some(1));
+        let h = Histogram::<AtomicU64>::new(100, 3, Some(<Duration>::from_millis(1)), Some(1));
         assert_eq!(h.total_count(), 0);
         for i in 1..100 {
             let _ = h.increment(i, 1);

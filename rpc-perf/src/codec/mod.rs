@@ -14,7 +14,7 @@
 
 use crate::config::Config;
 use crate::config::Generator;
-use crate::stats::Simple;
+use crate::stats::SimpleRecorder;
 use bytes::BytesMut;
 use rand::rngs::ThreadRng;
 
@@ -94,14 +94,14 @@ pub trait Codec: Send {
     fn set_generator(&mut self, generator: Generator) {
         self.common_mut().set_generator(generator);
     }
-    fn set_recorder(&mut self, recorder: Simple) {
+    fn set_recorder(&mut self, recorder: SimpleRecorder) {
         self.common_mut().set_recorder(recorder);
     }
 }
 
 pub struct Common {
     generator: Generator,
-    recorder: Option<Simple>,
+    recorder: Option<SimpleRecorder>,
 }
 
 impl Common {
@@ -116,11 +116,11 @@ impl Common {
         self.generator = generator;
     }
 
-    pub fn set_recorder(&mut self, recorder: Simple) {
+    pub fn set_recorder(&mut self, recorder: SimpleRecorder) {
         self.recorder = Some(recorder);
     }
 
-    pub fn recorder(&self) -> &Option<Simple> {
+    pub fn recorder(&self) -> &Option<SimpleRecorder> {
         &self.recorder
     }
 }

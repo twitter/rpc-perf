@@ -1,22 +1,30 @@
-use crate::atomic_primitive::AtomicPrimitive;
-use core::sync::atomic::{AtomicPtr, Ordering};
+use crate::*;
+
+pub struct AtomicPtr<T> {
+    pub(crate) inner: core::sync::atomic::AtomicPtr<T>,
+}
 
 impl<T> AtomicPrimitive for AtomicPtr<T> {
     type Primitive = *mut T;
+    fn new(value: Self::Primitive) -> Self {
+        Self {
+            inner: core::sync::atomic::AtomicPtr::new(value),
+        }
+    }
     fn get_mut(&mut self) -> &mut Self::Primitive {
-        self.get_mut()
+        self.inner.get_mut()
     }
     fn into_inner(self) -> Self::Primitive {
-        self.into_inner()
+        self.inner.into_inner()
     }
     fn load(&self, order: Ordering) -> Self::Primitive {
-        self.load(order)
+        self.inner.load(order)
     }
     fn store(&self, value: Self::Primitive, order: Ordering) {
-        self.store(value, order);
+        self.inner.store(value, order);
     }
     fn swap(&self, value: Self::Primitive, order: Ordering) -> Self::Primitive {
-        self.swap(value, order)
+        self.inner.swap(value, order)
     }
     fn compare_and_swap(
         &self,
@@ -24,7 +32,7 @@ impl<T> AtomicPrimitive for AtomicPtr<T> {
         new: Self::Primitive,
         order: Ordering,
     ) -> Self::Primitive {
-        self.compare_and_swap(current, new, order)
+        self.inner.compare_and_swap(current, new, order)
     }
     fn compare_exchange(
         &self,
@@ -33,7 +41,7 @@ impl<T> AtomicPrimitive for AtomicPtr<T> {
         success: Ordering,
         failure: Ordering,
     ) -> Result<Self::Primitive, Self::Primitive> {
-        self.compare_exchange(current, new, success, failure)
+        self.inner.compare_exchange(current, new, success, failure)
     }
     fn compare_exchange_weak(
         &self,
@@ -42,12 +50,7 @@ impl<T> AtomicPrimitive for AtomicPtr<T> {
         success: Ordering,
         failure: Ordering,
     ) -> Result<Self::Primitive, Self::Primitive> {
-        self.compare_exchange_weak(current, new, success, failure)
-    }
-}
-
-impl<T: 'static> From<*mut T> for Box<AtomicPrimitive<Primitive = *mut T>> {
-    fn from(value: *mut T) -> Box<AtomicPrimitive<Primitive = *mut T>> {
-        Box::new(AtomicPtr::new(value))
+        self.inner
+            .compare_exchange_weak(current, new, success, failure)
     }
 }

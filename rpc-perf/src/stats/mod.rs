@@ -26,7 +26,7 @@ use std::collections::HashMap;
 
 use logger::*;
 
-pub fn register_stats(recorder: &Simple) {
+pub fn register_stats(recorder: &SimpleRecorder) {
     recorder.add_counter_channel(Stat::CommandsGet);
     recorder.add_counter_channel(Stat::CommandsSet);
     recorder.add_distribution_channel(Stat::KeySize, 60_000_000_000, 3);
@@ -50,14 +50,14 @@ pub fn register_stats(recorder: &Simple) {
     recorder.add_counter_channel(Stat::ResponsesMiss);
 }
 
-pub struct StandardOut<'a> {
+pub struct StandardOut {
     previous: HashMap<String, HashMap<Output, u64>>,
-    recorder: &'a Simple,
+    recorder: SimpleRecorder,
     interval: u64,
 }
 
-impl<'a> StandardOut<'a> {
-    pub fn new(recorder: &'a Simple, interval: u64) -> Self {
+impl StandardOut {
+    pub fn new(recorder: SimpleRecorder, interval: u64) -> Self {
         Self {
             previous: recorder.hash_map(),
             recorder,
@@ -297,10 +297,14 @@ fn delta_percent<T: ToString>(
     }
 }
 
-#[derive(Clone)]
 pub struct Simple {
-    inner: Recorder<u64>,
-    heatmap: Option<Arc<Heatmap<u64>>>,
+    inner: Metrics<AtomicU64>,
+    heatmap: Option<Arc<Heatmap<AtomicU64>>>,
+}
+
+pub struct SimpleRecorder {
+    inner: Recorder<AtomicU64>,
+    heatmap: Option<Arc<Heatmap<AtomicU64>>>,
 }
 
 impl Simple {
@@ -321,11 +325,20 @@ impl Simple {
             None
         };
         Self {
-            inner: Recorder::new(),
+            inner: Metrics::new(),
             heatmap,
         }
     }
 
+    pub fn recorder(&self) -> SimpleRecorder {
+        SimpleRecorder {
+            inner: self.inner.recorder(),
+            heatmap: self.heatmap.clone(),
+        }
+    }
+}
+
+impl SimpleRecorder {
     pub fn add_counter_channel<T: ToString>(&self, label: T) {
         self.inner
             .add_channel(label.to_string(), Source::Counter, None);

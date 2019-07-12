@@ -12,17 +12,17 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use datastructures::Counter;
+use datastructures::*;
 
 pub struct Point {
-    value: Counter<u64>,
-    time: Counter<u64>,
+    value: AtomicU64,
+    time: AtomicU64,
 }
 
 impl Point {
     pub fn new(value: u64, time: u64) -> Self {
-        let value = Counter::new(value);
-        let time = Counter::new(time);
+        let value = AtomicU64::new(value);
+        let time = AtomicU64::new(time);
         Self { value, time }
     }
 

@@ -23,8 +23,9 @@ use crate::codec::Codec;
 use crate::config::Config;
 use crate::config::Protocol;
 use crate::stats::*;
+use atomics::AtomicPrimitive;
 
-use atomics::Atomic;
+use datastructures::AtomicBool;
 pub(crate) use logger::*;
 use metrics::Reading;
 use ratelimiter::Ratelimiter;
@@ -45,14 +46,16 @@ pub fn main() {
         .init()
         .expect("Failed to initialize logger");
 
-    let recorder = Simple::new(&config);
+    let metrics = Simple::new(&config);
+    let recorder = metrics.recorder();
+
     stats::register_stats(&recorder);
 
-    let mut stats_stdout = stats::StandardOut::new(&recorder, config.interval() as u64);
+    let mut stats_stdout = stats::StandardOut::new(metrics.recorder(), config.interval() as u64);
 
     let readings = Arc::new(Mutex::new(Vec::<Reading>::new()));
     if let Some(stats_listen) = config.listen() {
-        let mut stats_http = stats::Http::new(stats_listen, &recorder);
+        let mut stats_http = stats::Http::new(stats_listen, metrics.recorder());
         let _ = thread::Builder::new()
             .name("http".to_string())
             .spawn(move || loop {
@@ -64,10 +67,10 @@ pub fn main() {
 
     config.print();
 
-    do_warmup(&config, &recorder);
+    do_warmup(&config, &metrics);
 
-    let control = Arc::new(Atomic::<bool>::new(true));
-    launch_clients(&config, &recorder, control.clone());
+    let control = Arc::new(AtomicBool::new(true));
+    launch_clients(&config, &metrics, control.clone());
 
     loop {
         std::thread::sleep(std::time::Duration::new(config.interval() as u64, 0));
@@ -90,15 +93,15 @@ pub fn main() {
     }
 }
 
-fn do_warmup(config: &Config, recorder: &Simple) {
+fn do_warmup(config: &Config, metrics: &Simple) {
     if let Some(target) = config.warmup_hitrate() {
         info!("-----");
         info!("Warming the cache...");
-        let control = Arc::new(Atomic::<bool>::new(true));
-        launch_clients(&config, &recorder, control.clone());
+        let recorder = metrics.recorder();
+        let control = Arc::new(AtomicBool::new(true));
+        launch_clients(&config, &metrics, control.clone());
 
         let mut warm = 0;
-
         loop {
             std::thread::sleep(std::time::Duration::new(config.interval() as u64, 0));
             recorder.increment(Stat::Window);
@@ -151,7 +154,7 @@ fn make_client(id: usize, codec: Box<Codec>, _config: &Config) -> Box<Client> {
     Box::new(PlainClient::new(id, codec))
 }
 
-fn launch_clients(config: &Config, recorder: &stats::Simple, control: Arc<Atomic<bool>>) {
+fn launch_clients(config: &Config, metrics: &stats::Simple, control: Arc<AtomicBool>) {
     let request_ratelimiter = if let Some(limit) = config.request_ratelimit() {
         Some(Arc::new(Ratelimiter::new(
             config.clients() as u64,
@@ -197,7 +200,7 @@ fn launch_clients(config: &Config, recorder: &stats::Simple, control: Arc<Atomic
 
         // TODO: use a different generator for warmup
         codec.set_generator(config.generator());
-        codec.set_recorder(recorder.clone());
+        codec.set_recorder(metrics.recorder());
 
         let mut client = make_client(i, codec, config);
         client.set_poolsize(config.poolsize());
@@ -205,7 +208,7 @@ fn launch_clients(config: &Config, recorder: &stats::Simple, control: Arc<Atomic
         client.set_close_rate(close_rate.clone());
         client.set_connect_ratelimit(connect_ratelimiter.clone());
         client.set_request_ratelimit(request_ratelimiter.clone());
-        client.set_stats(recorder.clone());
+        client.set_stats(metrics.recorder());
         client.set_connect_timeout(config.connect_timeout());
         client.set_request_timeout(config.request_timeout());
 

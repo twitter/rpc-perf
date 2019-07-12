@@ -106,12 +106,11 @@ pub fn sized_run(
     measurement_type: MeasurementType,
     single_channel: bool,
 ) -> f64 {
-    let recorder = Recorder::<u64>::new();
-
+    let metrics = Metrics::<AtomicU64>::new();
     let mut thread_pool = Vec::new();
     let t0 = time::Instant::now();
     for tid in 0..threads {
-        let recorder = recorder.clone();
+        let recorder = metrics.recorder();
         let label = if !single_channel {
             format!("test{}", tid)
         } else {
