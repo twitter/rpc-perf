@@ -1,5 +1,6 @@
 use crate::*;
 
+/// A raw pointer type which can be safely shared between threads.
 pub struct AtomicPtr<T> {
     pub(crate) inner: core::sync::atomic::AtomicPtr<T>,
 }
@@ -54,3 +55,11 @@ impl<T> AtomicPrimitive for AtomicPtr<T> {
             .compare_exchange_weak(current, new, success, failure)
     }
 }
+
+impl<T> PartialEq for AtomicPtr<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.load(Ordering::SeqCst) == other.load(Ordering::SeqCst)
+    }
+}
+
+impl<T> Eq for AtomicPtr<T> {}

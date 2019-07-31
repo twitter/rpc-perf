@@ -1,5 +1,6 @@
 use crate::*;
 
+/// A boolean type which can be safely shared between threads.
 pub struct AtomicBool {
     pub(crate) inner: core::sync::atomic::AtomicBool,
 }
@@ -60,3 +61,11 @@ impl Default for AtomicBool {
         Self::new(Default::default())
     }
 }
+
+impl PartialEq for AtomicBool {
+    fn eq(&self, other: &Self) -> bool {
+        self.load(Ordering::SeqCst) == other.load(Ordering::SeqCst)
+    }
+}
+
+impl Eq for AtomicBool {}

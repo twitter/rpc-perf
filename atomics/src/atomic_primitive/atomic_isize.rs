@@ -1,5 +1,6 @@
 use crate::*;
 
+/// An integer type which can be safely shared between threads.
 pub struct AtomicIsize {
     pub(crate) inner: core::sync::atomic::AtomicIsize,
 }
@@ -60,3 +61,11 @@ impl Default for AtomicIsize {
         Self::new(Default::default())
     }
 }
+
+impl PartialEq for AtomicIsize {
+    fn eq(&self, other: &Self) -> bool {
+        self.load(Ordering::SeqCst) == other.load(Ordering::SeqCst)
+    }
+}
+
+impl Eq for AtomicIsize {}
