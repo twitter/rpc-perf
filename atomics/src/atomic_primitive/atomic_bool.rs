@@ -5,7 +5,7 @@
 use crate::{AtomicPrimitive, Ordering};
 
 #[cfg(feature = "serde")]
-use serde::{Deserializer, de::Deserialize, de::Visitor};
+use serde::{de::Deserialize, de::Visitor, Deserializer};
 
 /// A boolean type which can be safely shared between threads.
 pub struct AtomicBool {
@@ -105,7 +105,7 @@ impl<'de> Visitor<'de> for AtomicBoolVisitor {
 
     fn visit_bool<E>(self, value: bool) -> Result<Self::Value, E>
     where
-        E: serde::de::Error
+        E: serde::de::Error,
     {
         Ok(AtomicBool::new(bool::from(value)))
     }
@@ -116,7 +116,7 @@ impl<'de> Deserialize<'de> for AtomicBool {
     fn deserialize<D>(deserializer: D) -> Result<AtomicBool, D::Error>
     where
         D: Deserializer<'de>,
-        {
-            deserializer.deserialize_bool(AtomicBoolVisitor)
-        }
+    {
+        deserializer.deserialize_bool(AtomicBoolVisitor)
+    }
 }

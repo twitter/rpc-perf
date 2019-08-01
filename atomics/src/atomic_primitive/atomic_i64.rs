@@ -5,7 +5,7 @@
 use crate::{AtomicPrimitive, Ordering};
 
 #[cfg(feature = "serde")]
-use serde::{Deserializer, de::Deserialize, de::Visitor};
+use serde::{de::Deserialize, de::Visitor, Deserializer};
 
 /// An integer type which can be safely shared between threads.
 pub struct AtomicI64 {
@@ -105,56 +105,56 @@ impl<'de> Visitor<'de> for AtomicI64Visitor {
 
     fn visit_i8<E>(self, value: i8) -> Result<Self::Value, E>
     where
-        E: serde::de::Error
+        E: serde::de::Error,
     {
         Ok(Self::Value::new(i64::from(value)))
     }
 
     fn visit_i16<E>(self, value: i16) -> Result<Self::Value, E>
     where
-        E: serde::de::Error
+        E: serde::de::Error,
     {
         Ok(Self::Value::new(i64::from(value)))
     }
 
     fn visit_i32<E>(self, value: i32) -> Result<Self::Value, E>
     where
-        E: serde::de::Error
+        E: serde::de::Error,
     {
         Ok(Self::Value::new(i64::from(value)))
     }
 
     fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E>
     where
-        E: serde::de::Error
+        E: serde::de::Error,
     {
         Ok(Self::Value::new(i64::from(value)))
     }
 
     fn visit_u8<E>(self, value: u8) -> Result<Self::Value, E>
     where
-        E: serde::de::Error
+        E: serde::de::Error,
     {
         Ok(Self::Value::new(i64::from(value)))
     }
 
     fn visit_u16<E>(self, value: u16) -> Result<Self::Value, E>
     where
-        E: serde::de::Error
+        E: serde::de::Error,
     {
         Ok(Self::Value::new(i64::from(value)))
     }
 
     fn visit_u32<E>(self, value: u32) -> Result<Self::Value, E>
     where
-        E: serde::de::Error
+        E: serde::de::Error,
     {
         Ok(Self::Value::new(i64::from(value)))
     }
 
     fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E>
     where
-        E: serde::de::Error
+        E: serde::de::Error,
     {
         use std::convert::TryFrom;
         if let Ok(value) = i64::try_from(value) {
@@ -170,9 +170,9 @@ impl<'de> Deserialize<'de> for AtomicI64 {
     fn deserialize<D>(deserializer: D) -> Result<AtomicI64, D::Error>
     where
         D: Deserializer<'de>,
-        {
-            deserializer.deserialize_i64(AtomicI64Visitor)
-        }
+    {
+        deserializer.deserialize_i64(AtomicI64Visitor)
+    }
 }
 
 #[cfg(test)]
@@ -208,15 +208,24 @@ mod tests {
     #[test]
     fn compare_exchange() {
         let atomic = AtomicI64::new(0);
-        assert_eq!(atomic.compare_exchange(0, 1, Ordering::SeqCst, Ordering::SeqCst), Ok(0));
-        assert_eq!(atomic.compare_exchange(0, 2, Ordering::SeqCst, Ordering::SeqCst), Err(1));
+        assert_eq!(
+            atomic.compare_exchange(0, 1, Ordering::SeqCst, Ordering::SeqCst),
+            Ok(0)
+        );
+        assert_eq!(
+            atomic.compare_exchange(0, 2, Ordering::SeqCst, Ordering::SeqCst),
+            Err(1)
+        );
     }
 
     #[test]
     fn compare_exchange_weak() {
         let atomic = AtomicI64::new(0);
         loop {
-            if atomic.compare_exchange(0, 1, Ordering::SeqCst, Ordering::SeqCst).is_ok() {
+            if atomic
+                .compare_exchange(0, 1, Ordering::SeqCst, Ordering::SeqCst)
+                .is_ok()
+            {
                 break;
             }
         }
