@@ -72,3 +72,9 @@ impl<T> PartialEq for AtomicPtr<T> {
 }
 
 impl<T> Eq for AtomicPtr<T> {}
+
+impl<T> std::fmt::Debug for AtomicPtr<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.inner)
+    }
+}

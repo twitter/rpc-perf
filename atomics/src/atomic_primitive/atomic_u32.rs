@@ -1,5 +1,8 @@
 use crate::*;
 
+#[cfg(feature = "serde")]
+use serde::{Deserializer, de::Deserialize, de::Visitor};
+
 /// An integer type which can be safely shared between threads.
 pub struct AtomicU32 {
     pub(crate) inner: core::sync::atomic::AtomicU32,
@@ -78,3 +81,112 @@ impl PartialEq for AtomicU32 {
 }
 
 impl Eq for AtomicU32 {}
+
+impl std::fmt::Debug for AtomicU32 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.inner)
+    }
+}
+
+#[cfg(feature = "serde")]
+struct AtomicU32Visitor;
+
+#[cfg(feature = "serde")]
+impl<'de> Visitor<'de> for AtomicU32Visitor {
+    type Value = AtomicU32;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("an unsigned 32bit integer")
+    }
+
+    fn visit_i8<E>(self, value: i8) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error
+    {
+        use std::convert::TryFrom;
+        if let Ok(value) = u32::try_from(value) {
+            Ok(Self::Value::new(value))
+        } else {
+            Err(E::custom(format!("u32 is out of range: {}", value)))
+        }
+    }
+
+    fn visit_i16<E>(self, value: i16) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error
+    {
+        use std::convert::TryFrom;
+        if let Ok(value) = u32::try_from(value) {
+            Ok(Self::Value::new(value))
+        } else {
+            Err(E::custom(format!("u32 is out of range: {}", value)))
+        }
+    }
+
+    fn visit_i32<E>(self, value: i32) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error
+    {
+        use std::convert::TryFrom;
+        if let Ok(value) = u32::try_from(value) {
+            Ok(Self::Value::new(value))
+        } else {
+            Err(E::custom(format!("u32 is out of range: {}", value)))
+        }
+    }
+
+    fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error
+    {
+        use std::convert::TryFrom;
+        if let Ok(value) = u32::try_from(value) {
+            Ok(Self::Value::new(value))
+        } else {
+            Err(E::custom(format!("u32 is out of range: {}", value)))
+        }
+    }
+
+    fn visit_u8<E>(self, value: u8) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error
+    {
+        Ok(Self::Value::new(u32::from(value)))
+    }
+
+    fn visit_u16<E>(self, value: u16) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error
+    {
+        Ok(Self::Value::new(u32::from(value)))
+    }
+
+    fn visit_u32<E>(self, value: u32) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error
+    {
+        Ok(Self::Value::new(u32::from(value)))
+    }
+
+    fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error
+    {
+        use std::convert::TryFrom;
+        if let Ok(value) = u32::try_from(value) {
+            Ok(Self::Value::new(value))
+        } else {
+            Err(E::custom(format!("u32 is out of range: {}", value)))
+        }
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for AtomicU32 {
+    fn deserialize<D>(deserializer: D) -> Result<AtomicU32, D::Error>
+    where
+        D: Deserializer<'de>,
+        {
+            deserializer.deserialize_any(AtomicU32Visitor)
+        }
+}

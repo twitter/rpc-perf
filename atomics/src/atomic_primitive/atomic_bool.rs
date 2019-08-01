@@ -1,5 +1,8 @@
 use crate::*;
 
+#[cfg(feature = "serde")]
+use serde::{Deserializer, de::Deserialize, de::Visitor};
+
 /// A boolean type which can be safely shared between threads.
 pub struct AtomicBool {
     pub(crate) inner: core::sync::atomic::AtomicBool,
@@ -78,3 +81,38 @@ impl PartialEq for AtomicBool {
 }
 
 impl Eq for AtomicBool {}
+
+impl std::fmt::Debug for AtomicBool {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.inner)
+    }
+}
+
+#[cfg(feature = "serde")]
+struct AtomicBoolVisitor;
+
+#[cfg(feature = "serde")]
+impl<'de> Visitor<'de> for AtomicBoolVisitor {
+    type Value = AtomicBool;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("a boolean value")
+    }
+
+    fn visit_bool<E>(self, value: bool) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error
+    {
+        Ok(AtomicBool::new(bool::from(value)))
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for AtomicBool {
+    fn deserialize<D>(deserializer: D) -> Result<AtomicBool, D::Error>
+    where
+        D: Deserializer<'de>,
+        {
+            deserializer.deserialize_bool(AtomicBoolVisitor)
+        }
+}
