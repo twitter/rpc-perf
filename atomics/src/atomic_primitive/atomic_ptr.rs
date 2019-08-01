@@ -1,4 +1,8 @@
-use crate::*;
+// Copyright 2019 Twitter, Inc.
+// Licensed under the Apache License, Version 2.0
+// http://www.apache.org/licenses/LICENSE-2.0
+
+use crate::{AtomicPrimitive, Ordering};
 
 /// A raw pointer type which can be safely shared between threads.
 pub struct AtomicPtr<T> {
@@ -72,3 +76,9 @@ impl<T> PartialEq for AtomicPtr<T> {
 }
 
 impl<T> Eq for AtomicPtr<T> {}
+
+impl<T> std::fmt::Debug for AtomicPtr<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.inner)
+    }
+}

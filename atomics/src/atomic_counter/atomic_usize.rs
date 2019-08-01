@@ -1,6 +1,8 @@
-use crate::*;
+// Copyright 2019 Twitter, Inc.
+// Licensed under the Apache License, Version 2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 
-use crate::atomic_primitive::AtomicUsize;
+use crate::{AtomicCounter, AtomicUsize, Ordering};
 
 impl AtomicCounter for AtomicUsize {
     fn fetch_add(&self, value: Self::Primitive, order: Ordering) -> Self::Primitive {

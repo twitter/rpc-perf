@@ -3,5 +3,14 @@ name = "atomics"
 version = "0.2.0"
 authors = ["Brian Martin <bmartin@twitter.com>"]
 edition = "2018"
+license = "Apache-2.0"
+description = "Atomic primitives unified by traits"
+homepage = "https://github.com/twitter/rpc-perf"
+repository = "https://github.com/twitter/rpc-perf"
+readme = "README.md"
 
 [dependencies]
+serde = { version = "1.0.98", optional = true }
+
+[features]
+default = ["serde"]
