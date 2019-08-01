@@ -14,11 +14,13 @@
 
 mod echo;
 mod memcache;
+mod pelikan_redis;
 mod ping;
 mod redis;
 
 pub use crate::echo::Echo;
 pub use crate::memcache::Memcache;
+pub use crate::pelikan_redis::PelikanRedis;
 pub use crate::ping::Ping;
 pub use crate::redis::Mode as RedisMode;
 pub use crate::redis::Redis;
