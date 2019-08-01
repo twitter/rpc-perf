@@ -1,6 +1,4 @@
-use crate::*;
-
-use crate::atomic_primitive::AtomicU16;
+use crate::{AtomicCounter, AtomicU16, Ordering};
 
 impl AtomicCounter for AtomicU16 {
     fn fetch_add(&self, value: Self::Primitive, order: Ordering) -> Self::Primitive {
