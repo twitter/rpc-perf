@@ -1,4 +1,4 @@
-use crate::*;
+use crate::{AtomicPrimitive, Ordering};
 
 #[cfg(feature = "serde")]
 use serde::{Deserializer, de::Deserialize, de::Visitor};
@@ -197,40 +197,40 @@ mod tests {
 
     #[test]
     fn load() {
-        let atomic = AtomicI32::new(0);
+        let atomic = AtomicIsize::new(0);
         assert_eq!(atomic.load(Ordering::SeqCst), 0);
     }
 
     #[test]
     fn store() {
-        let atomic = AtomicI32::new(0);
+        let atomic = AtomicIsize::new(0);
         atomic.store(1, Ordering::SeqCst);
         assert_eq!(atomic.into_inner(), 1);
     }
 
     #[test]
     fn swap() {
-        let atomic = AtomicI32::new(0);
+        let atomic = AtomicIsize::new(0);
         assert_eq!(atomic.swap(1, Ordering::SeqCst), 0);
     }
 
     #[test]
     fn compare_and_swap() {
-        let atomic = AtomicI32::new(0);
+        let atomic = AtomicIsize::new(0);
         assert_eq!(atomic.compare_and_swap(0, 1, Ordering::SeqCst), 0);
         assert_eq!(atomic.compare_and_swap(0, 2, Ordering::SeqCst), 1);
     }
 
     #[test]
     fn compare_exchange() {
-        let atomic = AtomicI32::new(0);
+        let atomic = AtomicIsize::new(0);
         assert_eq!(atomic.compare_exchange(0, 1, Ordering::SeqCst, Ordering::SeqCst), Ok(0));
         assert_eq!(atomic.compare_exchange(0, 2, Ordering::SeqCst, Ordering::SeqCst), Err(1));
     }
 
     #[test]
     fn compare_exchange_weak() {
-        let atomic = AtomicI32::new(0);
+        let atomic = AtomicIsize::new(0);
         loop {
             if atomic.compare_exchange(0, 1, Ordering::SeqCst, Ordering::SeqCst).is_ok() {
                 break;

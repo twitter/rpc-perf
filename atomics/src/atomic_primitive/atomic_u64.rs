@@ -1,4 +1,4 @@
-use crate::*;
+use crate::{AtomicPrimitive, Ordering};
 
 #[cfg(feature = "serde")]
 use serde::{Deserializer, de::Deserialize, de::Visitor};

@@ -1,4 +1,4 @@
-use crate::*;
+use crate::{AtomicPrimitive, Ordering};
 
 /// A raw pointer type which can be safely shared between threads.
 pub struct AtomicPtr<T> {
