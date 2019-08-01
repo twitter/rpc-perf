@@ -119,7 +119,7 @@ impl<'de> Visitor<'de> for AtomicU8Visitor {
         if let Ok(value) = u8::try_from(value) {
             Ok(Self::Value::new(value))
         } else {
-            Err(E::custom(format!("usize is out of range: {}", value)))
+            Err(E::custom(format!("u8 is out of range: {}", value)))
         }
     }
 
@@ -131,7 +131,7 @@ impl<'de> Visitor<'de> for AtomicU8Visitor {
         if let Ok(value) = u8::try_from(value) {
             Ok(Self::Value::new(value))
         } else {
-            Err(E::custom(format!("usize is out of range: {}", value)))
+            Err(E::custom(format!("u8 is out of range: {}", value)))
         }
     }
 
@@ -143,7 +143,7 @@ impl<'de> Visitor<'de> for AtomicU8Visitor {
         if let Ok(value) = u8::try_from(value) {
             Ok(Self::Value::new(value))
         } else {
-            Err(E::custom(format!("usize is out of range: {}", value)))
+            Err(E::custom(format!("u8 is out of range: {}", value)))
         }
     }
 
@@ -162,7 +162,7 @@ impl<'de> Visitor<'de> for AtomicU8Visitor {
         if let Ok(value) = u8::try_from(value) {
             Ok(Self::Value::new(value))
         } else {
-            Err(E::custom(format!("usize is out of range: {}", value)))
+            Err(E::custom(format!("u8 is out of range: {}", value)))
         }
     }
 
@@ -174,7 +174,7 @@ impl<'de> Visitor<'de> for AtomicU8Visitor {
         if let Ok(value) = u8::try_from(value) {
             Ok(Self::Value::new(value))
         } else {
-            Err(E::custom(format!("usize is out of range: {}", value)))
+            Err(E::custom(format!("u8 is out of range: {}", value)))
         }
     }
 
@@ -186,7 +186,7 @@ impl<'de> Visitor<'de> for AtomicU8Visitor {
         if let Ok(value) = u8::try_from(value) {
             Ok(Self::Value::new(value))
         } else {
-            Err(E::custom(format!("usize is out of range: {}", value)))
+            Err(E::custom(format!("u8 is out of range: {}", value)))
         }
     }
 }
