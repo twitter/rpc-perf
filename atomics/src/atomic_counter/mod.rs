@@ -1,5 +1,8 @@
-use crate::atomic_primitive::AtomicPrimitive;
-use core::sync::atomic::Ordering;
+// Copyright 2019 Twitter, Inc.
+// Licensed under the Apache License, Version 2.0
+// http://www.apache.org/licenses/LICENSE-2.0
+
+use crate::{AtomicPrimitive, Ordering};
 
 mod atomic_i16;
 mod atomic_i32;
