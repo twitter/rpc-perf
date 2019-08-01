@@ -19,9 +19,9 @@ use bytes::{Buf, BytesMut, IntoBuf};
 use std::io::{BufRead, BufReader};
 use std::str;
 
-pub struct PelikanRedis {}
+pub struct PelikanRds {}
 
-impl PelikanRedis {
+impl PelikanRds {
     pub fn new() -> Self {
         Self { }
     }
@@ -132,7 +132,7 @@ impl PelikanRedis {
     }
 }
 
-impl Decoder for PelikanRedis {
+impl Decoder for PelikanRds {
     fn decode(&self, buf: &[u8]) -> Result<Response, Error> {
         let end = &buf[buf.len() - 2..buf.len()];
 
@@ -150,7 +150,7 @@ impl Decoder for PelikanRedis {
                 } else {
                     let msg = &buf[1..buf.len() - 2];
                     match str::from_utf8(&msg[..]) {
-                        Ok("OK") | Ok("PONG") => Ok(Response::Ok),
+                        Ok("OK") | Ok("PONG") | Ok("NOOP") => Ok(Response::Ok),
                         _ => Err(Error::Unknown),
                     }
                 }
@@ -223,7 +223,7 @@ mod tests {
 
     fn decode_messages(messages: Vec<&'static [u8]>, response: Result<Response, Error>) {
         for message in messages {
-            let decoder = PelikanRedis::new();
+            let decoder = PelikanRds::new();
             let mut buf = BytesMut::with_capacity(1024);
             buf.put(&message);
 
@@ -244,7 +244,8 @@ mod tests {
         let messages: Vec<&[u8]> = vec![
             b"+OK\r\n",
             b":12345\r\n",
-            // b":-12345\r\n",
+            b"+NOOP\r\n",
+            b"+PONG\r\n",
         ];
         decode_messages(messages, Ok(Response::Ok));
     }
@@ -275,7 +276,7 @@ mod tests {
 
     #[test]
     fn encode_ttl() {
-        let c = PelikanRedis::new();
+        let c = PelikanRds::new();
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(
@@ -288,7 +289,7 @@ mod tests {
 
     #[test]
     fn encode_without_ttl() {
-        let c = PelikanRedis::new();
+        let c = PelikanRds::new();
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(b"*3\r\n$3\r\nset\r\n$3\r\nabc\r\n$4\r\n1234\r\n");
@@ -299,7 +300,7 @@ mod tests {
 
     #[test]
     fn encode_sarray_create() {
-        let c = PelikanRedis::new();
+        let c = PelikanRds::new();
         let mut buf = BytesMut::with_capacity(128);
         let mut test_case = BytesMut::with_capacity(128);
         test_case.extend_from_slice(b"*3\r\n$13\r\nSArray.create\r\n$3\r\nabc\r\n$2\r\n64\r\n");
@@ -309,7 +310,7 @@ mod tests {
 
     #[test]
     fn encode_sarray_delete() {
-        let c = PelikanRedis::new();
+        let c = PelikanRds::new();
         let mut buf = BytesMut::with_capacity(128);
         let mut test_case = BytesMut::with_capacity(128);
         test_case.extend_from_slice(b"*2\r\n$13\r\nSArray.delete\r\n$3\r\nabc\r\n");
@@ -319,7 +320,7 @@ mod tests {
 
     #[test]
     fn encode_sarray_get() {
-        let c = PelikanRedis::new();
+        let c = PelikanRds::new();
 
         let mut buf = BytesMut::with_capacity(128);
         let mut test_case = BytesMut::with_capacity(128);
@@ -348,7 +349,7 @@ mod tests {
 
     #[test]
     fn encode_sarray_insert() {
-        let c = PelikanRedis::new();
+        let c = PelikanRds::new();
 
         let mut buf = BytesMut::with_capacity(128);
         let mut test_case = BytesMut::with_capacity(128);
@@ -367,7 +368,7 @@ mod tests {
 
     #[test]
     fn encode_sarray_remove() {
-        let c = PelikanRedis::new();
+        let c = PelikanRds::new();
 
         let mut buf = BytesMut::with_capacity(128);
         let mut test_case = BytesMut::with_capacity(128);
@@ -379,7 +380,7 @@ mod tests {
 
     #[test]
     fn encode_sarray_truncate() {
-        let c = PelikanRedis::new();
+        let c = PelikanRds::new();
 
         let mut buf = BytesMut::with_capacity(128);
         let mut test_case = BytesMut::with_capacity(128);
