@@ -47,15 +47,18 @@ impl Default for Config {
             action: Action::Get,
             weight: 1,
             ttl: None,
+            items: None,
         };
         let set = Command {
             action: Action::Set,
             weight: 1,
             ttl: None,
+            items: None,
         };
         let value = Value {
             length: 64,
             weight: 1,
+            class: default_value_class(),
         };
         keyspace.push(Keyspace {
             length: 8,
@@ -73,10 +76,18 @@ impl Default for Config {
 }
 
 #[derive(Copy, Clone, Deserialize, Debug)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 pub enum Action {
     Get,
+    SarrayCreate,
+    SarrayDelete,
+    SarrayFind,
+    SarrayGet,
+    SarrayInsert,
+    SarrayLen,
+    SarrayRemove,
+    SarrayTruncate,
     Set,
 }
 
@@ -113,6 +124,46 @@ impl Generator {
                 let value = keyspace.choose_value(rng);
                 crate::codec::Command::set(key, value, command.ttl())
             }
+            Action::SarrayCreate => {
+                let key = keyspace.choose_key(rng);
+                let esize = keyspace.choose_value_length(rng);
+                crate::codec::Command::sarray_create(key, format!("{}", esize))
+            }
+            Action::SarrayDelete => {
+                let key = keyspace.choose_key(rng);
+                crate::codec::Command::sarray_delete(key)
+            }
+            Action::SarrayFind => {
+                let key = keyspace.choose_key(rng);
+                let value = keyspace.choose_value(rng);
+                crate::codec::Command::sarray_find(key, value)
+            }
+            Action::SarrayGet => {
+                let key = keyspace.choose_key(rng);
+                // TODO: implement index
+                crate::codec::Command::sarray_get(key, None, command.items().map(|v| v as u64))
+            }
+            Action::SarrayInsert => {
+                let key = keyspace.choose_key(rng);
+                let mut values = Vec::new();
+                for _ in 0..command.items().unwrap_or(1) {
+                    values.push(keyspace.choose_value(rng));
+                }
+                crate::codec::Command::sarray_insert(key, values)
+            }
+            Action::SarrayLen => {
+                let key = keyspace.choose_key(rng);
+                crate::codec::Command::sarray_len(key)
+            }
+            Action::SarrayRemove => {
+                let key = keyspace.choose_key(rng);
+                let value = keyspace.choose_value(rng);
+                crate::codec::Command::sarray_remove(key, value)
+            }
+            Action::SarrayTruncate => {
+                let key = keyspace.choose_key(rng);
+                crate::codec::Command::sarray_truncate(key, command.items().unwrap_or(0) as u64)
+            }
         }
     }
 }
@@ -144,15 +195,46 @@ impl KeyspaceGenerator {
         )
     }
 
-    pub fn choose_value(&self, rng: &mut ThreadRng) -> String {
-        let length = self
+    pub fn choose_value_length(&self, rng: &mut ThreadRng) -> usize {
+        let value = self
             .values
             .choose_weighted(rng, config::Value::weight)
-            .unwrap()
-            .length();
-        rng.sample_iter(&Alphanumeric)
-            .take(length)
-            .collect::<String>()
+            .unwrap();
+        value.length()
+    }
+
+    pub fn choose_value(&self, rng: &mut ThreadRng) -> String {
+        let value = self
+            .values
+            .choose_weighted(rng, config::Value::weight)
+            .unwrap();
+        match value.class {
+            Class::Alphanumeric => rng
+                .sample_iter(&Alphanumeric)
+                .take(value.length())
+                .collect::<String>(),
+            Class::Integer => match value.length() {
+                1 => format!(
+                    "{}",
+                    rng.gen_range(0_u8, u8::max_value()),
+                ),
+                2 => format!(
+                    "{}",
+                    rng.gen_range(0_u16, u16::max_value()),
+                ),
+                4 => format!(
+                    "{}",
+                    rng.gen_range(0_u32, u32::max_value()),
+                ),
+                8 => format!(
+                    "{}",
+                    rng.gen_range(0_u64, u64::max_value()),
+                ),
+                _ => {
+                    fatal!("No Integer type with length: {}", value.length());
+                }
+            },
+        }
     }
 }
 
@@ -195,6 +277,7 @@ pub struct Command {
     action: Action,
     weight: usize,
     ttl: Option<usize>,
+    items: Option<usize>,
 }
 
 impl Command {
@@ -209,6 +292,17 @@ impl Command {
     pub fn ttl(&self) -> Option<usize> {
         self.ttl
     }
+
+    pub fn items(&self) -> Option<usize> {
+        self.items
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Class {
+    Alphanumeric,
+    Integer,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -216,6 +310,12 @@ impl Command {
 struct Value {
     length: usize,
     weight: usize,
+    #[serde(default = "default_value_class")]
+    class: Class,
+}
+
+fn default_value_class() -> Class {
+    Class::Alphanumeric
 }
 
 impl Value {

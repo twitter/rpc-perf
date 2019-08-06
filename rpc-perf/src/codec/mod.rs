@@ -20,11 +20,13 @@ use rand::rngs::ThreadRng;
 
 mod echo;
 mod memcache;
+mod pelikan_rds;
 mod ping;
 mod redis;
 
 pub use crate::codec::echo::Echo;
 pub use crate::codec::memcache::Memcache;
+pub use crate::codec::pelikan_rds::PelikanRds;
 pub use crate::codec::ping::Ping;
 pub use crate::codec::redis::{Redis, RedisMode};
 pub use codec::Decoder;
@@ -36,8 +38,10 @@ use crate::config::Action;
 pub struct Command {
     action: Action,
     key: Option<String>,
-    value: Option<String>,
+    values: Option<Vec<String>>,
     ttl: Option<usize>,
+    index: Option<u64>,
+    count: Option<u64>,
 }
 
 impl Command {
@@ -45,8 +49,10 @@ impl Command {
         Command {
             action: Action::Get,
             key: Some(key),
-            value: None,
+            values: None,
             ttl: None,
+            index: None,
+            count: None,
         }
     }
 
@@ -54,8 +60,10 @@ impl Command {
         Command {
             action: Action::Set,
             key: Some(key),
-            value: Some(value),
+            values: Some(vec![value]),
             ttl,
+            index: None,
+            count: None,
         }
     }
 
@@ -71,14 +79,115 @@ impl Command {
     }
 
     pub fn value(&self) -> Option<&[u8]> {
-        match &self.value {
-            Some(value) => Some(value.as_bytes()),
+        match &self.values {
+            Some(values) => Some(values[0].as_bytes()),
+            None => None,
+        }
+    }
+
+    pub fn values(&self) -> Option<Vec<&[u8]>> {
+        match &self.values {
+            Some(values) => {
+                let mut v = Vec::new();
+                for value in values {
+                    v.push(value.as_bytes())
+                }
+                Some(v)
+            }
             None => None,
         }
     }
 
     pub fn ttl(&self) -> Option<usize> {
         self.ttl
+    }
+
+    pub fn sarray_create(key: String, value: String) -> Command {
+        Command {
+            action: Action::SarrayCreate,
+            key: Some(key),
+            values: Some(vec![value]),
+            index: None,
+            count: None,
+            ttl: None,
+        }
+    }
+
+    pub fn sarray_delete(key: String) -> Command {
+        Command {
+            action: Action::SarrayDelete,
+            key: Some(key),
+            values: None,
+            index: None,
+            count: None,
+            ttl: None,
+        }
+    }
+
+    pub fn sarray_find(key: String, value: String) -> Command {
+        Command {
+            action: Action::SarrayFind,
+            key: Some(key),
+            values: Some(vec![value]),
+            index: None,
+            count: None,
+            ttl: None,
+        }
+    }
+
+    pub fn sarray_get(key: String, index: Option<u64>, count: Option<u64>) -> Command {
+        Command {
+            action: Action::SarrayGet,
+            key: Some(key),
+            index,
+            count,
+            ttl: None,
+            values: None,
+        }
+    }
+
+    pub fn sarray_insert(key: String, values: Vec<String>) -> Command {
+        Command {
+            action: Action::SarrayInsert,
+            key: Some(key),
+            index: None,
+            count: None,
+            ttl: None,
+            values: Some(values),
+        }
+    }
+
+    pub fn sarray_len(key: String) -> Command {
+        Command {
+            action: Action::SarrayLen,
+            key: Some(key),
+            values: None,
+            index: None,
+            count: None,
+            ttl: None,
+        }
+    }
+
+    pub fn sarray_remove(key: String, value: String) -> Command {
+        Command {
+            action: Action::SarrayRemove,
+            key: Some(key),
+            values: Some(vec![value]),
+            index: None,
+            count: None,
+            ttl: None,
+        }
+    }
+
+    pub fn sarray_truncate(key: String, items: u64) -> Command {
+        Command {
+            action: Action::SarrayTruncate,
+            key: Some(key),
+            values: None,
+            index: None,
+            count: Some(items),
+            ttl: None,
+        }
     }
 }
 

@@ -16,6 +16,7 @@ use crate::codec::*;
 use crate::config::Action;
 
 use bytes::BytesMut;
+use logger::*;
 
 pub struct Memcache {
     codec: codec::Memcache,
@@ -71,6 +72,9 @@ impl Codec for Memcache {
                 }
                 self.codec
                     .set(buf, key, value, command.ttl().map(|ttl| ttl as u32), None);
+            }
+            action => {
+                fatal!("Action: {:?} unsupported for Memcache", action);
             }
         }
     }

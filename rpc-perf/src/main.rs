@@ -189,6 +189,7 @@ fn launch_clients(config: &Config, metrics: &stats::Simple, control: Arc<AtomicB
         let mut codec: Box<Codec> = match config.protocol() {
             Protocol::Echo => Box::new(crate::codec::Echo::new()),
             Protocol::Memcache => Box::new(crate::codec::Memcache::new()),
+            Protocol::PelikanRds => Box::new(crate::codec::PelikanRds::new()),
             Protocol::Ping => Box::new(crate::codec::Ping::new()),
             Protocol::RedisResp => {
                 Box::new(crate::codec::Redis::new(crate::codec::RedisMode::Resp))
