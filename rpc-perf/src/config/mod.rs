@@ -214,22 +214,10 @@ impl KeyspaceGenerator {
                 .take(value.length())
                 .collect::<String>(),
             Class::Integer => match value.length() {
-                1 => format!(
-                    "{}",
-                    rng.gen_range(0_u8, u8::max_value()),
-                ),
-                2 => format!(
-                    "{}",
-                    rng.gen_range(0_u16, u16::max_value()),
-                ),
-                4 => format!(
-                    "{}",
-                    rng.gen_range(0_u32, u32::max_value()),
-                ),
-                8 => format!(
-                    "{}",
-                    rng.gen_range(0_u64, u64::max_value()),
-                ),
+                1 => format!("{}", rng.gen_range(0_u8, u8::max_value()),),
+                2 => format!("{}", rng.gen_range(0_u16, u16::max_value()),),
+                4 => format!("{}", rng.gen_range(0_u32, u32::max_value()),),
+                8 => format!("{}", rng.gen_range(0_u64, u64::max_value()),),
                 _ => {
                     fatal!("No Integer type with length: {}", value.length());
                 }
