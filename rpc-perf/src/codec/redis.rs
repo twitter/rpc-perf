@@ -18,6 +18,7 @@ pub use codec::RedisMode;
 use crate::config::Action;
 
 use bytes::BytesMut;
+use logger::*;
 
 pub struct Redis {
     codec: codec::Redis,
@@ -66,6 +67,9 @@ impl Codec for Redis {
                     recorder.distribution("values/size", value.len() as u64);
                 }
                 self.codec.set(buf, key, value, command.ttl());
+            }
+            action => {
+                fatal!("Action: {:?} unsupported for Redis", action);
             }
         }
     }

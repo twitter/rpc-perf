@@ -263,10 +263,11 @@ fn default_connect_timeout() -> usize {
 }
 
 #[derive(Copy, Clone, Deserialize, Debug)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 pub enum Protocol {
     Memcache,
+    PelikanRds,
     Ping,
     Echo,
     RedisResp,
