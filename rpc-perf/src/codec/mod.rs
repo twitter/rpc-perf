@@ -42,29 +42,36 @@ pub struct Command {
     ttl: Option<usize>,
     index: Option<u64>,
     count: Option<u64>,
+    watermark_low: Option<usize>,
+    watermark_high: Option<usize>,
 }
 
 impl Command {
-    pub fn get(key: String) -> Command {
+    pub fn new(action: Action) -> Command {
         Command {
-            action: Action::Get,
-            key: Some(key),
+            action,
+            key: None,
             values: None,
             ttl: None,
             index: None,
             count: None,
+            watermark_low: None,
+            watermark_high: None,
         }
     }
 
+    pub fn get(key: String) -> Command {
+        let mut command = Command::new(Action::Get);
+        command.key = Some(key);
+        command
+    }
+
     pub fn set(key: String, value: String, ttl: Option<usize>) -> Command {
-        Command {
-            action: Action::Set,
-            key: Some(key),
-            values: Some(vec![value]),
-            ttl,
-            index: None,
-            count: None,
-        }
+        let mut command = Command::new(Action::Set);
+        command.key = Some(key);
+        command.values = Some(vec![value]);
+        command.ttl = ttl;
+        command
     }
 
     pub fn action(&self) -> Action {
@@ -98,10 +105,6 @@ impl Command {
         }
     }
 
-    pub fn values_strings(&self) -> Option<Vec<String>> {
-        self.values.clone()
-    }
-
     pub fn ttl(&self) -> Option<usize> {
         self.ttl
     }
@@ -109,99 +112,71 @@ impl Command {
     pub fn sarray_create(
         key: String,
         esize: String,
-        watermark_low: Option<String>,
-        watermark_high: Option<String>,
+        watermark_low: Option<usize>,
+        watermark_high: Option<usize>,
     ) -> Command {
-        let values = if watermark_low.is_some() && watermark_high.is_some() {
-            vec![esize, watermark_low.unwrap(), watermark_high.unwrap()]
-        } else {
-            vec![esize]
-        };
-        Command {
-            action: Action::SarrayCreate,
-            key: Some(key),
-            values: Some(values),
-            index: None,
-            count: None,
-            ttl: None,
-        }
+        let mut command = Command::new(Action::SarrayCreate);
+        command.key = Some(key);
+        command.values = Some(vec![esize]);
+        command.watermark_low = watermark_low;
+        command.watermark_high = watermark_high;
+        command
     }
 
     pub fn sarray_delete(key: String) -> Command {
-        Command {
-            action: Action::SarrayDelete,
-            key: Some(key),
-            values: None,
-            index: None,
-            count: None,
-            ttl: None,
-        }
+        let mut command = Command::new(Action::SarrayDelete);
+        command.key = Some(key);
+        command
     }
 
     pub fn sarray_find(key: String, value: String) -> Command {
-        Command {
-            action: Action::SarrayFind,
-            key: Some(key),
-            values: Some(vec![value]),
-            index: None,
-            count: None,
-            ttl: None,
-        }
+        let mut command = Command::new(Action::SarrayFind);
+        command.key = Some(key);
+        command.values = Some(vec![value]);
+        command
     }
 
     pub fn sarray_get(key: String, index: Option<u64>, count: Option<u64>) -> Command {
-        Command {
-            action: Action::SarrayGet,
-            key: Some(key),
-            index,
-            count,
-            ttl: None,
-            values: None,
-        }
+        let mut command = Command::new(Action::SarrayGet);
+        command.key = Some(key);
+        command.index = index;
+        command.count = count;
+        command
     }
 
     pub fn sarray_insert(key: String, values: Vec<String>) -> Command {
-        Command {
-            action: Action::SarrayInsert,
-            key: Some(key),
-            index: None,
-            count: None,
-            ttl: None,
-            values: Some(values),
-        }
+        let mut command = Command::new(Action::SarrayInsert);
+        command.key = Some(key);
+        command.values = Some(values);
+        command
     }
 
     pub fn sarray_len(key: String) -> Command {
-        Command {
-            action: Action::SarrayLen,
-            key: Some(key),
-            values: None,
-            index: None,
-            count: None,
-            ttl: None,
-        }
+        let mut command = Command::new(Action::SarrayLen);
+        command.key = Some(key);
+        command
     }
 
-    pub fn sarray_remove(key: String, value: String) -> Command {
-        Command {
-            action: Action::SarrayRemove,
-            key: Some(key),
-            values: Some(vec![value]),
-            index: None,
-            count: None,
-            ttl: None,
-        }
+    pub fn sarray_remove(key: String, values: Vec<String>) -> Command {
+        let mut command = Command::new(Action::SarrayRemove);
+        command.key = Some(key);
+        command.values = Some(values);
+        command
     }
 
     pub fn sarray_truncate(key: String, items: u64) -> Command {
-        Command {
-            action: Action::SarrayTruncate,
-            key: Some(key),
-            values: None,
-            index: None,
-            count: Some(items),
-            ttl: None,
-        }
+        let mut command = Command::new(Action::SarrayTruncate);
+        command.key = Some(key);
+        command.count = Some(items);
+        command
+    }
+
+    pub fn watermark_low(&self) -> Option<usize> {
+        self.watermark_low
+    }
+
+    pub fn watermark_high(&self) -> Option<usize> {
+        self.watermark_high
     }
 }
 

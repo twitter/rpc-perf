@@ -48,18 +48,21 @@ impl Default for Config {
             weight: 1,
             ttl: None,
             items: None,
+            watermark_low: None,
+            watermark_high: None,
         };
         let set = Command {
             action: Action::Set,
             weight: 1,
             ttl: None,
             items: None,
+            watermark_low: None,
+            watermark_high: None,
         };
         let value = Value {
             length: 64,
             weight: 1,
             class: default_value_class(),
-            opt: None,
         };
         keyspace.push(Keyspace {
             length: 8,
@@ -129,18 +132,12 @@ impl Generator {
                 let key = keyspace.choose_key(rng);
                 let value = keyspace.choose_value(rng);
                 let esize = value.length();
-                if let Some(opt) = &value.opt {
-                    let watermark_low = opt.get(0).map(|v| v.to_string());
-                    let watermark_high = opt.get(1).map(|v| v.to_string());
-                    crate::codec::Command::sarray_create(
-                        key,
-                        format!("{}", esize),
-                        watermark_low,
-                        watermark_high,
-                    )
-                } else {
-                    crate::codec::Command::sarray_create(key, format!("{}", esize), None, None)
-                }
+                crate::codec::Command::sarray_create(
+                    key,
+                    format!("{}", esize),
+                    command.watermark_low(),
+                    command.watermark_high(),
+                )
             }
             Action::SarrayDelete => {
                 let key = keyspace.choose_key(rng);
@@ -170,8 +167,11 @@ impl Generator {
             }
             Action::SarrayRemove => {
                 let key = keyspace.choose_key(rng);
-                let value = keyspace.choose_value_string(rng);
-                crate::codec::Command::sarray_remove(key, value)
+                let mut values = Vec::new();
+                for _ in 0..command.items().unwrap_or(1) {
+                    values.push(keyspace.choose_value_string(rng));
+                }
+                crate::codec::Command::sarray_remove(key, values)
             }
             Action::SarrayTruncate => {
                 let key = keyspace.choose_key(rng);
@@ -285,6 +285,8 @@ pub struct Command {
     weight: usize,
     ttl: Option<usize>,
     items: Option<usize>,
+    watermark_low: Option<usize>,
+    watermark_high: Option<usize>,
 }
 
 impl Command {
@@ -303,6 +305,14 @@ impl Command {
     pub fn items(&self) -> Option<usize> {
         self.items
     }
+
+    pub fn watermark_low(&self) -> Option<usize> {
+        self.watermark_low
+    }
+
+    pub fn watermark_high(&self) -> Option<usize> {
+        self.watermark_high
+    }
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -319,7 +329,6 @@ pub struct Value {
     weight: usize,
     #[serde(default = "default_value_class")]
     class: Class,
-    opt: Option<Vec<String>>,
 }
 
 fn default_value_class() -> Class {
@@ -333,10 +342,6 @@ impl Value {
 
     pub fn weight(&self) -> usize {
         self.weight
-    }
-
-    pub fn opt(&self) -> &Option<Vec<String>> {
-        &self.opt
     }
 }
 

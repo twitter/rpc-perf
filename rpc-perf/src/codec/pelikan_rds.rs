@@ -67,30 +67,14 @@ impl Codec for PelikanRds {
             }
             Action::SarrayCreate => {
                 let key = command.key().unwrap();
-                let values = command.values_strings().unwrap();
+                let values = command.values().unwrap();
                 let esize = values[0].len();
                 if let Some(recorder) = self.common.recorder() {
                     recorder.increment("commands/create");
                     recorder.distribution("keys/size", key.len() as u64);
                 }
-                let watermark_low = if let Some(v) = values.get(1) {
-                    match v.parse::<usize>() {
-                        Ok(v) => Some(v),
-                        _ => None,
-                    }
-                } else {
-                    None
-                };
-                let watermark_high = if let Some(v) = values.get(2) {
-                    match v.parse::<usize>() {
-                        Ok(v) => Some(v),
-                        _ => None,
-                    }
-                } else {
-                    None
-                };
                 self.codec
-                    .sarray_create(buf, key, esize, watermark_low, watermark_high);
+                    .sarray_create(buf, key, esize, command.watermark_low(), command.watermark_high());
             }
             Action::SarrayDelete => {
                 let key = command.key().unwrap();

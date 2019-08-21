@@ -13,7 +13,7 @@ length = 8 # 8 byte keys
 count = 10_000_000 # limit to 10M keys
 weight = 1 # this keyspace has a weight of 1
 commands = [
-    {action = "sarray_create", weight = 1},
+    {action = "sarray_create", weight = 1, watermark_low = 3000, watermark_high = 3200},
     {action = "sarray_delete", weight = 1},
     {action = "sarray_find", weight = 1},
     {action = "sarray_get", weight = 1},
@@ -23,5 +23,5 @@ commands = [
     {action = "sarray_truncate", weight = 1, items = 128},
 ]
 values = [ # values will be u64 integers
-    {length = 8, weight = 1, class = "integer", opt = ["3000", "3200"]},
+    {length = 8, weight = 1, class = "integer"},
 ]
