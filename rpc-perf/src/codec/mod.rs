@@ -106,7 +106,12 @@ impl Command {
         self.ttl
     }
 
-    pub fn sarray_create(key: String, esize: String, watermark_low: Option<String>, watermark_high: Option<String>) -> Command {
+    pub fn sarray_create(
+        key: String,
+        esize: String,
+        watermark_low: Option<String>,
+        watermark_high: Option<String>,
+    ) -> Command {
         let values = if watermark_low.is_some() && watermark_high.is_some() {
             vec![esize, watermark_low.unwrap(), watermark_high.unwrap()]
         } else {

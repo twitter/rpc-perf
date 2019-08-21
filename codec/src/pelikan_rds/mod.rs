@@ -52,7 +52,14 @@ impl PelikanRds {
         }
     }
 
-    pub fn sarray_create(&self, buf: &mut BytesMut, key: &[u8], esize: usize, watermark_low: Option<usize>, watermark_high: Option<usize>) {
+    pub fn sarray_create(
+        &self,
+        buf: &mut BytesMut,
+        key: &[u8],
+        esize: usize,
+        watermark_low: Option<usize>,
+        watermark_high: Option<usize>,
+    ) {
         let esize = format!("{}", esize);
         if watermark_low.is_some() && watermark_high.is_some() {
             buf.extend_from_slice(
@@ -68,8 +75,12 @@ impl PelikanRds {
         if watermark_low.is_some() && watermark_high.is_some() {
             let watermark_low = format!("{}", watermark_low.unwrap());
             let watermark_high = format!("{}", watermark_high.unwrap());
-            buf.extend_from_slice(format!("${}\r\n{}\r\n", watermark_low.len(), watermark_low).as_bytes());
-            buf.extend_from_slice(format!("${}\r\n{}\r\n", watermark_high.len(), watermark_high).as_bytes());
+            buf.extend_from_slice(
+                format!("${}\r\n{}\r\n", watermark_low.len(), watermark_low).as_bytes(),
+            );
+            buf.extend_from_slice(
+                format!("${}\r\n{}\r\n", watermark_high.len(), watermark_high).as_bytes(),
+            );
         }
     }
 
@@ -335,7 +346,9 @@ mod tests {
 
         let mut buf = BytesMut::with_capacity(128);
         let mut test_case = BytesMut::with_capacity(128);
-        test_case.extend_from_slice(b"*5\r\n$13\r\nSArray.create\r\n$3\r\nabc\r\n$2\r\n64\r\n$4\r\n3000\r\n$4\r\n3200\r\n");
+        test_case.extend_from_slice(
+            b"*5\r\n$13\r\nSArray.create\r\n$3\r\nabc\r\n$2\r\n64\r\n$4\r\n3000\r\n$4\r\n3200\r\n",
+        );
         c.sarray_create(&mut buf, b"abc", 64, Some(3000), Some(3200));
         assert_eq!(test_case, buf);
     }
@@ -415,7 +428,9 @@ mod tests {
 
         let mut buf = BytesMut::with_capacity(128);
         let mut test_case = BytesMut::with_capacity(128);
-        test_case.extend_from_slice(b"*4\r\n$13\r\nSArray.remove\r\n$3\r\nabc\r\n$2\r\n42\r\n$3\r\n206\r\n");
+        test_case.extend_from_slice(
+            b"*4\r\n$13\r\nSArray.remove\r\n$3\r\nabc\r\n$2\r\n42\r\n$3\r\n206\r\n",
+        );
         let values: Vec<&[u8]> = vec![b"42", b"206"];
         c.sarray_remove(&mut buf, b"abc", &values);
         assert_eq!(test_case, buf);

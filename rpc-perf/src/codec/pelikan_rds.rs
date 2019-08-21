@@ -76,7 +76,7 @@ impl Codec for PelikanRds {
                 let watermark_low = if let Some(v) = values.get(1) {
                     match v.parse::<usize>() {
                         Ok(v) => Some(v),
-                        _ => None
+                        _ => None,
                     }
                 } else {
                     None
@@ -84,12 +84,13 @@ impl Codec for PelikanRds {
                 let watermark_high = if let Some(v) = values.get(2) {
                     match v.parse::<usize>() {
                         Ok(v) => Some(v),
-                        _ => None
+                        _ => None,
                     }
                 } else {
                     None
                 };
-                self.codec.sarray_create(buf, key, esize, watermark_low, watermark_high);
+                self.codec
+                    .sarray_create(buf, key, esize, watermark_low, watermark_high);
             }
             Action::SarrayDelete => {
                 let key = command.key().unwrap();

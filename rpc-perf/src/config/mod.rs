@@ -132,7 +132,12 @@ impl Generator {
                 if let Some(opt) = &value.opt {
                     let watermark_low = opt.get(0).map(|v| v.to_string());
                     let watermark_high = opt.get(1).map(|v| v.to_string());
-                    crate::codec::Command::sarray_create(key, format!("{}", esize), watermark_low, watermark_high)
+                    crate::codec::Command::sarray_create(
+                        key,
+                        format!("{}", esize),
+                        watermark_low,
+                        watermark_high,
+                    )
                 } else {
                     crate::codec::Command::sarray_create(key, format!("{}", esize), None, None)
                 }
@@ -182,7 +187,6 @@ pub struct KeyspaceGenerator {
     distribution: Uniform<usize>,
     commands: Vec<Command>,
     values: Vec<Value>,
-
 }
 
 impl KeyspaceGenerator {
@@ -235,8 +239,7 @@ impl KeyspaceGenerator {
     }
 
     pub fn choose_value(&self, rng: &mut ThreadRng) -> &Value {
-        self
-            .values
+        self.values
             .choose_weighted(rng, config::Value::weight)
             .unwrap()
     }
