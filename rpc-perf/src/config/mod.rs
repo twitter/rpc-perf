@@ -59,6 +59,7 @@ impl Default for Config {
             length: 64,
             weight: 1,
             class: default_value_class(),
+            opt: None,
         };
         keyspace.push(Keyspace {
             length: 8,
@@ -121,13 +122,20 @@ impl Generator {
             }
             Action::Set => {
                 let key = keyspace.choose_key(rng);
-                let value = keyspace.choose_value(rng);
+                let value = keyspace.choose_value_string(rng);
                 crate::codec::Command::set(key, value, command.ttl())
             }
             Action::SarrayCreate => {
                 let key = keyspace.choose_key(rng);
-                let esize = keyspace.choose_value_length(rng);
-                crate::codec::Command::sarray_create(key, format!("{}", esize))
+                let value = keyspace.choose_value(rng);
+                let esize = value.length();
+                if let Some(opt) = &value.opt {
+                    let watermark_low = opt.get(0).map(|v| v.to_string());
+                    let watermark_high = opt.get(1).map(|v| v.to_string());
+                    crate::codec::Command::sarray_create(key, format!("{}", esize), watermark_low, watermark_high)
+                } else {
+                    crate::codec::Command::sarray_create(key, format!("{}", esize), None, None)
+                }
             }
             Action::SarrayDelete => {
                 let key = keyspace.choose_key(rng);
@@ -135,7 +143,7 @@ impl Generator {
             }
             Action::SarrayFind => {
                 let key = keyspace.choose_key(rng);
-                let value = keyspace.choose_value(rng);
+                let value = keyspace.choose_value_string(rng);
                 crate::codec::Command::sarray_find(key, value)
             }
             Action::SarrayGet => {
@@ -147,7 +155,7 @@ impl Generator {
                 let key = keyspace.choose_key(rng);
                 let mut values = Vec::new();
                 for _ in 0..command.items().unwrap_or(1) {
-                    values.push(keyspace.choose_value(rng));
+                    values.push(keyspace.choose_value_string(rng));
                 }
                 crate::codec::Command::sarray_insert(key, values)
             }
@@ -157,7 +165,7 @@ impl Generator {
             }
             Action::SarrayRemove => {
                 let key = keyspace.choose_key(rng);
-                let value = keyspace.choose_value(rng);
+                let value = keyspace.choose_value_string(rng);
                 crate::codec::Command::sarray_remove(key, value)
             }
             Action::SarrayTruncate => {
@@ -174,6 +182,7 @@ pub struct KeyspaceGenerator {
     distribution: Uniform<usize>,
     commands: Vec<Command>,
     values: Vec<Value>,
+
 }
 
 impl KeyspaceGenerator {
@@ -203,7 +212,7 @@ impl KeyspaceGenerator {
         value.length()
     }
 
-    pub fn choose_value(&self, rng: &mut ThreadRng) -> String {
+    pub fn choose_value_string(&self, rng: &mut ThreadRng) -> String {
         let value = self
             .values
             .choose_weighted(rng, config::Value::weight)
@@ -223,6 +232,13 @@ impl KeyspaceGenerator {
                 }
             },
         }
+    }
+
+    pub fn choose_value(&self, rng: &mut ThreadRng) -> &Value {
+        self
+            .values
+            .choose_weighted(rng, config::Value::weight)
+            .unwrap()
     }
 }
 
@@ -295,11 +311,12 @@ pub enum Class {
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct Value {
+pub struct Value {
     length: usize,
     weight: usize,
     #[serde(default = "default_value_class")]
     class: Class,
+    opt: Option<Vec<String>>,
 }
 
 fn default_value_class() -> Class {
@@ -313,6 +330,10 @@ impl Value {
 
     pub fn weight(&self) -> usize {
         self.weight
+    }
+
+    pub fn opt(&self) -> &Option<Vec<String>> {
+        &self.opt
     }
 }
 
