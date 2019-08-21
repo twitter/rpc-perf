@@ -73,8 +73,13 @@ impl Codec for PelikanRds {
                     recorder.increment("commands/create");
                     recorder.distribution("keys/size", key.len() as u64);
                 }
-                self.codec
-                    .sarray_create(buf, key, esize, command.watermark_low(), command.watermark_high());
+                self.codec.sarray_create(
+                    buf,
+                    key,
+                    esize,
+                    command.watermark_low(),
+                    command.watermark_high(),
+                );
             }
             Action::SarrayDelete => {
                 let key = command.key().unwrap();
