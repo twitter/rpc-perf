@@ -19,7 +19,7 @@ commands = [
     {action = "sarray_get", weight = 1},
     {action = "sarray_insert", weight = 1, items = 1},
     {action = "sarray_len", weight = 1},
-    {action = "sarray_remove", weight = 1},
+    {action = "sarray_remove", weight = 1, items = 1},
     {action = "sarray_truncate", weight = 1, items = 128},
 ]
 values = [ # values will be u64 integers
