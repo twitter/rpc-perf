@@ -208,14 +208,6 @@ impl KeyspaceGenerator {
         )
     }
 
-    pub fn choose_value_length(&self, rng: &mut ThreadRng) -> usize {
-        let value = self
-            .values
-            .choose_weighted(rng, config::Value::weight)
-            .unwrap();
-        value.length()
-    }
-
     pub fn choose_value_string(&self, rng: &mut ThreadRng) -> String {
         let value = self
             .values
