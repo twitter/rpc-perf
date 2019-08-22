@@ -48,12 +48,16 @@ impl Default for Config {
             weight: 1,
             ttl: None,
             items: None,
+            watermark_low: None,
+            watermark_high: None,
         };
         let set = Command {
             action: Action::Set,
             weight: 1,
             ttl: None,
             items: None,
+            watermark_low: None,
+            watermark_high: None,
         };
         let value = Value {
             length: 64,
@@ -121,13 +125,19 @@ impl Generator {
             }
             Action::Set => {
                 let key = keyspace.choose_key(rng);
-                let value = keyspace.choose_value(rng);
+                let value = keyspace.choose_value_string(rng);
                 crate::codec::Command::set(key, value, command.ttl())
             }
             Action::SarrayCreate => {
                 let key = keyspace.choose_key(rng);
-                let esize = keyspace.choose_value_length(rng);
-                crate::codec::Command::sarray_create(key, format!("{}", esize))
+                let value = keyspace.choose_value(rng);
+                let esize = value.length();
+                crate::codec::Command::sarray_create(
+                    key,
+                    format!("{}", esize),
+                    command.watermark_low(),
+                    command.watermark_high(),
+                )
             }
             Action::SarrayDelete => {
                 let key = keyspace.choose_key(rng);
@@ -135,7 +145,7 @@ impl Generator {
             }
             Action::SarrayFind => {
                 let key = keyspace.choose_key(rng);
-                let value = keyspace.choose_value(rng);
+                let value = keyspace.choose_value_string(rng);
                 crate::codec::Command::sarray_find(key, value)
             }
             Action::SarrayGet => {
@@ -147,7 +157,7 @@ impl Generator {
                 let key = keyspace.choose_key(rng);
                 let mut values = Vec::new();
                 for _ in 0..command.items().unwrap_or(1) {
-                    values.push(keyspace.choose_value(rng));
+                    values.push(keyspace.choose_value_string(rng));
                 }
                 crate::codec::Command::sarray_insert(key, values)
             }
@@ -157,8 +167,11 @@ impl Generator {
             }
             Action::SarrayRemove => {
                 let key = keyspace.choose_key(rng);
-                let value = keyspace.choose_value(rng);
-                crate::codec::Command::sarray_remove(key, value)
+                let mut values = Vec::new();
+                for _ in 0..command.items().unwrap_or(1) {
+                    values.push(keyspace.choose_value_string(rng));
+                }
+                crate::codec::Command::sarray_remove(key, values)
             }
             Action::SarrayTruncate => {
                 let key = keyspace.choose_key(rng);
@@ -195,15 +208,7 @@ impl KeyspaceGenerator {
         )
     }
 
-    pub fn choose_value_length(&self, rng: &mut ThreadRng) -> usize {
-        let value = self
-            .values
-            .choose_weighted(rng, config::Value::weight)
-            .unwrap();
-        value.length()
-    }
-
-    pub fn choose_value(&self, rng: &mut ThreadRng) -> String {
+    pub fn choose_value_string(&self, rng: &mut ThreadRng) -> String {
         let value = self
             .values
             .choose_weighted(rng, config::Value::weight)
@@ -223,6 +228,12 @@ impl KeyspaceGenerator {
                 }
             },
         }
+    }
+
+    pub fn choose_value(&self, rng: &mut ThreadRng) -> &Value {
+        self.values
+            .choose_weighted(rng, config::Value::weight)
+            .unwrap()
     }
 }
 
@@ -266,6 +277,8 @@ pub struct Command {
     weight: usize,
     ttl: Option<usize>,
     items: Option<usize>,
+    watermark_low: Option<usize>,
+    watermark_high: Option<usize>,
 }
 
 impl Command {
@@ -284,6 +297,14 @@ impl Command {
     pub fn items(&self) -> Option<usize> {
         self.items
     }
+
+    pub fn watermark_low(&self) -> Option<usize> {
+        self.watermark_low
+    }
+
+    pub fn watermark_high(&self) -> Option<usize> {
+        self.watermark_high
+    }
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -295,7 +316,7 @@ pub enum Class {
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct Value {
+pub struct Value {
     length: usize,
     weight: usize,
     #[serde(default = "default_value_class")]

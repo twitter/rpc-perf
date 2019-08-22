@@ -67,12 +67,19 @@ impl Codec for PelikanRds {
             }
             Action::SarrayCreate => {
                 let key = command.key().unwrap();
-                let esize = command.value().unwrap().len();
+                let values = command.values().unwrap();
+                let esize = values[0].len();
                 if let Some(recorder) = self.common.recorder() {
                     recorder.increment("commands/create");
                     recorder.distribution("keys/size", key.len() as u64);
                 }
-                self.codec.sarray_create(buf, key, esize);
+                self.codec.sarray_create(
+                    buf,
+                    key,
+                    esize,
+                    command.watermark_low(),
+                    command.watermark_high(),
+                );
             }
             Action::SarrayDelete => {
                 let key = command.key().unwrap();
@@ -122,13 +129,14 @@ impl Codec for PelikanRds {
             }
             Action::SarrayRemove => {
                 let key = command.key().unwrap();
-                let value = command.value().unwrap();
+                let values = command.values().unwrap();
                 if let Some(recorder) = self.common.recorder() {
                     recorder.increment("commands/remove");
                     recorder.distribution("keys/size", key.len() as u64);
-                    recorder.distribution("values/size", value.len() as u64);
+                    let len: usize = values.iter().map(|v| v.len()).sum();
+                    recorder.distribution("values/size", len as u64);
                 }
-                self.codec.sarray_remove(buf, key, value);
+                self.codec.sarray_remove(buf, key, &values);
             }
             Action::SarrayTruncate => {
                 let key = command.key().unwrap();

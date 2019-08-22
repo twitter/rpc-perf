@@ -52,13 +52,36 @@ impl PelikanRds {
         }
     }
 
-    pub fn sarray_create(&self, buf: &mut BytesMut, key: &[u8], esize: usize) {
+    pub fn sarray_create(
+        &self,
+        buf: &mut BytesMut,
+        key: &[u8],
+        esize: usize,
+        watermark_low: Option<usize>,
+        watermark_high: Option<usize>,
+    ) {
         let esize = format!("{}", esize);
-        buf.extend_from_slice(
-            format!("*3\r\n$13\r\nSArray.create\r\n${}\r\n", key.len()).as_bytes(),
-        );
+        if watermark_low.is_some() && watermark_high.is_some() {
+            buf.extend_from_slice(
+                format!("*5\r\n$13\r\nSArray.create\r\n${}\r\n", key.len()).as_bytes(),
+            );
+        } else {
+            buf.extend_from_slice(
+                format!("*3\r\n$13\r\nSArray.create\r\n${}\r\n", key.len()).as_bytes(),
+            );
+        }
         buf.extend_from_slice(key);
         buf.extend_from_slice(format!("\r\n${}\r\n{}\r\n", esize.len(), esize).as_bytes());
+        if watermark_low.is_some() && watermark_high.is_some() {
+            let watermark_low = format!("{}", watermark_low.unwrap());
+            let watermark_high = format!("{}", watermark_high.unwrap());
+            buf.extend_from_slice(
+                format!("${}\r\n{}\r\n", watermark_low.len(), watermark_low).as_bytes(),
+            );
+            buf.extend_from_slice(
+                format!("${}\r\n{}\r\n", watermark_high.len(), watermark_high).as_bytes(),
+            );
+        }
     }
 
     pub fn sarray_delete(&self, buf: &mut BytesMut, key: &[u8]) {
@@ -127,13 +150,16 @@ impl PelikanRds {
         buf.extend_from_slice(b"\r\n");
     }
 
-    pub fn sarray_remove(&self, buf: &mut BytesMut, key: &[u8], value: &[u8]) {
+    pub fn sarray_remove(&self, buf: &mut BytesMut, key: &[u8], values: &Vec<&[u8]>) {
+        let args = 2 + values.len();
         buf.extend_from_slice(
-            format!("*3\r\n$13\r\nSArray.remove\r\n${}\r\n", key.len()).as_bytes(),
+            format!("*{}\r\n$13\r\nSArray.remove\r\n${}\r\n", args, key.len()).as_bytes(),
         );
         buf.extend_from_slice(key);
-        buf.extend_from_slice(format!("\r\n${}\r\n", value.len()).as_bytes());
-        buf.extend_from_slice(value);
+        for value in values {
+            buf.extend_from_slice(format!("\r\n${}\r\n", value.len()).as_bytes());
+            buf.extend_from_slice(value);
+        }
         buf.extend_from_slice(b"\r\n");
     }
 
@@ -315,7 +341,15 @@ mod tests {
         let mut buf = BytesMut::with_capacity(128);
         let mut test_case = BytesMut::with_capacity(128);
         test_case.extend_from_slice(b"*3\r\n$13\r\nSArray.create\r\n$3\r\nabc\r\n$2\r\n64\r\n");
-        c.sarray_create(&mut buf, b"abc", 64);
+        c.sarray_create(&mut buf, b"abc", 64, None, None);
+        assert_eq!(test_case, buf);
+
+        let mut buf = BytesMut::with_capacity(128);
+        let mut test_case = BytesMut::with_capacity(128);
+        test_case.extend_from_slice(
+            b"*5\r\n$13\r\nSArray.create\r\n$3\r\nabc\r\n$2\r\n64\r\n$4\r\n3000\r\n$4\r\n3200\r\n",
+        );
+        c.sarray_create(&mut buf, b"abc", 64, Some(3000), Some(3200));
         assert_eq!(test_case, buf);
     }
 
@@ -388,8 +422,17 @@ mod tests {
         let mut buf = BytesMut::with_capacity(128);
         let mut test_case = BytesMut::with_capacity(128);
         test_case.extend_from_slice(b"*3\r\n$13\r\nSArray.remove\r\n$3\r\nabc\r\n$2\r\n42\r\n");
+        let values: Vec<&[u8]> = vec![b"42"];
+        c.sarray_remove(&mut buf, b"abc", &values);
+        assert_eq!(test_case, buf);
 
-        c.sarray_remove(&mut buf, b"abc", b"42");
+        let mut buf = BytesMut::with_capacity(128);
+        let mut test_case = BytesMut::with_capacity(128);
+        test_case.extend_from_slice(
+            b"*4\r\n$13\r\nSArray.remove\r\n$3\r\nabc\r\n$2\r\n42\r\n$3\r\n206\r\n",
+        );
+        let values: Vec<&[u8]> = vec![b"42", b"206"];
+        c.sarray_remove(&mut buf, b"abc", &values);
         assert_eq!(test_case, buf);
     }
 
