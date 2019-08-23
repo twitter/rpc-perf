@@ -14,6 +14,8 @@ use time::Tm;
 
 const SECOND: u64 = 1_000_000_000;
 
+/// A `Slice` holds a `Histogram` which covers a window of time within the time
+/// range covered by the `Heatmap`
 pub struct Slice<'a, T>
 where
     T: Counter + Unsigned,
@@ -32,27 +34,37 @@ where
     <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating,
     u64: From<<T as AtomicPrimitive>::Primitive>,
 {
+    /// Returns the start of the slice in UTC wallclock time
     pub fn begin_utc(&self) -> Tm {
         self.begin_utc
     }
 
+    /// Returns the end of the slice in UTC wallclock time
     pub fn end_utc(&self) -> Tm {
         self.end_utc
     }
 
+    /// Returns the start of the slice as precise count with an arbitrary epoch
     pub fn begin_precise(&self) -> u64 {
         self.begin_precise
     }
 
+    /// Returns the end of the slice as a precise count with an arbitrary epoch
     pub fn end_precise(&self) -> u64 {
         self.end_precise
     }
 
+    /// Access the `Histogram` stored within the `Slice`
     pub fn histogram(&self) -> &Histogram<T> {
         &self.histogram
     }
 }
 
+/// A `Heatmap` is used to store multiple `Histogram`s across a span of time
+/// with each `Slice` of the `Heatmap` covering a sub-span of the overall span.
+/// The number of slices are dictated by the `resolution` in nanoseconds and the
+/// `span` of the heatmap in nanoseconds. Each `Histogram` within the `Heatmap`
+/// will store from 0..`max` with a specified `precision`.
 pub struct Heatmap<T>
 where
     T: Counter + Unsigned,
@@ -73,6 +85,10 @@ where
     <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating,
     u64: From<<T as AtomicPrimitive>::Primitive>,
 {
+    /// Create a new `Heatmap` which will hold values from 0..`max` with a
+    /// specified `precision`. Use `resolution` to specify the time-domain
+    /// resolution in nanoseconds. Use `span` to specify the overall window of
+    /// time to be covered by the `Heatmap`.
     pub fn new(max: u64, precision: u32, resolution: u64, span: u64) -> Self {
         // build the Histograms
         let num_slices = span / resolution;
@@ -131,6 +147,7 @@ where
             current + time::Duration::nanoseconds(self.resolution.get() as i64);
     }
 
+    // Internal function to get the Histogram at a given index
     fn get_histogram(&self, index: usize) -> Option<&Histogram<T>> {
         if let Some(h) = self.slices.get(index) {
             Some(h)
@@ -139,25 +156,26 @@ where
         }
     }
 
+    // Internal function to get the current offset of the `Heatmap`
     fn offset(&self) -> usize {
         self.offset.get() as usize
     }
 
-    /// increment a time-value pair by count
+    /// Increment a `time`-`value` pair by `count`
     pub fn increment(&self, time: u64, value: u64, count: <T as AtomicPrimitive>::Primitive) {
         if let Some(index) = self.get_index(time) {
             self.slices[index].increment(value, count);
         }
     }
 
-    /// decrement a time-value pair by count
+    /// Decrement a `time`-`value` pair by `count`
     pub fn decrement(&self, time: u64, value: u64, count: <T as AtomicPrimitive>::Primitive) {
         if let Some(index) = self.get_index(time) {
             self.slices[index].decrement(value, count);
         }
     }
 
-    /// moves the window forward as-needed, dropping older histograms
+    /// Moves the window forward as-needed, dropping older histograms
     pub fn latch(&self) {
         let time = time::precise_time_ns();
 
@@ -170,7 +188,7 @@ where
         }
     }
 
-    /// get the total number of samples stored in the heatmap
+    /// Get the total count for all samples stored in the heatmap
     pub fn total_count(&self) -> u64 {
         let mut count = 0;
         for histogram in &self.slices {
@@ -179,7 +197,7 @@ where
         count
     }
 
-    /// get the maximum number of samples in any time-value pair
+    /// Get the maximum number of samples in any `time`-`value` pair
     pub fn highest_count(&self) -> u64 {
         let mut highest_count = 0;
         for histogram in self.slices.iter() {
@@ -192,22 +210,27 @@ where
         highest_count
     }
 
+    /// Return the number of `Slice`s within the `Heatmap`
     pub fn slices(&self) -> usize {
         self.slices.len()
     }
 
+    /// Return the number of `Bucket`s within each `Slice`
     pub fn buckets(&self) -> usize {
         self.slices[0].into_iter().count()
     }
 
+    /// Return the beginning UTC wallclock time covered in the `Heatmap`
     pub fn begin_utc(&self) -> Tm {
         *self.oldest_begin_utc.lock()
     }
 
+    /// Returns the beginning timestamp from an arbitrary epoch
     pub fn begin_precise(&self) -> u64 {
         self.oldest_begin_precise.get()
     }
 
+    /// Return the number of nanoseconds stored in each `Slice`
     pub fn resolution(&self) -> u64 {
         self.resolution.get()
     }

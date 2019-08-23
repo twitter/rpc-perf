@@ -1,5 +1,10 @@
+// Copyright 2019 Twitter, Inc.
+// Licensed under the Apache License, Version 2.0
+// http://www.apache.org/licenses/LICENSE-2.0
+
 use atomics::*;
 
+/// Describes types as unsigned integers
 pub trait Unsigned {}
 impl Unsigned for AtomicU8 {}
 impl Unsigned for AtomicU16 {}
@@ -7,6 +12,7 @@ impl Unsigned for AtomicU32 {}
 impl Unsigned for AtomicU64 {}
 impl Unsigned for AtomicUsize {}
 
+/// A trait for all types that implementing saturating addition and subtraction
 pub trait Saturating {
     fn saturating_add(&self, other: Self) -> Self;
     fn saturating_sub(&self, other: Self) -> Self;
@@ -102,6 +108,7 @@ impl Saturating for usize {
     }
 }
 
+/// A trait that describes all functionality of a `Counter`
 pub trait Counter: Default + AtomicCounter + AtomicPrimitive
 where
     <Self as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating,

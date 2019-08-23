@@ -1,6 +1,11 @@
+// Copyright 2019 Twitter, Inc.
+// Licensed under the Apache License, Version 2.0
+// http://www.apache.org/licenses/LICENSE-2.0
+
 use crate::counter::*;
 use atomics::*;
 
+/// A basic circular buffer holding `AtomicPrimitives`
 pub struct Buffer<T> {
     data: Vec<T>,
     read: AtomicUsize,
