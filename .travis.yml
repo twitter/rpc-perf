@@ -7,10 +7,6 @@ os: linux
 dist: trusty
 sudo: required
 env: TYPE=default RUST_BACKTRACE=1
-cache:
-  directories:
-  - $HOME/.cargo
-  - $TRAVIS_BUILD_DIR/target
 script:
 - cargo build --verbose
 - cargo test --verbose
