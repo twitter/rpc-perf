@@ -1,3 +1,7 @@
+// Copyright 2019 Twitter, Inc.
+// Licensed under the Apache License, Version 2.0
+// http://www.apache.org/licenses/LICENSE-2.0
+
 use crate::counter::*;
 use atomics::*;
 use parking_lot::Mutex;
@@ -5,6 +9,16 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+/// `Histogram` is inspired by HDRHistogram and stores a counter for `Bucket`s
+/// across a range of input values. `Histogram`s store between 0 and the `max`
+/// value passed to the constructor. Optionally, a `Histogram` may retain
+/// samples across a given `window`, resulting in a moving `Histogram` which
+/// holds only recently seen samples. Additionally, the number of samples
+/// retained can be bounded by the `capacity` of the `Histogram`. `Histogram` is
+/// generic across `AtomicPrimitive`s which implement `Saturating`. This allows
+/// the user to customize the `Histogram` to trade-off between being able to
+/// hold larger counts per `Bucket` or use less memory by selecting which type
+/// to use for the counters.
 pub struct Histogram<T>
 where
     T: Counter + Unsigned,
@@ -21,11 +35,14 @@ where
     capacity: Option<AtomicUsize>,
 }
 
+/// Indicates whether the sample was an `Increment` or a `Decrement` operation
 enum Direction {
     Decrement,
     Increment,
 }
 
+/// Used to hold samples in the internal buffer, later used to remove expired
+/// or excess samples
 struct Sample<T> {
     value: u64,
     count: T,
@@ -33,6 +50,7 @@ struct Sample<T> {
     direction: Direction,
 }
 
+/// A `Bucket` stores a count across a range of values
 pub struct Bucket<T> {
     min: u64,
     max: u64,
@@ -44,18 +62,27 @@ impl<T> Bucket<T>
 where
     T: Copy,
 {
+    /// Return the inclusive minimum of all values storable in the `Bucket`
     pub fn min(&self) -> u64 {
         self.min
     }
+
+    /// Return the non-inclusive maximum of all values storable in the `Bucket`
     pub fn max(&self) -> u64 {
         self.max
     }
+
+    /// Return the nominal value of this `Bucket`
     pub fn value(&self) -> u64 {
         self.value
     }
+
+    /// Return the count of values rectored into this `Bucket`
     pub fn count(&self) -> T {
         self.count
     }
+
+    /// Returns the range of values storable in this `Bucket`
     pub fn width(&self) -> u64 {
         self.max - self.min
     }
@@ -67,6 +94,11 @@ where
     u64: std::convert::From<<T as AtomicPrimitive>::Primitive>,
     <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating,
 {
+    /// Create a new `Histogram` which stores from 0..`max`, with at least
+    /// `precision` digits represented exactly. Optionally, specify a `window`
+    /// beyond which, aged sampled will be removed from the `Histogram`.
+    /// Optionally, bound the number of samples stored in the `Histogram` by
+    /// specifying the `capacity`.
     pub fn new(
         max: u64,
         precision: u32,
@@ -143,6 +175,7 @@ where
         }
     }
 
+    // Internal function to get the minimum value for a given bucket index
     fn get_min_value(&self, index: usize) -> Result<u64, ()> {
         if index >= self.buckets.len() {
             Err(())
@@ -164,6 +197,7 @@ where
         }
     }
 
+    // Internal function to get the non-inclusive maximum for a bucket at index
     fn get_max_value(&self, index: usize) -> Result<u64, ()> {
         if index == self.buckets.len() - 1 {
             Ok(self.max.get() + 1)
@@ -186,10 +220,12 @@ where
         }
     }
 
+    // Internal function to get the nominal value of the bucket at index
     fn get_value(&self, index: usize) -> Result<u64, ()> {
         self.get_max_value(index).map(|v| v - 1)
     }
 
+    /// Increment the `Bucket` holding `value` by `count`
     pub fn increment(&self, value: u64, count: <T as AtomicPrimitive>::Primitive) {
         match self.get_index(value) {
             Ok(index) => {
@@ -213,6 +249,7 @@ where
         }
     }
 
+    /// Decrement the `Bucket` holding `value` by `count`
     pub fn decrement(&self, value: u64, count: <T as AtomicPrimitive>::Primitive) {
         match self.get_index(value) {
             Ok(index) => {
@@ -236,6 +273,7 @@ where
         }
     }
 
+    /// Clears all `Bucket`s within the `Histogram`
     pub fn clear(&self) {
         if let Some(samples) = &self.samples {
             let mut samples = samples.lock();
@@ -250,6 +288,7 @@ where
         self.too_high.set(0);
     }
 
+    // Internal function to remove expired and/or excess samples
     fn trim(&self, time: Instant) {
         if let Some(samples) = &self.samples {
             if let Some(window) = &self.window {
@@ -317,6 +356,7 @@ where
         }
     }
 
+    /// Returns the total count for all values in the `Histogram`
     pub fn total_count(&self) -> u64 {
         if self.samples.is_some() {
             let time = Instant::now();
@@ -330,6 +370,7 @@ where
         total
     }
 
+    /// Returns the nominal value at the percentile specified from 0.0-1.0
     pub fn percentile(&self, percentile: f64) -> Option<u64> {
         let total = self.total_count();
         if total == 0 {
@@ -357,10 +398,12 @@ where
         }
     }
 
+    /// Return the number of samples which were too high to store in a `Bucket`
     pub fn too_high(&self) -> u64 {
         self.too_high.get()
     }
 
+    /// Returns the approximate mean of all values in the `Histogram`
     pub fn mean(&self) -> u64 {
         let mut result = 0;
         for bucket in self.into_iter() {
@@ -369,6 +412,7 @@ where
         result / self.total_count()
     }
 
+    /// Returns the nominal value of the mode of the `Histogram`
     pub fn mode(&self) -> u64 {
         let mut count = 0;
         let mut value = 0;
