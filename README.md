@@ -94,7 +94,7 @@ rpc-perf --config some_config.toml --endpoint 127.0.0.1:11211 --interval 60 --wi
 
 ## Support
 
-Create a [new issue](https://github.com/twitter/rezolus/issues/new) on GitHub.
+Create a [new issue](https://github.com/twitter/rpc-perf/issues/new) on GitHub.
 
 ## Contributing
 
@@ -121,7 +121,7 @@ https://www.apache.org/licenses/LICENSE-2.0
 Please report sensitive security issues via Twitter's bug-bounty program
 (https://hackerone.com/twitter) rather than GitHub.
 
-[contributors]: https://github.com/twitter/rezolus/graphs/contributors?type=a
+[contributors]: https://github.com/twitter/rpc-perf/graphs/contributors?type=a
 [mio]: https://github.com/carllerche/mio
 [Open Source Code of Conduct]: https://github.com/twitter/code-of-conduct/blob/master/code-of-conduct.md
 [rustlang]: https://rust-lang.org/
