@@ -1,5 +1,5 @@
 [general]
-protocol = "redis_resp" # use the Redis RESP protocol
+protocol = "redisresp" # use the Redis RESP protocol
 interval = 60 # seconds
 windows = 5 # run for 5 intervals
 clients = 1 # use a single client thread
