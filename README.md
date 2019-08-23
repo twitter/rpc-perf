@@ -1,4 +1,4 @@
-# rpc-perf - RPC Performance Testing
+# rpc-perf
 
 rpc-perf was created to help measure the performance of caching systems. We've found this tool to be
 useful for validating performance of cache backends, effects of kernel version and system tuning, as
@@ -92,15 +92,38 @@ rpc-perf --config some_config.toml --endpoint 127.0.0.1:11211 --interval 60 --wi
 * optional waterfall visualization of latencies
 * powerful workload configuration
 
+## Support
+
+Create a [new issue](https://github.com/twitter/rezolus/issues/new) on GitHub.
+
 ## Contributing
 
-* fork on github
-* clone your fork
-* create a feature branch
-* don't forget to run rustfmt
-* push your feature branch
-* create a pull request
+We feel that a welcoming community is important and we ask that you follow
+Twitter's [Open Source Code of Conduct] in all interactions with the community.
 
+## Authors
+
+* Brian Martin <bmartin@twitter.com>
+
+A full list of [contributors] can be found on GitHub.
+
+Follow [@TwitterOSS](https://twitter.com/twitteross) on Twitter for updates.
+
+## License
+
+Copyright 2015-2019 Twitter, Inc.
+
+Licensed under the Apache License, Version 2.0:
+https://www.apache.org/licenses/LICENSE-2.0
+
+## Security Issues?
+
+Please report sensitive security issues via Twitter's bug-bounty program
+(https://hackerone.com/twitter) rather than GitHub.
+
+[contributors]: https://github.com/twitter/rezolus/graphs/contributors?type=a
+[mio]: https://github.com/carllerche/mio
+[Open Source Code of Conduct]: https://github.com/twitter/code-of-conduct/blob/master/code-of-conduct.md
 [rustlang]: https://rust-lang.org/
 [rustup]: https://rustup.rs
-[mio]: https://github.com/carllerche/mio
+
