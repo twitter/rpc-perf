@@ -3,9 +3,11 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 mod atomic_counter;
+mod atomic_option;
 mod atomic_primitive;
 
 pub use crate::atomic_counter::*;
+pub use crate::atomic_option::*;
 pub use crate::atomic_primitive::*;
 pub use core::sync::atomic::Ordering;
 

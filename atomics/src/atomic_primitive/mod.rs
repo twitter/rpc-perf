@@ -4,6 +4,8 @@
 
 use crate::Ordering;
 
+use core::fmt::Debug;
+
 mod atomic_bool;
 mod atomic_i16;
 mod atomic_i32;
@@ -33,7 +35,7 @@ pub use self::atomic_usize::*;
 /// This trait is used to define the functions which are available on types
 /// which may be used as atomic primitives, allowing for them to be used as
 /// generic types.
-pub trait AtomicPrimitive: Send + Sync {
+pub trait AtomicPrimitive: Send + Sync + Debug + PartialEq {
     type Primitive;
 
     /// Create a new `AtomicPrimitive` from a primitive type
