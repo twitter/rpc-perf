@@ -42,6 +42,7 @@ pub struct Command {
     ttl: Option<usize>,
     index: Option<u64>,
     count: Option<u64>,
+    esize: Option<usize>,
     watermark_low: Option<usize>,
     watermark_high: Option<usize>,
 }
@@ -55,6 +56,7 @@ impl Command {
             ttl: None,
             index: None,
             count: None,
+            esize: None,
             watermark_low: None,
             watermark_high: None,
         }
@@ -111,13 +113,13 @@ impl Command {
 
     pub fn sarray_create(
         key: String,
-        esize: String,
+        esize: usize,
         watermark_low: Option<usize>,
         watermark_high: Option<usize>,
     ) -> Command {
         let mut command = Command::new(Action::SarrayCreate);
         command.key = Some(key);
-        command.values = Some(vec![esize]);
+        command.esize = Some(esize);
         command.watermark_low = watermark_low;
         command.watermark_high = watermark_high;
         command
@@ -169,6 +171,10 @@ impl Command {
         command.key = Some(key);
         command.count = Some(items);
         command
+    }
+
+    pub fn esize(&self) -> Option<usize> {
+        self.esize
     }
 
     pub fn watermark_low(&self) -> Option<usize> {
