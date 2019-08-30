@@ -16,12 +16,13 @@ use crate::client::{MICROSECOND, MILLISECOND, SECOND};
 use crate::codec::Codec;
 use crate::stats::SimpleRecorder;
 use crate::stats::Stat;
+
+use bytes::BytesMut;
+use logger::*;
+use mio::{Events, Poll, Token};
 use rand::rngs::ThreadRng;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-
-use bytes::BytesMut;
-use mio::{Events, Poll, Token};
 use ratelimiter::Ratelimiter;
 use timer::Wheel;
 
@@ -206,6 +207,7 @@ impl Common {
 
     pub fn encode(&mut self, buffer: &mut BytesMut, rng: &mut ThreadRng) {
         self.codec.encode(buffer, rng);
+        trace!("encoded request: {:?}", buffer);
     }
 
     pub fn take_events(&mut self) -> Option<Events> {
