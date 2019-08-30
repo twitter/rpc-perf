@@ -67,8 +67,7 @@ impl Codec for PelikanRds {
             }
             Action::SarrayCreate => {
                 let key = command.key().unwrap();
-                let values = command.values().unwrap();
-                let esize = values[0].len();
+                let esize = command.esize().unwrap();
                 if let Some(recorder) = self.common.recorder() {
                     recorder.increment("commands/create");
                     recorder.distribution("keys/size", key.len() as u64);

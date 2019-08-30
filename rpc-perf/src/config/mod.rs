@@ -134,7 +134,7 @@ impl Generator {
                 let esize = value.length();
                 crate::codec::Command::sarray_create(
                     key,
-                    format!("{}", esize),
+                    esize,
                     command.watermark_low(),
                     command.watermark_high(),
                 )
