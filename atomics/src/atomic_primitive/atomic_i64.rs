@@ -5,7 +5,7 @@
 use crate::{AtomicPrimitive, Ordering};
 
 #[cfg(feature = "serde")]
-use serde::{de::Deserialize, de::Visitor, Deserializer};
+use serde::{de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 
 /// An integer type which can be safely shared between threads.
 pub struct AtomicI64 {
@@ -172,6 +172,17 @@ impl<'de> Deserialize<'de> for AtomicI64 {
         D: Deserializer<'de>,
     {
         deserializer.deserialize_i64(AtomicI64Visitor)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl Serialize for AtomicI64 {
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_some(&self.load(Ordering::SeqCst))
     }
 }
 

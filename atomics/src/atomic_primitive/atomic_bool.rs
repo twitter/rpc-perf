@@ -5,7 +5,7 @@
 use crate::{AtomicPrimitive, Ordering};
 
 #[cfg(feature = "serde")]
-use serde::{de::Deserialize, de::Visitor, Deserializer};
+use serde::{de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 
 /// A boolean type which can be safely shared between threads.
 pub struct AtomicBool {
@@ -118,5 +118,16 @@ impl<'de> Deserialize<'de> for AtomicBool {
         D: Deserializer<'de>,
     {
         deserializer.deserialize_bool(AtomicBoolVisitor)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl Serialize for AtomicBool {
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_some(&self.load(Ordering::SeqCst))
     }
 }
