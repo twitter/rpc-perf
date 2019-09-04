@@ -150,7 +150,9 @@ impl Generator {
             Action::Lpushx => {
                 let key = keyspace.choose_key(rng);
                 let mut values = Vec::new();
-                values.push(keyspace.choose_value_string(rng));
+                for _ in 0..command.items().unwrap_or(1) {
+                    values.push(keyspace.choose_value_string(rng));
+                }
                 crate::codec::Command::lpushx(key, values)
             }
             Action::Lrange => {
@@ -172,7 +174,9 @@ impl Generator {
             Action::Rpushx => {
                 let key = keyspace.choose_key(rng);
                 let mut values = Vec::new();
-                values.push(keyspace.choose_value_string(rng));
+                for _ in 0..command.items().unwrap_or(1) {
+                    values.push(keyspace.choose_value_string(rng));
+                }
                 crate::codec::Command::rpushx(key, values)
             }
             Action::Set => {
