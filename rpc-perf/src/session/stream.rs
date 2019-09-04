@@ -57,6 +57,11 @@ impl Stream {
         Ok(())
     }
 
+    /// Closes the underlying stream by dropping it
+    pub fn close(&mut self) {
+        self.stream = None;
+    }
+
     /// Register the underlying stream with an event loop
     pub fn register(
         &self,
