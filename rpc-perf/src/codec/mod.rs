@@ -62,9 +62,65 @@ impl Command {
         }
     }
 
+    pub fn delete(key: String) -> Command {
+        let mut command = Command::new(Action::Delete);
+        command.key = Some(key);
+        command
+    }
+
     pub fn get(key: String) -> Command {
         let mut command = Command::new(Action::Get);
         command.key = Some(key);
+        command
+    }
+
+    pub fn llen(key: String) -> Command {
+        let mut command = Command::new(Action::Llen);
+        command.key = Some(key);
+        command
+    }
+
+    pub fn lpush(key: String, values: Vec<String>) -> Command {
+        let mut command = Command::new(Action::Lpush);
+        command.key = Some(key);
+        command.values = Some(values);
+        command
+    }
+
+    pub fn lpushx(key: String, values: Vec<String>) -> Command {
+        let mut command = Command::new(Action::Lpushx);
+        command.key = Some(key);
+        command.values = Some(values);
+        command
+    }
+
+    pub fn lrange(key: String, index: usize, count: usize) -> Command {
+        let mut command = Command::new(Action::Lrange);
+        command.key = Some(key);
+        command.count = Some(count as u64);
+        command.index = Some(index as u64);
+        command
+    }
+
+    pub fn ltrim(key: String, index: usize, count: usize) -> Command {
+        let mut command = Command::new(Action::Lrange);
+        command.key = Some(key);
+        command.count = Some(count as u64);
+        command.index = Some(index as u64);
+        command
+    }
+
+    pub fn rpush(key: String, values: Vec<String>) -> Command {
+        let mut command = Command::new(Action::Rpush);
+        command.key = Some(key);
+        command.values = Some(values);
+        command
+    }
+
+    pub fn rpushx(key: String, values: Vec<String>) -> Command {
+        let mut command = Command::new(Action::Rpushx);
+        command.key = Some(key);
+        command.values = Some(values);
         command
     }
 
