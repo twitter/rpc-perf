@@ -16,6 +16,7 @@ use crate::codec::*;
 use crate::config::Action;
 
 use bytes::BytesMut;
+use logger::*;
 
 pub struct PelikanRds {
     codec: codec::PelikanRds,
@@ -145,6 +146,9 @@ impl Codec for PelikanRds {
                 }
                 self.codec
                     .sarray_truncate(buf, key, command.count.unwrap_or(0))
+            }
+            action => {
+                fatal!("Action: {:?} unsupported for pelikan_rds", action);
             }
         }
     }

@@ -83,7 +83,15 @@ impl Default for Config {
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 pub enum Action {
+    Delete,
     Get,
+    Llen,
+    Lpush,
+    Lpushx,
+    Lrange,
+    Ltrim,
+    Rpush,
+    Rpushx,
     SarrayCreate,
     SarrayDelete,
     SarrayFind,
@@ -119,9 +127,53 @@ impl Generator {
         let command = keyspace.choose_command(rng);
         let action = command.action();
         match action {
+            Action::Delete => {
+                let key = keyspace.choose_key(rng);
+                crate::codec::Command::delete(key)
+            }
             Action::Get => {
                 let key = keyspace.choose_key(rng);
                 crate::codec::Command::get(key)
+            }
+            Action::Llen => {
+                let key = keyspace.choose_key(rng);
+                crate::codec::Command::llen(key)
+            }
+            Action::Lpush => {
+                let key = keyspace.choose_key(rng);
+                let mut values = Vec::new();
+                for _ in 0..command.items().unwrap_or(1) {
+                    values.push(keyspace.choose_value_string(rng));
+                }
+                crate::codec::Command::lpush(key, values)
+            }
+            Action::Lpushx => {
+                let key = keyspace.choose_key(rng);
+                let mut values = Vec::new();
+                values.push(keyspace.choose_value_string(rng));
+                crate::codec::Command::lpushx(key, values)
+            }
+            Action::Lrange => {
+                let key = keyspace.choose_key(rng);
+                crate::codec::Command::lrange(key, 0, command.items().unwrap_or(1))
+            }
+            Action::Ltrim => {
+                let key = keyspace.choose_key(rng);
+                crate::codec::Command::ltrim(key, 0, command.items().unwrap_or(1))
+            }
+            Action::Rpush => {
+                let key = keyspace.choose_key(rng);
+                let mut values = Vec::new();
+                for _ in 0..command.items().unwrap_or(1) {
+                    values.push(keyspace.choose_value_string(rng));
+                }
+                crate::codec::Command::rpush(key, values)
+            }
+            Action::Rpushx => {
+                let key = keyspace.choose_key(rng);
+                let mut values = Vec::new();
+                values.push(keyspace.choose_value_string(rng));
+                crate::codec::Command::rpushx(key, values)
             }
             Action::Set => {
                 let key = keyspace.choose_key(rng);
