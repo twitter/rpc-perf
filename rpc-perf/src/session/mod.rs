@@ -123,7 +123,10 @@ pub trait Session: Read + Write {
 
     /// Set the `Session` `State`
     fn set_state(&mut self, state: State) {
-        self.common_mut().set_state(state)
+        self.common_mut().set_state(state);
+        if state == State::Closed {
+            self.stream_mut().close();
+        }
     }
 
     // timestamps
