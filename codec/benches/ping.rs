@@ -8,11 +8,11 @@ use criterion::Criterion;
 
 fn encode_ping_benchmark(c: &mut Criterion) {
     let codec = Ping::new();
-    let mut buf = BytesMut::new();
+
     c.bench_function("ping encode", move |b| {
         b.iter(|| {
+            let mut buf = BytesMut::new();
             codec.ping(&mut buf);
-            buf.clear();
         })
     });
 }
