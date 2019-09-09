@@ -150,7 +150,7 @@ fn make_client(id: usize, codec: Box<Codec>, config: &Config) -> Box<Client> {
 }
 
 #[cfg(not(feature = "tls"))]
-fn make_client(id: usize, codec: Box<Codec>, _config: &Config) -> Box<Client> {
+fn make_client(id: usize, codec: Box<dyn Codec>, _config: &Config) -> Box<dyn Client> {
     Box::new(PlainClient::new(id, codec))
 }
 
@@ -186,7 +186,7 @@ fn launch_clients(config: &Config, metrics: &stats::Simple, control: Arc<AtomicB
     };
 
     for i in 0..config.clients() {
-        let mut codec: Box<Codec> = match config.protocol() {
+        let mut codec: Box<dyn Codec> = match config.protocol() {
             Protocol::Echo => Box::new(crate::codec::Echo::new()),
             Protocol::Memcache => Box::new(crate::codec::Memcache::new()),
             Protocol::PelikanRds => Box::new(crate::codec::PelikanRds::new()),
