@@ -73,6 +73,12 @@ pub trait Client: Send {
     fn set_close_rate(&mut self, ratelimiter: Option<Arc<Ratelimiter>>) {
         self.common_mut().set_close_rate(ratelimiter);
     }
+    fn set_soft_timeout(&mut self, enabled: bool) {
+        self.common_mut().set_soft_timeout(enabled);
+    }
+    fn soft_timeout(&self) -> bool {
+        self.common().soft_timeout()
+    }
 
     // implementation specific
     fn common(&self) -> &Common;
@@ -210,14 +216,18 @@ pub trait Client: Send {
         match state {
             State::Connecting | State::Negotiating => {
                 self.stat_increment(Stat::ConnectionsTimeout);
-                self.set_state(token, State::Closed);
+                if !self.soft_timeout() {
+                    self.set_state(token, State::Closed);
+                }
             }
             State::Closed | State::Established | State::Writing => {
                 debug!("ignore timeout");
             }
             State::Reading => {
                 self.stat_increment(Stat::RequestsTimeout);
-                self.set_state(token, State::Closed);
+                if !self.soft_timeout() {
+                    self.set_state(token, State::Closed);
+                }
             }
         }
         self.clear_timeout(token);

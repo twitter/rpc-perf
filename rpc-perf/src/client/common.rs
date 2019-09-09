@@ -46,6 +46,7 @@ pub struct Common {
     timers: Wheel<Token>,
     last_timeouts: u64,
     tcp_nodelay: bool,
+    soft_timeout: bool,
 }
 
 impl Common {
@@ -67,6 +68,7 @@ impl Common {
             timers: Wheel::<Token>::new(SECOND / MICROSECOND),
             last_timeouts: time::precise_time_ns(),
             tcp_nodelay: false,
+            soft_timeout: false,
         }
     }
 
@@ -104,6 +106,14 @@ impl Common {
 
     pub fn set_request_ratelimit(&mut self, ratelimiter: Option<Arc<Ratelimiter>>) {
         self.request_ratelimiter = ratelimiter;
+    }
+
+    pub fn set_soft_timeout(&mut self, enabled: bool) {
+        self.soft_timeout = enabled;
+    }
+
+    pub fn soft_timeout(&self) -> bool {
+        self.soft_timeout
     }
 
     pub fn try_request_wait(&self) -> Result<(), ()> {

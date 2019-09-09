@@ -212,6 +212,7 @@ fn launch_clients(config: &Config, metrics: &stats::Simple, control: Arc<AtomicB
         client.set_stats(metrics.recorder());
         client.set_connect_timeout(config.connect_timeout());
         client.set_request_timeout(config.request_timeout());
+        client.set_soft_timeout(config.soft_timeout());
 
         let endpoints = config.endpoints();
 

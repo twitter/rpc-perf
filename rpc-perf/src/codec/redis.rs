@@ -104,7 +104,8 @@ impl Codec for Redis {
                     recorder.distribution("keys/size", key.len() as u64);
                 }
                 // TODO: proper handling of start and stop
-                self.codec.lrange(buf, key, 0, command.count.unwrap_or(1) as isize);
+                self.codec
+                    .lrange(buf, key, 0, command.count.unwrap_or(1) as isize);
             }
             Action::Ltrim => {
                 let key = command.key().unwrap();
@@ -113,7 +114,8 @@ impl Codec for Redis {
                     recorder.distribution("keys/size", key.len() as u64);
                 }
                 // TODO: proper handling of start and stop
-                self.codec.ltrim(buf, key, 0, command.count.unwrap_or(1) as isize);
+                self.codec
+                    .ltrim(buf, key, 0, command.count.unwrap_or(1) as isize);
             }
             Action::Rpush => {
                 let key = command.key().unwrap();
