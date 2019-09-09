@@ -9,6 +9,6 @@ if [ "${TRAVIS_PULL_REQUEST_BRANCH:-$TRAVIS_BRANCH}" != "master" ] && [ "$TRAVIS
     git checkout master && \
     cargo bench && \
     # Bench pull request
-    git checkout ${TRAVIS_COMMIT} && \
+    git checkout ${TRAVIS_BRANCH} && \
     cargo bench;
 fi

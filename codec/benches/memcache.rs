@@ -10,7 +10,10 @@ fn encode_get_benchmark(c: &mut Criterion) {
     let codec = Memcache::new();
     let mut buf = BytesMut::new();
     c.bench_function("memcache encode get", move |b| {
-        b.iter(|| codec.get(&mut buf, b"0"))
+        b.iter(|| {
+            codec.get(&mut buf, b"0");
+            buf.clear();
+        })
     });
 }
 
@@ -18,7 +21,10 @@ fn encode_set_benchmark(c: &mut Criterion) {
     let codec = Memcache::new();
     let mut buf = BytesMut::new();
     c.bench_function("memcache encode set", move |b| {
-        b.iter(|| codec.set(&mut buf, b"0", b"0", None, None))
+        b.iter(|| {
+            codec.set(&mut buf, b"0", b"0", None, None);
+            buf.clear();
+        })
     });
 }
 

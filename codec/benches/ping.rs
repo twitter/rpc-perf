@@ -8,8 +8,13 @@ use criterion::Criterion;
 
 fn encode_ping_benchmark(c: &mut Criterion) {
     let codec = Ping::new();
-    let mut buf = BytesMut::new();
-    c.bench_function("ping encode", move |b| b.iter(|| codec.ping(&mut buf)));
+
+    c.bench_function("ping encode", move |b| {
+        b.iter(|| {
+            let mut buf = BytesMut::new();
+            codec.ping(&mut buf);
+        })
+    });
 }
 
 fn ping_decode_benchmark(c: &mut Criterion, label: &str, msg: &[u8]) {
