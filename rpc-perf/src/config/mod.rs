@@ -503,6 +503,11 @@ impl Config {
                     .takes_value(true),
             )
             .arg(
+                Arg::with_name("soft-timeout")
+                    .long("soft_timeout")
+                    .help("Don't close connection on timeout"),
+            )
+            .arg(
                 Arg::with_name("close-rate")
                     .long("close-rate")
                     .value_name("Per-second")
@@ -610,6 +615,10 @@ impl Config {
 
         if let Some(close_rate) = parse_numeric_arg(&matches, "close-rate") {
             config.general.set_close_rate(Some(close_rate));
+        }
+
+        if matches.is_present("soft-timeout") {
+            config.general.set_soft_timeout(true);
         }
 
         if let Some(warmup_hitrate) = parse_float_arg(&matches, "warmup-hitrate") {
@@ -752,6 +761,10 @@ impl Config {
         self.general.connect_ratelimit()
     }
 
+    pub fn soft_timeout(&self) -> bool {
+        self.general.soft_timeout()
+    }
+
     pub fn close_rate(&self) -> Option<usize> {
         self.general.close_rate()
     }
@@ -835,9 +848,10 @@ impl Config {
                 .unwrap_or_else(|| "Unlimited".to_string()),
         );
         info!(
-            "Config: Timeout (us): Connect: {} Request: {}",
+            "Config: Timeout (us): Connect: {} Request: {} Mode: {}",
             self.connect_timeout(),
             self.request_timeout(),
+            if self.soft_timeout() { "Soft" } else { "Hard" },
         );
         let windows = self
             .windows()

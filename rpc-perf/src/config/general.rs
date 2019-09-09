@@ -46,6 +46,8 @@ pub struct General {
     #[serde(default = "default_connect_timeout")]
     connect_timeout: usize,
     waterfall: Option<String>,
+    #[serde(default = "default_soft_timeout")]
+    soft_timeout: bool,
 }
 
 impl General {
@@ -131,6 +133,14 @@ impl General {
 
     pub fn connect_timeout(&self) -> usize {
         self.connect_timeout
+    }
+
+    pub fn set_soft_timeout(&mut self, enabled: bool) {
+        self.soft_timeout = enabled;
+    }
+
+    pub fn soft_timeout(&self) -> bool {
+        self.soft_timeout
     }
 
     pub fn set_connect_ratelimit(&mut self, per_second: Option<usize>) {
@@ -230,6 +240,7 @@ impl Default for General {
             request_timeout: default_request_timeout(),
             connect_timeout: default_connect_timeout(),
             waterfall: None,
+            soft_timeout: false,
         }
     }
 }
@@ -260,6 +271,10 @@ fn default_request_timeout() -> usize {
 
 fn default_connect_timeout() -> usize {
     200 * MILLISECOND / MICROSECOND
+}
+
+fn default_soft_timeout() -> bool {
+    false
 }
 
 #[derive(Copy, Clone, Deserialize, Debug)]
