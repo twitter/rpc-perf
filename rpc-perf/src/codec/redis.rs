@@ -12,9 +12,9 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use crate::codec::*;
 pub use codec::RedisMode;
 
+use crate::codec::*;
 use crate::config::Action;
 
 use bytes::BytesMut;

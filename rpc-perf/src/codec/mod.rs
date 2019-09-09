@@ -12,12 +12,6 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use crate::config::Config;
-use crate::config::Generator;
-use crate::stats::SimpleRecorder;
-use bytes::BytesMut;
-use rand::rngs::ThreadRng;
-
 mod echo;
 mod memcache;
 mod pelikan_rds;
@@ -29,11 +23,14 @@ pub use crate::codec::memcache::Memcache;
 pub use crate::codec::pelikan_rds::PelikanRds;
 pub use crate::codec::ping::Ping;
 pub use crate::codec::redis::{Redis, RedisMode};
-pub use codec::Decoder;
-pub use codec::Error;
-pub use codec::Response;
 
-use crate::config::Action;
+pub use codec::{Decoder, Error, Response};
+
+use crate::config::{Action, Config, Generator};
+use crate::stats::SimpleRecorder;
+
+use bytes::BytesMut;
+use rand::rngs::ThreadRng;
 
 pub struct Command {
     action: Action,

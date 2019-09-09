@@ -12,11 +12,11 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
+use crate::session::*;
+
 use buffer::Buffer;
 use rustls::Session as OtherSession;
 use rustls::{ClientConfig, ClientSession};
-
-use crate::session::*;
 
 use std::{
     fmt::Display, io::Error, io::ErrorKind, io::Read, io::Write, net::ToSocketAddrs, sync::Arc,

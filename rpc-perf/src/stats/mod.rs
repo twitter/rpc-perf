@@ -14,17 +14,17 @@
 
 pub mod http;
 
+pub use crate::stats::http::Http;
+
 use crate::client::SECOND;
 use crate::config::Config;
-pub use crate::stats::http::Http;
-use datastructures::Heatmap;
-use std::sync::Arc;
 
+use datastructures::Heatmap;
+use logger::*;
 use metrics::*;
 
 use std::collections::HashMap;
-
-use logger::*;
+use std::sync::Arc;
 
 pub fn register_stats(recorder: &SimpleRecorder) {
     recorder.add_counter_channel(Stat::CommandsGet);

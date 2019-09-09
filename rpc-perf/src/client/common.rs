@@ -14,8 +14,7 @@
 
 use crate::client::{MICROSECOND, MILLISECOND, SECOND};
 use crate::codec::Codec;
-use crate::stats::SimpleRecorder;
-use crate::stats::Stat;
+use crate::stats::{SimpleRecorder, Stat};
 
 use bytes::BytesMut;
 use logger::*;
