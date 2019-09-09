@@ -2,12 +2,6 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use crate::*;
-use bytes::BytesMut;
-
-use mio::{Poll, PollOpt, Ready, Token};
-use std::io::{Error, Read, Write};
-
 mod plain_session;
 mod stream;
 #[cfg(feature = "tls")]
@@ -17,6 +11,12 @@ pub use crate::session::plain_session::PlainSession;
 pub use crate::session::stream::Stream;
 #[cfg(feature = "tls")]
 pub use crate::session::tls_session::TLSSession;
+
+use crate::*;
+use bytes::BytesMut;
+use mio::{Poll, PollOpt, Ready, Token};
+
+use std::io::{Error, Read, Write};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 /// All possible states for a `Session`

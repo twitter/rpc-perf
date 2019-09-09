@@ -2,11 +2,11 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
+use crate::session::*;
+
 use buffer::Buffer;
 use rustls::Session as OtherSession;
 use rustls::{ClientConfig, ClientSession};
-
-use crate::session::*;
 
 use std::{
     fmt::Display, io::Error, io::ErrorKind, io::Read, io::Write, net::ToSocketAddrs, sync::Arc,

@@ -9,16 +9,16 @@ pub use self::general::Protocol;
 use crate::config::general::General;
 use crate::*;
 
-use std::io::Read;
-use std::net::{SocketAddr, ToSocketAddrs};
-use std::process;
-
 use clap::{App, Arg, ArgMatches};
 use rand::distributions::{Alphanumeric, Distribution, Uniform};
 use rand::rngs::ThreadRng;
 use rand::seq::SliceRandom;
 use rand::Rng;
 use serde_derive::*;
+
+use std::io::Read;
+use std::net::{SocketAddr, ToSocketAddrs};
+use std::process;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const NAME: &str = env!("CARGO_PKG_NAME");

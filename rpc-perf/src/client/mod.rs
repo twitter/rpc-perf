@@ -7,20 +7,18 @@ mod plain_client;
 #[cfg(feature = "tls")]
 mod tls_client;
 
-use crate::codec::*;
-use crate::stats::SimpleRecorder;
-use rand::rngs::ThreadRng;
-
 pub use crate::client::common::Common;
 pub use crate::client::plain_client::PlainClient;
 #[cfg(feature = "tls")]
 pub use crate::client::tls_client::TLSClient;
+use crate::codec::*;
 use crate::session::*;
-use crate::stats::Stat;
+use crate::stats::{SimpleRecorder, Stat};
 use crate::*;
 
 use mio::unix::UnixReady;
 use mio::{Event, Events, Poll, PollOpt, Ready, Token};
+use rand::rngs::ThreadRng;
 use ratelimiter::Ratelimiter;
 
 use std::net::SocketAddr;

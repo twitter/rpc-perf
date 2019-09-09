@@ -2,12 +2,14 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use super::*;
+use crate::client::*;
 use crate::session::{Session, TLSSession};
+
 use mio::Token;
 use rustls;
 use rustls::ClientConfig;
 use slab::Slab;
+
 use std::fs;
 use std::io::BufReader;
 use std::sync::Arc;

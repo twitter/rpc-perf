@@ -4,18 +4,11 @@
 
 use mio::event::Evented;
 use mio::net::TcpStream;
-use mio::Poll;
-use mio::PollOpt;
-use mio::Ready;
-use mio::Token;
+use mio::{Poll, PollOpt, Ready, Token};
 
 use std::fmt::Display;
-use std::io::Error;
-use std::io::ErrorKind;
-use std::io::Read;
-use std::io::Write;
-use std::net::SocketAddr;
-use std::net::ToSocketAddrs;
+use std::io::{Error, ErrorKind, Read, Write};
+use std::net::{SocketAddr, ToSocketAddrs};
 
 /// Holds the `Stream`'s address and underlying stream
 pub struct Stream {

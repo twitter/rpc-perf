@@ -6,8 +6,9 @@ use crate::stats::SimpleRecorder;
 
 use logger::*;
 use metrics::{Output, Percentile, Reading};
-use std::net::SocketAddr;
 use tiny_http::{Method, Response, Server};
+
+use std::net::SocketAddr;
 
 pub struct Http {
     recorder: SimpleRecorder,

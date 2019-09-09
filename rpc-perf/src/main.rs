@@ -8,21 +8,20 @@ mod config;
 mod session;
 mod stats;
 
+pub(crate) use logger::*;
+
 use crate::client::*;
 use crate::codec::Codec;
 use crate::config::Config;
 use crate::config::Protocol;
 use crate::stats::*;
-use atomics::AtomicPrimitive;
 
-use datastructures::AtomicBool;
-pub(crate) use logger::*;
+use atomics::{AtomicBool, AtomicPrimitive, Ordering};
 use metrics::Reading;
+use rand::thread_rng;
 use ratelimiter::Ratelimiter;
 
-use rand::thread_rng;
-
-use std::sync::{atomic::Ordering, Arc, Mutex};
+use std::sync::{Arc, Mutex};
 use std::thread;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
