@@ -3,8 +3,10 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 use crate::counter::*;
+
 use atomics::*;
 use parking_lot::Mutex;
+
 use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::{Duration, Instant};

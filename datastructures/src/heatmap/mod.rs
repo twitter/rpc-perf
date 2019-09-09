@@ -3,14 +3,14 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 use crate::counter::*;
-use atomics::*;
-use parking_lot::Mutex;
-use std::convert::From;
-use std::sync::Arc;
-
 use crate::histogram::Histogram;
 
+use atomics::*;
+use parking_lot::Mutex;
 use time::Tm;
+
+use std::convert::From;
+use std::sync::Arc;
 
 const SECOND: u64 = 1_000_000_000;
 

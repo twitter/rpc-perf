@@ -3,6 +3,7 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 use crate::counter::*;
+
 use atomics::*;
 
 /// A basic circular buffer holding `AtomicPrimitives`
