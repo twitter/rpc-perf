@@ -37,7 +37,7 @@ pub struct Common {
     connect_timeout: usize,
     events: Option<Events>,
     event_loop: Poll,
-    codec: Box<Codec>,
+    codec: Box<dyn Codec>,
     poolsize: usize,
     ready_queue: VecDeque<Token>,
     request_ratelimiter: Option<Arc<Ratelimiter>>,
@@ -50,7 +50,7 @@ pub struct Common {
 }
 
 impl Common {
-    pub fn new(id: usize, codec: Box<Codec>) -> Self {
+    pub fn new(id: usize, codec: Box<dyn Codec>) -> Self {
         Self {
             id,
             close_rate: None,

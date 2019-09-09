@@ -31,7 +31,7 @@ pub struct TLSClient {
 
 impl TLSClient {
     /// Creates a new `TLSClient` which sends requests from the queue and parses responses
-    pub fn new(id: usize, codec: Box<Codec>) -> TLSClient {
+    pub fn new(id: usize, codec: Box<dyn Codec>) -> TLSClient {
         Self {
             common: Common::new(id, codec),
             sessions: Slab::new(),
@@ -108,11 +108,11 @@ impl Client for TLSClient {
         &mut self.common
     }
 
-    fn session(&self, token: Token) -> &Session {
+    fn session(&self, token: Token) -> &dyn Session {
         &self.sessions[token.into()]
     }
 
-    fn session_mut(&mut self, token: Token) -> &mut Session {
+    fn session_mut(&mut self, token: Token) -> &mut dyn Session {
         &mut self.sessions[token.into()]
     }
 

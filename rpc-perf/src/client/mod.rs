@@ -93,8 +93,8 @@ pub trait Client: Send {
         }
     }
     fn does_negotiate(&self) -> bool;
-    fn session(&self, token: Token) -> &Session;
-    fn session_mut(&mut self, token: Token) -> &mut Session;
+    fn session(&self, token: Token) -> &dyn Session;
+    fn session_mut(&mut self, token: Token) -> &mut dyn Session;
 
     fn prepare_request(&mut self, token: Token, rng: &mut ThreadRng);
 
