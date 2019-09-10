@@ -5,6 +5,7 @@
 use super::*;
 
 use bytes::{Buf, BytesMut, IntoBuf};
+use logger::*;
 
 use std::io::{BufRead, BufReader};
 use std::str;
@@ -219,7 +220,8 @@ impl Decoder for PelikanRds {
                                 if have < expected {
                                     Err(Error::Incomplete)
                                 } else if have > expected {
-                                    println!("have: {} expected: {}", have, expected);
+                                    trace!("line: {}", line);
+                                    trace!("have: {} expected: {}", have, expected);
                                     Err(Error::Error)
                                 } else {
                                     Ok(Response::Hit)
