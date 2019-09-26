@@ -9,6 +9,8 @@ use serde::{de::Error, de::Visitor, Deserialize, Deserializer, Serialize, Serial
 
 use core::marker::PhantomData;
 
+/// An implementation of `Option` which is thread safe when it is used to hold
+/// types implementing `AtomicPrimitive`.
 pub struct AtomicOption<T>
 where
     T: AtomicPrimitive + Default,
@@ -21,6 +23,15 @@ impl<T> AtomicOption<T>
 where
     T: AtomicPrimitive + Default,
 {
+    /// Creates a new `AtomicOption` containing some value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use atomics::*;
+    ///
+    /// let x = AtomicOption::some(AtomicUsize::new(1));
+    /// ```
     pub fn some(value: T) -> Self {
         Self {
             inner: value,
@@ -28,6 +39,15 @@ where
         }
     }
 
+    /// Creates a new `AtomicOption` which does not contain a value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use atomics::*;
+    ///
+    /// let x = AtomicOption::<AtomicUsize>::none();
+    /// ```
     pub fn none() -> Self {
         Self {
             inner: T::default(),
@@ -35,6 +55,19 @@ where
         }
     }
 
+    /// Takes the inner value out of the `AtomicOption` as its Primitive type
+    /// leaving a `None` in its place.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use atomics::*;
+    ///
+    /// let x = AtomicOption::some(AtomicUsize::new(1));
+    /// let y = x.take(Ordering::SeqCst);
+    /// assert_eq!(y, Some(1));
+    /// assert!(x.is_none(Ordering::SeqCst));
+    /// ```
     pub fn take(&self, ordering: Ordering) -> Option<<T as AtomicPrimitive>::Primitive> {
         if self
             .is_some
@@ -47,6 +80,20 @@ where
         }
     }
 
+    /// Replaces the inner value in the option with the value provided. Returns
+    /// the previous value if present.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use atomics::*;
+    ///
+    /// let x = AtomicOption::some(AtomicUsize::new(1));
+    /// let y = x.replace(Some(2), Ordering::SeqCst);
+    /// assert_eq!(y, Some(1));
+    /// assert!(x.is_some(Ordering::SeqCst));
+    /// assert_eq!(x.load(Ordering::SeqCst), Some(2));
+    /// ```
     pub fn replace(
         &self,
         new: Option<<T as AtomicPrimitive>::Primitive>,
@@ -66,14 +113,47 @@ where
         }
     }
 
+    /// Returns true if the option contains a value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use atomics::*;
+    ///
+    /// let x = AtomicOption::some(AtomicUsize::new(1));
+    /// assert!(x.is_some(Ordering::SeqCst));
+    /// ```
     pub fn is_some(&self, ordering: Ordering) -> bool {
         self.is_some.load(ordering)
     }
 
+    /// Returns true if the option does not contain a value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use atomics::*;
+    ///
+    /// let x = AtomicOption::<AtomicUsize>::none();
+    /// assert!(x.is_none(Ordering::SeqCst));
+    /// ```
     pub fn is_none(&self, ordering: Ordering) -> bool {
         !self.is_some(ordering)
     }
 
+    /// Returns the contained value or a default.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use atomics::*;
+    ///
+    /// let x = AtomicOption::<AtomicUsize>::none();
+    /// assert_eq!(x.unwrap_or(1, Ordering::SeqCst), 1);
+    ///
+    /// let y = AtomicOption::some(AtomicUsize::new(2));
+    /// assert_eq!(y.unwrap_or(1, Ordering::SeqCst), 2);
+    /// ```
     pub fn unwrap_or(
         &self,
         def: <T as AtomicPrimitive>::Primitive,
@@ -86,6 +166,19 @@ where
         }
     }
 
+    /// Returns the contained value or computes it from a closure.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use atomics::*;
+    ///
+    /// let x = AtomicOption::<AtomicUsize>::none();
+    /// assert_eq!(x.unwrap_or_else(|| { 1 + 1 }, Ordering::SeqCst), 2);
+    ///
+    /// let y = AtomicOption::some(AtomicUsize::new(2));
+    /// assert_eq!(y.unwrap_or_else(|| { 2 + 1 }, Ordering::SeqCst), 2);
+    /// ```
     pub fn unwrap_or_else<F>(&self, f: F, ordering: Ordering) -> <T as AtomicPrimitive>::Primitive
     where
         F: FnOnce() -> <T as AtomicPrimitive>::Primitive,
@@ -97,6 +190,20 @@ where
         }
     }
 
+    /// Maps an `AtomicOption<T>` to an `AtomicOption<U>` by applying a function
+    /// to the contained value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use atomics::*;
+    ///
+    /// let x = AtomicOption::<AtomicUsize>::none();
+    /// assert_eq!(x.map(|v| { v + 1}, Ordering::SeqCst), None);
+    ///
+    /// let y = AtomicOption::some(AtomicUsize::new(1));
+    /// assert_eq!(y.map(|v| { v + 1}, Ordering::SeqCst), Some(2));
+    /// ```
     pub fn map<U, F>(&self, f: F, ordering: Ordering) -> Option<U>
     where
         F: FnOnce(<T as AtomicPrimitive>::Primitive) -> U,
@@ -108,6 +215,20 @@ where
         }
     }
 
+    /// Applies a function to the contained value (if any), or returns the
+    /// provided default (if not).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use atomics::*;
+    ///
+    /// let x = AtomicOption::<AtomicUsize>::none();
+    /// assert_eq!(x.map_or(1, |v| { v + 1}, Ordering::SeqCst), 1);
+    ///
+    /// let y = AtomicOption::some(AtomicUsize::new(1));
+    /// assert_eq!(y.map_or(1, |v| { v + 1}, Ordering::SeqCst), 2);
+    /// ```
     pub fn map_or<U, F>(&self, def: U, f: F, ordering: Ordering) -> U
     where
         F: FnOnce(<T as AtomicPrimitive>::Primitive) -> U,
@@ -119,6 +240,19 @@ where
         }
     }
 
+    /// Converts the `AtomicOption<T>` to an `Option` of the primitive type.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use atomics::*;
+    ///
+    /// let x = AtomicOption::some(AtomicUsize::new(1));
+    /// assert_eq!(x.load(Ordering::SeqCst), Some(1));
+    ///
+    /// let y = AtomicOption::<AtomicUsize>::none();
+    /// assert_eq!(y.load(Ordering::SeqCst), None);
+    /// ```
     pub fn load(&self, ordering: Ordering) -> Option<<T as AtomicPrimitive>::Primitive> {
         if self.is_some(ordering) {
             Some(self.inner.load(ordering))
