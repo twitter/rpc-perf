@@ -8,8 +8,9 @@ use ratelimiter::Ratelimiter;
 fn main() {
     let limiter = Ratelimiter::new(1, 1, 1);
     for i in 0..10 {
-        limiter.wait();
+    	limiter.wait();
         println!("T -{}", 10 - i);
     }
+    limiter.wait();
     println!("Ignition");
 }
