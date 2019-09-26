@@ -2,6 +2,10 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
+//! A collection of atomic types which are unified through traits to allow for
+//! use as generic types in other datastructures. Also provides non standard
+//! atomic types such as an atomic `Option` type.
+
 mod atomic_counter;
 mod atomic_option;
 mod atomic_primitive;
