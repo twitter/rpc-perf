@@ -19,6 +19,16 @@ where
     T: AtomicPrimitive + Default,
 {
     /// Creates a new buffer which can hold `capacity` elements
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use datastructures::*;
+    ///
+    /// let x = Buffer::<AtomicU8>::new(4096);
+    ///
+    /// let y = Buffer::<AtomicUsize>::new(16);
+    /// ```
     pub fn new(capacity: usize) -> Buffer<T> {
         let mut data = Vec::with_capacity(capacity);
         for _ in 0..capacity {
@@ -34,16 +44,55 @@ where
     }
 
     /// Clears the buffer of all contents
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use datastructures::*;
+    ///
+    /// let x = Buffer::<AtomicU8>::new(4096);
+    /// x.push(1);
+    /// assert_eq!(x.len(), 1);
+    /// x.clear();
+    /// assert_eq!(x.len(), 0);
+    /// ```
     pub fn clear(&self) {
         self.len.store(0, Ordering::SeqCst);
         self.read.store(0, Ordering::SeqCst);
         self.write.store(0, Ordering::SeqCst);
     }
 
+    /// Returns the number of elements in the buffer
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use datastructures::*;
+    ///
+    /// let x = Buffer::<AtomicU8>::new(4096);
+    /// x.push(1);
+    /// assert_eq!(x.len(), 1);
+    /// ```
+    pub fn len(&self) -> usize {
+        self.len.load(Ordering::SeqCst)
+    }
+
     /// Tries to return one element from the buffer
     /// Returns Ok(None) if the buffer is empty
     /// Returns Ok(Some(T)) if we were able to read a value
     /// Returns Err(()) if there is a concurrent operation which interferes with read
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use datastructures::*;
+    ///
+    /// let x = Buffer::<AtomicU8>::new(1);
+    /// assert_eq!(x.try_pop(), Ok(None));
+    /// x.push(1);
+    /// assert_eq!(x.try_pop(), Ok(Some(1_u8)));
+    /// assert_eq!(x.len(), 0);
+    /// ```
     pub fn try_pop(&self) -> Result<Option<<T as AtomicPrimitive>::Primitive>, ()> {
         if self.len.load(Ordering::SeqCst) == 0 {
             Ok(None)
@@ -64,6 +113,17 @@ where
     }
 
     /// Loops try_pop() until it successfully returns an `Option<T>`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use datastructures::*;
+    ///
+    /// let x = Buffer::<AtomicU8>::new(1);
+    /// x.push(1);
+    /// assert_eq!(x.pop(), Some(1_u8));
+    /// assert_eq!(x.len(), 0);
+    /// ```
     pub fn pop(&self) -> Option<<T as AtomicPrimitive>::Primitive> {
         loop {
             if let Ok(result) = self.try_pop() {
@@ -75,6 +135,17 @@ where
     /// Tries to add one element to the buffer
     /// Returns Ok(()) if the element is added
     /// Returns Err(T) if there is a concurrent operation which interferes
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use datastructures::*;
+    ///
+    /// let x = Buffer::<AtomicU8>::new(1);
+    /// assert!(x.try_push(1).is_ok());
+    /// assert!(x.try_push(2).is_ok());
+    /// assert_eq!(x.len(), 1);
+    /// ```
     pub fn try_push(
         &self,
         value: <T as AtomicPrimitive>::Primitive,
@@ -106,6 +177,17 @@ where
     }
 
     /// Loops try_push() until success
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use datastructures::*;
+    ///
+    /// let x = Buffer::<AtomicU8>::new(1);
+    /// x.push(1);
+    /// x.push(2);
+    /// assert_eq!(x.len(), 1);
+    /// ```
     pub fn push(&self, value: <T as AtomicPrimitive>::Primitive) {
         let mut result = self.try_push(value);
         loop {
@@ -118,6 +200,19 @@ where
     }
 
     /// Reads the contents of the buffer into a new Vec<T>
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use datastructures::*;
+    ///
+    /// let x = Buffer::<AtomicU8>::new(8);
+    /// x.push(1);
+    /// x.push(2);
+    /// x.push(3);
+    /// assert_eq!(x.as_vec(), vec![1, 2, 3]);
+    /// assert_eq!(x.len(), 3);
+    /// ```
     pub fn as_vec(&self) -> Vec<<T as AtomicPrimitive>::Primitive> {
         let mut data = Vec::with_capacity(self.len.get());
         let mut read = self.read.get();

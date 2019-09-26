@@ -70,13 +70,13 @@ where
     T: Counter + Unsigned,
     <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating,
 {
-    oldest_begin_precise: AtomicU64, // this is the start time of oldest slice
-    newest_begin_precise: AtomicU64, // start time of newest slice
-    newest_end_precise: AtomicU64,   // end time of the oldest slice
+    oldest_begin_precise: AtomicU64,  // this is the start time of oldest slice
+    newest_begin_precise: AtomicU64,  // start time of newest slice
+    newest_end_precise: AtomicU64,    // end time of the oldest slice
     oldest_begin_utc: Arc<Mutex<Tm>>, // relates start time of oldest slice to wall-clock
-    resolution: AtomicU64,           // number of NS per slice
-    slices: Vec<Histogram<T>>,       // stores the `Histogram`s
-    offset: AtomicUsize,             // indicates which `Histogram` is the oldest
+    resolution: AtomicU64,            // number of NS per slice
+    slices: Vec<Histogram<T>>,        // stores the `Histogram`s
+    offset: AtomicUsize,              // indicates which `Histogram` is the oldest
 }
 
 impl<T> Heatmap<T>
@@ -89,6 +89,19 @@ where
     /// specified `precision`. Use `resolution` to specify the time-domain
     /// resolution in nanoseconds. Use `span` to specify the overall window of
     /// time to be covered by the `Heatmap`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use datastructures::*;
+    ///
+    /// const SECOND: u64 = 1_000_000_000;
+    ///
+    /// // creates a heatmap for storing 32-bit counters of values from
+    /// // 0..1_000_000 with each second in its own histogram for the past
+    /// // five minutes
+    /// let x = Heatmap::<AtomicU32>::new(1_000_000, 3, SECOND, 300 * SECOND);
+    /// ```
     pub fn new(max: u64, precision: u32, resolution: u64, span: u64) -> Self {
         // build the Histograms
         let num_slices = span / resolution;
@@ -162,6 +175,18 @@ where
     }
 
     /// Increment a `time`-`value` pair by `count`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use datastructures::*;
+    /// use time::*;
+    ///
+    /// const SECOND: u64 = 1_000_000_000;
+    ///
+    /// let x = Heatmap::<AtomicU32>::new(1_000_000, 3, SECOND, 300 * SECOND);
+    /// x.increment(precise_time_ns(), 100, 1);
+    /// ```
     pub fn increment(&self, time: u64, value: u64, count: <T as AtomicPrimitive>::Primitive) {
         if let Some(index) = self.get_index(time) {
             self.slices[index].increment(value, count);
@@ -169,6 +194,18 @@ where
     }
 
     /// Decrement a `time`-`value` pair by `count`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use datastructures::*;
+    /// use time::*;
+    ///
+    /// const SECOND: u64 = 1_000_000_000;
+    ///
+    /// let x = Heatmap::<AtomicU32>::new(1_000_000, 3, SECOND, 300 * SECOND);
+    /// x.decrement(precise_time_ns(), 100, 1);
+    /// ```
     pub fn decrement(&self, time: u64, value: u64, count: <T as AtomicPrimitive>::Primitive) {
         if let Some(index) = self.get_index(time) {
             self.slices[index].decrement(value, count);
@@ -176,6 +213,25 @@ where
     }
 
     /// Moves the window forward as-needed, dropping older histograms
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use datastructures::*;
+    /// use time::*;
+    ///
+    /// use std::time::Duration;
+    ///
+    /// const SECOND: u64 = 1_000_000_000;
+    ///
+    /// let x = Heatmap::<AtomicU32>::new(1_000_000, 3, SECOND, 2 * SECOND);
+    /// x.latch();
+    /// x.increment(precise_time_ns(), 100, 1);
+    /// assert_eq!(x.total_count(), 1);
+    /// std::thread::sleep(Duration::new(2, 0));
+    /// x.latch();
+    /// assert_eq!(x.total_count(), 0);
+    /// ```
     pub fn latch(&self) {
         let time = time::precise_time_ns();
 
@@ -189,6 +245,19 @@ where
     }
 
     /// Get the total count for all samples stored in the heatmap
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use datastructures::*;
+    /// use time::*;
+    ///
+    /// const SECOND: u64 = 1_000_000_000;
+    ///
+    /// let x = Heatmap::<AtomicU32>::new(1_000_000, 3, SECOND, 60 * SECOND);
+    /// x.increment(precise_time_ns(), 100, 1);
+    /// assert_eq!(x.total_count(), 1);
+    /// ```
     pub fn total_count(&self) -> u64 {
         let mut count = 0;
         for histogram in &self.slices {
@@ -198,6 +267,21 @@ where
     }
 
     /// Get the maximum number of samples in any `time`-`value` pair
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use datastructures::*;
+    /// use time::*;
+    ///
+    /// const SECOND: u64 = 1_000_000_000;
+    ///
+    /// let x = Heatmap::<AtomicU64>::new(1_000_000, 2, SECOND, 60 * SECOND);
+    /// for v in 0..100 {
+    ///    x.increment(precise_time_ns(), v, v);
+    /// }
+    /// assert_eq!(x.highest_count(), 99);
+    /// ```
     pub fn highest_count(&self) -> u64 {
         let mut highest_count = 0;
         for histogram in self.slices.iter() {
@@ -211,26 +295,86 @@ where
     }
 
     /// Return the number of `Slice`s within the `Heatmap`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use datastructures::*;
+    /// use time::*;
+    ///
+    /// const SECOND: u64 = 1_000_000_000;
+    ///
+    /// let x = Heatmap::<AtomicU64>::new(1_000_000, 2, SECOND, 60 * SECOND);
+    /// assert_eq!(x.slices(), 60);
+    /// ```
     pub fn slices(&self) -> usize {
         self.slices.len()
     }
 
     /// Return the number of `Bucket`s within each `Slice`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use datastructures::*;
+    /// use time::*;
+    ///
+    /// const SECOND: u64 = 1_000_000_000;
+    ///
+    /// let x = Heatmap::<AtomicU64>::new(1_000_000, 2, SECOND, 60 * SECOND);
+    /// assert_eq!(x.buckets(), 461);
+    /// ```
     pub fn buckets(&self) -> usize {
         self.slices[0].into_iter().count()
     }
 
     /// Return the beginning UTC wallclock time covered in the `Heatmap`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use datastructures::*;
+    /// use time::*;
+    ///
+    /// const SECOND: u64 = 1_000_000_000;
+    ///
+    /// let x = Heatmap::<AtomicU64>::new(1_000_000, 2, SECOND, 60 * SECOND);
+    /// println!("begin time: {:?}", x.begin_utc());
+    /// ```
     pub fn begin_utc(&self) -> Tm {
         *self.oldest_begin_utc.lock()
     }
 
     /// Returns the beginning timestamp from an arbitrary epoch
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use datastructures::*;
+    /// use time::*;
+    ///
+    /// const SECOND: u64 = 1_000_000_000;
+    ///
+    /// let x = Heatmap::<AtomicU64>::new(1_000_000, 2, SECOND, 60 * SECOND);
+    /// assert!(x.begin_precise() < precise_time_ns());
+    /// ```
     pub fn begin_precise(&self) -> u64 {
         self.oldest_begin_precise.get()
     }
 
     /// Return the number of nanoseconds stored in each `Slice`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use datastructures::*;
+    /// use time::*;
+    ///
+    /// const SECOND: u64 = 1_000_000_000;
+    ///
+    /// let x = Heatmap::<AtomicU64>::new(1_000_000, 2, SECOND, 60 * SECOND);
+    /// assert_eq!(x.resolution(), SECOND);
+    /// ```
     pub fn resolution(&self) -> u64 {
         self.resolution.get()
     }

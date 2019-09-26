@@ -101,6 +101,34 @@ where
     /// beyond which, aged sampled will be removed from the `Histogram`.
     /// Optionally, bound the number of samples stored in the `Histogram` by
     /// specifying the `capacity`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use datastructures::*;
+    ///
+    /// // this creates a histogram that will hold values from 0..100 with all
+    /// // values represented exactly using 8-bit counters for each bucket
+    /// let x = Histogram::<AtomicU8>::new(100, 2, None, None);
+    ///
+    /// // this creates a histogram that will hold values from 0 nanoseconds to
+    /// // 1 second, stored as nanoseconds with the most significant 3 digits
+    /// // represented exactly using 64-bit counters for each bucket
+    /// let x = Histogram::<AtomicU64>::new(60_000_000_000, 3, None, None);
+    ///
+    /// // this creates a histogram that contains only samples from the past
+    /// // minute using 32-bit counters for each bucket
+    /// use std::time::Duration;
+    /// let x = Histogram::<AtomicU32>::new(100, 2, Some(Duration::new(60, 0)), None);
+    ///
+    /// // this creates a histogram that contains only the past 100 samples
+    /// // using 32-bit counters for each bucket
+    /// let x = Histogram::<AtomicU32>::new(100, 2, None, Some(100));
+    ///
+    /// // this creates a histogram that contains at most 100 samples from the
+    /// // past minute using 32-bit counters for each bucket
+    /// let x = Histogram::<AtomicU32>::new(100, 2, Some(Duration::new(60, 0)), Some(100));
+    /// ```
     pub fn new(
         max: u64,
         precision: u32,
@@ -142,6 +170,21 @@ where
     }
 
     /// Returns the total size of the `Histogram` in bytes
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use datastructures::*;
+    ///
+    /// let x = Histogram::<AtomicU64>::new(1_000_000, 3, None, None);
+    /// assert_eq!(x.size(), 30024); // the histogram is ~30KB
+    ///
+    /// let x = Histogram::<AtomicU32>::new(1_000_000, 3, None, None);
+    /// assert_eq!(x.size(), 15220); // using smaller counters makes it ~15KB
+    ///
+    /// let x = Histogram::<AtomicU64>::new(1_000_000, 2, None, None);
+    /// assert_eq!(x.size(), 3840); // reducing the precision makes it ~4KB
+    /// ```
     pub fn size(&self) -> usize {
         let mut total_size = 0;
         // add the struct overhead
@@ -228,6 +271,16 @@ where
     }
 
     /// Increment the `Bucket` holding `value` by `count`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use datastructures::*;
+    ///
+    /// let x = Histogram::<AtomicU64>::new(100, 2, None, None);
+    /// x.increment(42, 1);
+    /// assert_eq!(x.total_count(), 1);
+    /// ```
     pub fn increment(&self, value: u64, count: <T as AtomicPrimitive>::Primitive) {
         match self.get_index(value) {
             Ok(index) => {
@@ -252,6 +305,16 @@ where
     }
 
     /// Decrement the `Bucket` holding `value` by `count`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use datastructures::*;
+    ///
+    /// let x = Histogram::<AtomicU64>::new(100, 2, None, None);
+    /// x.decrement(42, 1);
+    /// assert_eq!(x.total_count(), 0);
+    /// ```
     pub fn decrement(&self, value: u64, count: <T as AtomicPrimitive>::Primitive) {
         match self.get_index(value) {
             Ok(index) => {
@@ -276,6 +339,18 @@ where
     }
 
     /// Clears all `Bucket`s within the `Histogram`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use datastructures::*;
+    ///
+    /// let x = Histogram::<AtomicU64>::new(100, 2, None, None);
+    /// x.increment(42, 1);
+    /// assert_eq!(x.total_count(), 1);
+    /// x.clear();
+    /// assert_eq!(x.total_count(), 0);
+    /// ```
     pub fn clear(&self) {
         if let Some(samples) = &self.samples {
             let mut samples = samples.lock();
@@ -359,6 +434,16 @@ where
     }
 
     /// Returns the total count for all values in the `Histogram`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use datastructures::*;
+    ///
+    /// let x = Histogram::<AtomicU64>::new(100, 2, None, None);
+    /// x.increment(42, 1);
+    /// assert_eq!(x.total_count(), 1);
+    /// ```
     pub fn total_count(&self) -> u64 {
         if self.samples.is_some() {
             let time = Instant::now();
@@ -373,6 +458,25 @@ where
     }
 
     /// Returns the nominal value at the percentile specified from 0.0-1.0
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use datastructures::*;
+    ///
+    /// let x = Histogram::<AtomicU64>::new(100, 2, None, None);
+    /// x.increment(42, 1);
+    /// assert_eq!(x.percentile(0.0), Some(42));
+    /// assert_eq!(x.percentile(1.0), Some(42));
+    ///
+    /// let y = Histogram::<AtomicU64>::new(100, 2, None, None);
+    /// for v in 0..100 {
+    ///    y.increment(v, 1);
+    /// }
+    /// assert_eq!(y.percentile(0.0), Some(0));
+    /// assert_eq!(y.percentile(0.5), Some(49));
+    /// assert_eq!(y.percentile(1.0), Some(99));
+    /// ```
     pub fn percentile(&self, percentile: f64) -> Option<u64> {
         let total = self.total_count();
         if total == 0 {
@@ -401,30 +505,74 @@ where
     }
 
     /// Return the number of samples which were too high to store in a `Bucket`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use datastructures::*;
+    ///
+    /// let x = Histogram::<AtomicU64>::new(100, 2, None, None);
+    /// x.increment(420, 1);
+    /// assert_eq!(x.too_high(), 1);
+    /// ```
     pub fn too_high(&self) -> u64 {
         self.too_high.get()
     }
 
     /// Returns the approximate mean of all values in the `Histogram`
-    pub fn mean(&self) -> u64 {
-        let mut result = 0;
-        for bucket in self.into_iter() {
-            result += u64::from(bucket.count) * bucket.value;
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use datastructures::*;
+    ///
+    /// let x = Histogram::<AtomicU64>::new(100, 2, None, None);
+    /// for v in 0..100 {
+    ///    x.increment(v, 1);
+    /// }
+    /// assert_eq!(x.mean(), Some(49));
+    /// ```
+    pub fn mean(&self) -> Option<u64> {
+        let total_count = self.total_count();
+        if total_count > 0 {
+            let mut result = 0;
+            for bucket in self.into_iter() {
+                result += u64::from(bucket.count) * bucket.value;
+            }
+            Some(result / total_count)
+        } else {
+            None
         }
-        result / self.total_count()
     }
 
     /// Returns the nominal value of the mode of the `Histogram`
-    pub fn mode(&self) -> u64 {
-        let mut count = 0;
-        let mut value = 0;
-        for bucket in self.into_iter() {
-            if u64::from(bucket.count()) > count {
-                count = u64::from(bucket.count());
-                value = bucket.value();
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use datastructures::*;
+    ///
+    /// let x = Histogram::<AtomicU64>::new(100, 2, None, None);
+    /// for v in 0..100 {
+    ///    x.increment(v, v);
+    /// }
+    /// assert_eq!(x.mode(), Some(99));
+    /// ```
+    pub fn mode(&self) -> Option<u64> {
+        let total_count = self.total_count();
+        if total_count > 0 {
+            let mut count = 0;
+            let mut value = 0;
+            for bucket in self.into_iter() {
+                if u64::from(bucket.count()) > count {
+                    count = u64::from(bucket.count());
+                    value = bucket.value();
+                }
             }
+            Some(value)
+        } else {
+            None
         }
-        value
     }
 }
 
