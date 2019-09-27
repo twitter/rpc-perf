@@ -2,6 +2,8 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
+//! A basic implementation of a hashed wheel timer
+
 use logger::*;
 
 use core::fmt::Debug;
@@ -18,6 +20,17 @@ impl<T> Wheel<T>
 where
     T: Copy + Clone + Eq + Hash + Debug,
 {
+    /// Create a new timer `Wheel` with a given number of `buckets`. Higher
+    /// bucket count reduces collisions and results in more efficient
+    /// bookkeeping at the expense of additional memory.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use timer::*;
+    ///
+    /// let timer = Wheel::<usize>::new(1000);
+    /// ```
     pub fn new(buckets: usize) -> Self {
         let mut wheel = Self {
             tick: 0,
@@ -30,6 +43,30 @@ where
         wheel
     }
 
+    /// Moves the timer forward by a set number of ticks. Any timers that expire
+    /// within the provided number of ticks will be returned in a `Vec<T>`
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use timer::*;
+    /// use std::time::{Duration, Instant};
+    ///
+    /// let mut timer = Wheel::new(1000);
+    /// timer.add(1, 100);
+    ///
+    /// let mut last_tick = Instant::now();
+    ///
+    /// loop {
+    ///     // do something here
+    ///     let elapsed = Instant::now() - last_tick;
+    ///     let ticks = elapsed.subsec_millis();
+    ///     let expired = timer.tick(ticks as usize);
+    ///     if expired.len() > 0 {
+    ///         break;
+    ///     }
+    /// }
+    /// ```
     pub fn tick(&mut self, ticks: usize) -> Vec<T> {
         let mut timers = Vec::new();
         for _ in 0..ticks {
@@ -41,7 +78,8 @@ where
         timers
     }
 
-    pub fn do_tick(&mut self) -> Vec<T> {
+    // internal function to advance by a single tick
+    fn do_tick(&mut self) -> Vec<T> {
         let mut expired = Vec::with_capacity(self.buckets[self.tick].timers.len());
         let mut remaining = HashSet::new();
         for token in &self.buckets[self.tick].timers {
@@ -62,6 +100,19 @@ where
         expired
     }
 
+    /// Adds a new timer for the given token for a number of ticks in the future
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use timer::*;
+    ///
+    /// let mut timer = Wheel::new(1000);
+    ///
+    /// timer.add(1, 0); // will expire on next tick
+    /// let expired = timer.tick(1);
+    /// assert_eq!(expired.len(), 1);
+    /// ```
     pub fn add(&mut self, token: T, ticks: usize) {
         trace!("Add timer for {:?} in {} ticks", token, ticks);
         if self.timers.contains_key(&token) {
@@ -78,10 +129,39 @@ where
         self.buckets[bucket].timers.insert(token);
     }
 
+    /// Return the number of timers registered
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use timer::*;
+    ///
+    /// let mut timer = Wheel::new(1000);
+    ///
+    /// assert_eq!(timer.pending(), 0);
+    ///
+    /// timer.add(1, 1);
+    /// assert_eq!(timer.pending(), 1);
+    /// ```
     pub fn pending(&self) -> usize {
         self.timers.len()
     }
 
+    /// Cancel a pending timer
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use timer::*;
+    ///
+    /// let mut timer = Wheel::new(1000);
+    ///
+    /// timer.add(1, 1);
+    /// assert_eq!(timer.pending(), 1);
+    ///
+    /// timer.cancel(1);
+    /// assert_eq!(timer.pending(), 0);
+    /// ```
     pub fn cancel(&mut self, token: T) {
         if let Some(timer) = self.timers.remove(&token) {
             self.buckets[timer.bucket].timers.remove(&token);
@@ -89,6 +169,18 @@ where
         self.timers.shrink_to_fit();
     }
 
+    /// Return the number of ticks until the next timeout would occur
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use timer::*;
+    ///
+    /// let mut timer = Wheel::new(1000);
+    ///
+    /// timer.add(1, 100);
+    /// assert_eq!(timer.next_timeout(), Some(100));
+    /// ```
     pub fn next_timeout(&self) -> Option<usize> {
         if self.timers.is_empty() {
             None
