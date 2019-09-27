@@ -2,6 +2,8 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
+//! This crate is used to render a waterfall style plot of a heatmap
+
 use datastructures::*;
 use hsl::HSL;
 use logger::*;
@@ -13,6 +15,32 @@ use std::fs::File;
 use std::io::BufWriter;
 use std::path::Path;
 
+/// Render and save a waterfall from a `Heatmap` to a file. You can specify
+/// `labels` for the value axis. And spacing of labels on the time axis is
+/// specified by the `interval` in nanoseconds.
+///
+/// # Examples
+///
+/// ```
+/// use datastructures::*;
+/// use waterfall;
+///
+/// use std::collections::HashMap;
+///
+/// // create a heatmap with appropriate configuration for your dataset
+/// let heatmap = Heatmap::<AtomicU64>::new(1_000_000, 2, 1_000_000, 5_000_000_000);
+///
+/// // add data into the heatmap
+///
+/// // decide on labels and generate waterfall
+/// let mut labels = HashMap::new();
+/// labels.insert(0, "0".to_string());
+/// labels.insert(100, "100".to_string());
+/// labels.insert(1000, "1000".to_string());
+/// labels.insert(10000, "10000".to_string());
+/// labels.insert(100000, "100000".to_string());
+/// waterfall::save_waterfall(&heatmap, "waterfall.png", labels, 1_000_000_000);
+/// ```
 pub fn save_waterfall<S: ::std::hash::BuildHasher, T: 'static>(
     heatmap: &Heatmap<T>,
     file: &str,
