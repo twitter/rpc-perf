@@ -10,6 +10,7 @@ use evmap::{ReadHandle, ReadHandleFactory, WriteHandle};
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 
+/// The general structure which holds data and can produce `Recorder`s
 pub struct Metrics<T: 'static>
 where
     T: Counter + Unsigned,

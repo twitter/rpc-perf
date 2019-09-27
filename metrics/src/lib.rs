@@ -49,6 +49,7 @@ use std::fmt;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 #[allow(non_camel_case_types)]
+/// Percentiles are used to specify the exported percentiles from histograms
 pub enum Percentile {
     Minimum,
     p001,
@@ -112,6 +113,7 @@ impl fmt::Display for Percentile {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
+/// Outputs are used to specify the metrics exported for a channel
 pub enum Output {
     Counter,
     MaxPointTime,
@@ -119,6 +121,7 @@ pub enum Output {
     Percentile(Percentile),
 }
 
+/// Readings are a value for an output type for a given channel
 pub struct Reading {
     label: String,
     output: Output,
@@ -126,6 +129,7 @@ pub struct Reading {
 }
 
 impl Reading {
+    /// Creates a new reading from its fields
     pub fn new(label: String, output: Output, value: u64) -> Self {
         Self {
             label,
@@ -134,14 +138,17 @@ impl Reading {
         }
     }
 
+    /// Returns the output type
     pub fn output(&self) -> Output {
         self.output.clone()
     }
 
+    /// Returns the label `Label` of the source
     pub fn label(&self) -> String {
         self.label.clone()
     }
 
+    /// Returns the value for the `Output`
     pub fn value(&self) -> u64 {
         self.value
     }
