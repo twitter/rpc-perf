@@ -10,6 +10,8 @@ use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 
 #[derive(Debug)]
+/// Measurements are point-in-time readings taken from some datasource. They are
+/// sent to the metrics library for aggregation and exposition.
 pub enum Measurement<C> {
     // taken from a counter eg: number of requests
     Counter { value: u64, time: u64 },
@@ -24,14 +26,21 @@ pub enum Measurement<C> {
 }
 
 #[derive(PartialEq, Debug, Copy, Clone)]
+/// A `Source` defines what type of datasource a measurement is taken from
 pub enum Source {
+    /// Used for free-running counters
     Counter,
+    /// Taken from a histogram
     Distribution,
+    /// Taken from a gauge which may increase or decrease between readings
     Gauge,
+    /// Start and stop times from discrete events
     TimeInterval,
 }
 
-// #[derive(Clone)]
+/// A channel tracks measurements that are taken from the same datasource. For
+/// example, you might use a channel to track requests and another for CPU
+/// utilization.
 pub struct Channel<T>
 where
     T: Counter + Unsigned,
@@ -74,6 +83,8 @@ where
     <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating + From<u8>,
     u64: From<<T as AtomicPrimitive>::Primitive>,
 {
+    /// Create a new channel with a given name, source, and an optional
+    /// histogram which can be used to generate percentile metrics
     pub fn new(name: String, source: Source, histogram: Option<Histogram<T>>) -> Self {
         Self {
             name: Arc::new(Mutex::new(name)),
@@ -89,14 +100,17 @@ where
         }
     }
 
+    /// Return the name of the `Channel`
     pub fn name(&self) -> String {
         self.name.lock().unwrap().clone()
     }
 
+    /// Return the source of the `Channel`
     pub fn source(&self) -> Source {
         self.source
     }
 
+    /// Record a new measurement for the `Channel`
     pub fn record(&self, measurement: Measurement<<T as AtomicPrimitive>::Primitive>) {
         match measurement {
             Measurement::Counter { value, time } => {
@@ -238,10 +252,13 @@ where
         }
     }
 
+    /// Get the counter from the `Channel`
     pub fn counter(&self) -> u64 {
         self.counter.get()
     }
 
+    /// Calculate a percentile from the histogram, returns `None` if there is no
+    /// histogram for the `Channel`
     pub fn percentile(&self, percentile: f64) -> Option<u64> {
         if let Some(ref histogram) = self.histogram {
             histogram.percentile(percentile)
@@ -250,16 +267,21 @@ where
         }
     }
 
+    /// Register an `Output` for exposition
     pub fn add_output(&self, output: Output) {
         let mut outputs = self.outputs.lock().unwrap();
         outputs.insert(output);
     }
 
+    /// Remove an `Output` from exposition
     pub fn delete_output(&self, output: Output) {
         let mut outputs = self.outputs.lock().unwrap();
         outputs.remove(&output);
     }
 
+    /// Resets any latched aggregators, `Histograms` may be latched or windowed.
+    /// Min and max value-time tracking are currently always latched and need to
+    /// be reset using this function.
     pub fn latch(&self) {
         if self.latched {
             if let Some(ref histogram) = self.histogram {
@@ -270,6 +292,7 @@ where
         self.min.set(0, 0);
     }
 
+    /// Zeros out all stored data for the `Channel`
     pub fn zero(&self) {
         self.has_data.store(false, Ordering::SeqCst);
         self.last_write.set(0);
@@ -281,6 +304,8 @@ where
         self.min.set(0, 0);
     }
 
+    /// Calculates the total set of `Readings` that are produced based on the
+    /// `Outputs` which have been added for the `Channel`
     pub fn readings(&self) -> Vec<Reading> {
         let mut result = Vec::new();
         let outputs = self.outputs.lock().unwrap();
@@ -309,6 +334,7 @@ where
         result
     }
 
+    /// Calculates and returns the `Output`s with their values as a `HashMap`
     pub fn hash_map(&self) -> HashMap<Output, u64> {
         let mut result = HashMap::new();
         let outputs = self.outputs.lock().unwrap();
