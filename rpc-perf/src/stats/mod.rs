@@ -11,83 +11,83 @@ use crate::config::Config;
 
 use datastructures::Heatmap;
 use logger::*;
-use metrics::*;
+use metrics::{self, Histogram, Measurement, Output, Percentile, Reading, Source};
 
 use std::collections::HashMap;
 use std::sync::Arc;
 
-pub fn register_stats(recorder: &SimpleRecorder) {
-    recorder.add_counter_channel(Stat::CommandsGet);
-    recorder.add_counter_channel(Stat::CommandsSet);
-    recorder.add_distribution_channel(Stat::KeySize, 60_000_000_000, 3);
-    recorder.add_distribution_channel(Stat::ValueSize, 60_000_000_000, 3);
-    recorder.add_counter_channel(Stat::Window);
-    recorder.add_counter_channel(Stat::RequestsEnqueued);
-    recorder.add_counter_channel(Stat::RequestsDequeued);
-    recorder.add_counter_channel(Stat::RequestsError);
-    recorder.add_counter_channel(Stat::RequestsTimeout);
-    recorder.add_counter_channel(Stat::ConnectionsTotal);
-    recorder.add_histogram_channel(Stat::ConnectionsOpened, 60_000_000_000, 3);
-    recorder.add_counter_channel(Stat::ConnectionsClosed);
-    recorder.add_counter_channel(Stat::ConnectionsError);
-    recorder.add_counter_channel(Stat::ConnectionsClientClosed);
-    recorder.add_counter_channel(Stat::ConnectionsServerClosed);
-    recorder.add_counter_channel(Stat::ConnectionsTimeout);
-    recorder.add_histogram_channel(Stat::ResponsesTotal, 60_000_000_000, 3);
-    recorder.add_counter_channel(Stat::ResponsesOk);
-    recorder.add_counter_channel(Stat::ResponsesError);
-    recorder.add_counter_channel(Stat::ResponsesHit);
-    recorder.add_counter_channel(Stat::ResponsesMiss);
+pub fn register_stats(metrics: &Metrics) {
+    metrics.add_counter_channel(Stat::CommandsGet);
+    metrics.add_counter_channel(Stat::CommandsSet);
+    metrics.add_distribution_channel(Stat::KeySize, 60_000_000_000, 3);
+    metrics.add_distribution_channel(Stat::ValueSize, 60_000_000_000, 3);
+    metrics.add_counter_channel(Stat::Window);
+    metrics.add_counter_channel(Stat::RequestsEnqueued);
+    metrics.add_counter_channel(Stat::RequestsDequeued);
+    metrics.add_counter_channel(Stat::RequestsError);
+    metrics.add_counter_channel(Stat::RequestsTimeout);
+    metrics.add_counter_channel(Stat::ConnectionsTotal);
+    metrics.add_histogram_channel(Stat::ConnectionsOpened, 60_000_000_000, 3);
+    metrics.add_counter_channel(Stat::ConnectionsClosed);
+    metrics.add_counter_channel(Stat::ConnectionsError);
+    metrics.add_counter_channel(Stat::ConnectionsClientClosed);
+    metrics.add_counter_channel(Stat::ConnectionsServerClosed);
+    metrics.add_counter_channel(Stat::ConnectionsTimeout);
+    metrics.add_histogram_channel(Stat::ResponsesTotal, 60_000_000_000, 3);
+    metrics.add_counter_channel(Stat::ResponsesOk);
+    metrics.add_counter_channel(Stat::ResponsesError);
+    metrics.add_counter_channel(Stat::ResponsesHit);
+    metrics.add_counter_channel(Stat::ResponsesMiss);
 }
 
 pub struct StandardOut {
-    previous: HashMap<String, HashMap<Output, u64>>,
-    recorder: SimpleRecorder,
+    previous: HashMap<String, HashMap<metrics::Output, u64>>,
+    metrics: Metrics,
     interval: u64,
 }
 
 impl StandardOut {
-    pub fn new(recorder: SimpleRecorder, interval: u64) -> Self {
+    pub fn new(metrics: Metrics, interval: u64) -> Self {
         Self {
-            previous: recorder.hash_map(),
-            recorder,
+            previous: metrics.hash_map(),
+            metrics,
             interval,
         }
     }
 
     fn display_percentiles(&self, stat: Stat, label: &str, divisor: u64, unit: &str) {
         let p25 = self
-            .recorder
+            .metrics
             .percentile(stat, 0.25)
             .map(|v| format!("{}", v / divisor))
             .unwrap_or_else(|| "none".to_string());
         let p50 = self
-            .recorder
+            .metrics
             .percentile(stat, 0.50)
             .map(|v| format!("{}", v / divisor))
             .unwrap_or_else(|| "none".to_string());
         let p75 = self
-            .recorder
+            .metrics
             .percentile(stat, 0.75)
             .map(|v| format!("{}", v / divisor))
             .unwrap_or_else(|| "none".to_string());
         let p90 = self
-            .recorder
+            .metrics
             .percentile(stat, 0.90)
             .map(|v| format!("{}", v / divisor))
             .unwrap_or_else(|| "none".to_string());
         let p99 = self
-            .recorder
+            .metrics
             .percentile(stat, 0.99)
             .map(|v| format!("{}", v / divisor))
             .unwrap_or_else(|| "none".to_string());
         let p999 = self
-            .recorder
+            .metrics
             .percentile(stat, 0.999)
             .map(|v| format!("{}", v / divisor))
             .unwrap_or_else(|| "none".to_string());
         let p9999 = self
-            .recorder
+            .metrics
             .percentile(stat, 0.9999)
             .map(|v| format!("{}", v / divisor))
             .unwrap_or_else(|| "none".to_string());
@@ -98,8 +98,8 @@ impl StandardOut {
     }
 
     pub fn print(&mut self) {
-        let current = self.recorder.hash_map();
-        let window = self.recorder.counter(Stat::Window);
+        let current = self.metrics.hash_map();
+        let window = self.metrics.counter(Stat::Window);
         info!("-----");
         info!("Window: {}", window);
 
@@ -110,9 +110,9 @@ impl StandardOut {
             delta_count(&self.previous, &current, Stat::ConnectionsOpened).unwrap_or(0),
             delta_count(&self.previous, &current, Stat::ConnectionsError).unwrap_or(0),
             delta_count(&self.previous, &current, Stat::ConnectionsTimeout).unwrap_or(0),
-            self.recorder
+            self.metrics
                 .counter(Stat::ConnectionsOpened)
-                .saturating_sub(self.recorder.counter(Stat::ConnectionsClosed)),
+                .saturating_sub(self.metrics.counter(Stat::ConnectionsClosed)),
         );
 
         info!(
@@ -129,8 +129,8 @@ impl StandardOut {
             delta_count(&self.previous, &current, Stat::RequestsDequeued).unwrap_or(0),
             delta_count(&self.previous, &current, Stat::RequestsTimeout).unwrap_or(0),
             delta_count(&self.previous, &current, Stat::RequestsEnqueued).unwrap_or(0),
-            self.recorder.counter(Stat::RequestsEnqueued)
-                - self.recorder.counter(Stat::RequestsDequeued),
+            self.metrics.counter(Stat::RequestsEnqueued)
+                - self.metrics.counter(Stat::RequestsDequeued),
         );
 
         info!(
@@ -243,11 +243,11 @@ impl ToString for Stat {
 }
 
 fn delta_count<T: ToString>(
-    a: &HashMap<String, HashMap<Output, u64>>,
-    b: &HashMap<String, HashMap<Output, u64>>,
+    a: &HashMap<String, HashMap<metrics::Output, u64>>,
+    b: &HashMap<String, HashMap<metrics::Output, u64>>,
     label: T,
 ) -> Option<u64> {
-    let output = Output::Counter;
+    let output = metrics::Output::Counter;
     let label = label.to_string();
     if let Some(a_outputs) = a.get(&label) {
         let a_value = a_outputs.get(&output).unwrap_or(&0);
@@ -264,8 +264,8 @@ fn delta_count<T: ToString>(
 }
 
 fn delta_percent<T: ToString>(
-    a: &HashMap<String, HashMap<Output, u64>>,
-    b: &HashMap<String, HashMap<Output, u64>>,
+    a: &HashMap<String, HashMap<metrics::Output, u64>>,
+    b: &HashMap<String, HashMap<metrics::Output, u64>>,
     label_a: T,
     label_b: T,
 ) -> Option<f64> {
@@ -287,17 +287,13 @@ fn delta_percent<T: ToString>(
     }
 }
 
-pub struct Simple {
-    inner: Metrics<AtomicU64>,
-    heatmap: Option<Arc<Heatmap<AtomicU64>>>,
+#[derive(Clone)]
+pub struct Metrics {
+    inner: metrics::Metrics<metrics::AtomicU64>,
+    heatmap: Option<Arc<Heatmap<metrics::AtomicU64>>>,
 }
 
-pub struct SimpleRecorder {
-    inner: Recorder<AtomicU64>,
-    heatmap: Option<Arc<Heatmap<AtomicU64>>>,
-}
-
-impl Simple {
+impl Metrics {
     pub fn new(config: &Config) -> Self {
         let heatmap = if config.waterfall().is_some() {
             if let Some(windows) = config.windows() {
@@ -315,24 +311,16 @@ impl Simple {
             None
         };
         Self {
-            inner: Metrics::new(),
+            inner: metrics::Metrics::new(),
             heatmap,
         }
     }
 
-    pub fn recorder(&self) -> SimpleRecorder {
-        SimpleRecorder {
-            inner: self.inner.recorder(),
-            heatmap: self.heatmap.clone(),
-        }
-    }
-}
-
-impl SimpleRecorder {
     pub fn add_counter_channel<T: ToString>(&self, label: T) {
         self.inner
-            .add_channel(label.to_string(), Source::Counter, None);
-        self.inner.add_output(label.to_string(), Output::Counter);
+            .add_channel(label.to_string(), metrics::Source::Counter, None);
+        self.inner
+            .add_output(label.to_string(), metrics::Output::Counter);
     }
 
     pub fn add_histogram_channel<T: ToString>(&self, label: T, max: u64, precision: u32) {

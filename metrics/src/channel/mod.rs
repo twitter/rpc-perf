@@ -9,35 +9,6 @@ use datastructures::*;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 
-#[derive(Debug)]
-/// Measurements are point-in-time readings taken from some datasource. They are
-/// sent to the metrics library for aggregation and exposition.
-pub enum Measurement<C> {
-    // taken from a counter eg: number of requests
-    Counter { value: u64, time: u64 },
-    // taken from a distribution eg: an external histogram
-    Distribution { value: u64, count: C, time: u64 },
-    // taken from a gauge eg: bytes of memory used
-    Gauge { value: u64, time: u64 },
-    // incremental count to sum into a counter
-    Increment { count: C, time: u64 },
-    // the start and stop of an event
-    TimeInterval { start: u64, stop: u64 },
-}
-
-#[derive(PartialEq, Debug, Copy, Clone)]
-/// A `Source` defines what type of datasource a measurement is taken from
-pub enum Source {
-    /// Used for free-running counters
-    Counter,
-    /// Taken from a histogram
-    Distribution,
-    /// Taken from a gauge which may increase or decrease between readings
-    Gauge,
-    /// Start and stop times from discrete events
-    TimeInterval,
-}
-
 /// A channel tracks measurements that are taken from the same datasource. For
 /// example, you might use a channel to track requests and another for CPU
 /// utilization.
@@ -116,6 +87,7 @@ where
             Measurement::Counter { value, time } => {
                 self.record_counter(value, time);
             }
+            Measurement::Delta { value, time } => self.record_delta(value, time),
             Measurement::Distribution { value, count, time } => {
                 self.record_distribution(value, count, time);
             }
@@ -138,6 +110,43 @@ where
                 let delta_time = time.wrapping_sub(self.last_write.get());
                 let rate = (delta_value as f64 * (1_000_000_000.0 / delta_time as f64)) as u64;
                 self.counter.add(delta_value);
+                if let Some(ref histogram) = self.histogram {
+                    histogram.increment(rate, <T as AtomicPrimitive>::Primitive::from(1_u8));
+                }
+                // track the point of max rate
+                if self.max.time() > 0 {
+                    if rate > self.max.value() {
+                        self.max.set(rate, time);
+                    }
+                } else {
+                    self.max.set(rate, time);
+                }
+                // track the point of min rate
+                if self.min.time() > 0 {
+                    if rate < self.min.value() {
+                        self.min.set(rate, time);
+                    }
+                } else {
+                    self.min.set(rate, time);
+                }
+            } else {
+                self.counter.set(value);
+                self.has_data.store(true, Ordering::SeqCst);
+            }
+            self.last_write.set(time);
+        }
+    }
+
+    // for Delta measurements:
+    // counter is sum of values
+    // histogram tracks rate of change
+    fn record_delta(&self, value: u64, time: u64) {
+        if self.source == Source::Counter {
+            if self.has_data.load(Ordering::SeqCst) {
+                // calculate the rate
+                let delta_time = time.wrapping_sub(self.last_write.get());
+                let rate = (value as f64 * (1_000_000_000.0 / delta_time as f64)) as u64;
+                self.counter.add(value);
                 if let Some(ref histogram) = self.histogram {
                     histogram.increment(rate, <T as AtomicPrimitive>::Primitive::from(1_u8));
                 }

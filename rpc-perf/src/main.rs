@@ -35,16 +35,15 @@ pub fn main() {
         .init()
         .expect("Failed to initialize logger");
 
-    let metrics = Simple::new(&config);
-    let recorder = metrics.recorder();
+    let metrics = Metrics::new(&config);
 
-    stats::register_stats(&recorder);
+    stats::register_stats(&metrics);
 
-    let mut stats_stdout = stats::StandardOut::new(metrics.recorder(), config.interval() as u64);
+    let mut stats_stdout = stats::StandardOut::new(metrics.clone(), config.interval() as u64);
 
     let readings = Arc::new(Mutex::new(Vec::<Reading>::new()));
     if let Some(stats_listen) = config.listen() {
-        let mut stats_http = stats::Http::new(stats_listen, metrics.recorder());
+        let mut stats_http = stats::Http::new(stats_listen, metrics.clone());
         let _ = thread::Builder::new()
             .name("http".to_string())
             .spawn(move || loop {
@@ -63,40 +62,39 @@ pub fn main() {
 
     loop {
         std::thread::sleep(std::time::Duration::new(config.interval() as u64, 0));
-        recorder.increment(Stat::Window);
+        metrics.increment(Stat::Window);
         stats_stdout.print();
 
         if let Some(max_window) = config.windows() {
-            if recorder.counter(Stat::Window) >= max_window as u64 {
+            if metrics.counter(Stat::Window) >= max_window as u64 {
                 control.store(false, Ordering::SeqCst);
                 break;
             }
         }
-        let current = recorder.readings();
+        let current = metrics.readings();
         let mut readings = readings.lock().unwrap();
         *readings = current;
-        recorder.latch();
+        metrics.latch();
     }
     if let Some(waterfall) = config.waterfall() {
-        recorder.save_waterfall(waterfall);
+        metrics.save_waterfall(waterfall);
     }
 }
 
-fn do_warmup(config: &Config, metrics: &Simple) {
+fn do_warmup(config: &Config, metrics: &Metrics) {
     if let Some(target) = config.warmup_hitrate() {
         info!("-----");
         info!("Warming the cache...");
-        let recorder = metrics.recorder();
         let control = Arc::new(AtomicBool::new(true));
         launch_clients(&config, &metrics, control.clone());
 
         let mut warm = 0;
         loop {
             std::thread::sleep(std::time::Duration::new(config.interval() as u64, 0));
-            recorder.increment(Stat::Window);
+            metrics.increment(Stat::Window);
 
-            let hit = recorder.counter(Stat::ResponsesHit) as f64;
-            let miss = recorder.counter(Stat::ResponsesMiss) as f64;
+            let hit = metrics.counter(Stat::ResponsesHit) as f64;
+            let miss = metrics.counter(Stat::ResponsesMiss) as f64;
             let hitrate = hit / (hit + miss);
 
             debug!("Hit-rate: {:.2}%", hitrate * 100.0);
@@ -107,12 +105,12 @@ fn do_warmup(config: &Config, metrics: &Simple) {
             }
 
             if warm >= 3 {
-                recorder.zero();
+                metrics.zero();
                 control.store(false, Ordering::SeqCst);
                 break;
             }
 
-            recorder.zero();
+            metrics.zero();
         }
 
         info!("Warmup complete.");
@@ -143,7 +141,7 @@ fn make_client(id: usize, codec: Box<dyn Codec>, _config: &Config) -> Box<dyn Cl
     Box::new(PlainClient::new(id, codec))
 }
 
-fn launch_clients(config: &Config, metrics: &stats::Simple, control: Arc<AtomicBool>) {
+fn launch_clients(config: &Config, metrics: &stats::Metrics, control: Arc<AtomicBool>) {
     let request_ratelimiter = if let Some(limit) = config.request_ratelimit() {
         Some(Arc::new(Ratelimiter::new(
             config.clients() as u64,
@@ -190,7 +188,7 @@ fn launch_clients(config: &Config, metrics: &stats::Simple, control: Arc<AtomicB
 
         // TODO: use a different generator for warmup
         codec.set_generator(config.generator());
-        codec.set_recorder(metrics.recorder());
+        codec.set_metrics(metrics.clone());
 
         let mut client = make_client(i, codec, config);
         client.set_poolsize(config.poolsize());
@@ -198,7 +196,7 @@ fn launch_clients(config: &Config, metrics: &stats::Simple, control: Arc<AtomicB
         client.set_close_rate(close_rate.clone());
         client.set_connect_ratelimit(connect_ratelimiter.clone());
         client.set_request_ratelimit(request_ratelimiter.clone());
-        client.set_stats(metrics.recorder());
+        client.set_metrics(metrics.clone());
         client.set_connect_timeout(config.connect_timeout());
         client.set_request_timeout(config.request_timeout());
         client.set_soft_timeout(config.soft_timeout());

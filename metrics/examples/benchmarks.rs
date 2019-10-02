@@ -100,14 +100,14 @@ pub fn sized_run(
     let mut thread_pool = Vec::new();
     let t0 = time::Instant::now();
     for tid in 0..threads {
-        let recorder = metrics.recorder();
+        let metrics = metrics.clone();
         let label = if !single_channel {
             format!("test{}", tid)
         } else {
             "test".to_string()
         };
         let histogram = Histogram::new(2_000_000_000, 3, None, None);
-        recorder.add_channel(label.clone(), source, Some(histogram));
+        metrics.add_channel(label.clone(), source, Some(histogram));
         thread_pool.push(thread::spawn(move || {
             for value in 0..(max / threads) {
                 let measurement = match measurement_type {
@@ -130,7 +130,7 @@ pub fn sized_run(
                         stop: value as u64,
                     },
                 };
-                recorder.record(label.clone(), measurement);
+                metrics.record(label.clone(), measurement);
             }
         }));
     }
