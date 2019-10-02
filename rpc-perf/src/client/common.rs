@@ -4,7 +4,7 @@
 
 use crate::client::{MICROSECOND, MILLISECOND, SECOND};
 use crate::codec::Codec;
-use crate::stats::{SimpleRecorder, Stat};
+use crate::stats::{Metrics, Stat};
 
 use bytes::BytesMut;
 use logger::*;
@@ -31,7 +31,7 @@ pub struct Common {
     ready_queue: VecDeque<Token>,
     request_ratelimiter: Option<Arc<Ratelimiter>>,
     request_timeout: usize,
-    stats: Option<SimpleRecorder>,
+    stats: Option<Metrics>,
     timers: Wheel<Token>,
     last_timeouts: u64,
     tcp_nodelay: bool,
@@ -162,8 +162,8 @@ impl Common {
         self.ready_queue.pop_front()
     }
 
-    pub fn set_stats(&mut self, recorder: SimpleRecorder) {
-        self.stats = Some(recorder);
+    pub fn set_metrics(&mut self, metrics: Metrics) {
+        self.stats = Some(metrics);
     }
 
     pub fn stat_increment(&self, label: Stat) {

@@ -2,7 +2,7 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use crate::stats::SimpleRecorder;
+use crate::stats::Metrics;
 
 use logger::*;
 use metrics::{Output, Percentile, Reading};
@@ -11,20 +11,20 @@ use tiny_http::{Method, Response, Server};
 use std::net::SocketAddr;
 
 pub struct Http {
-    recorder: SimpleRecorder,
+    metrics: Metrics,
     server: Server,
     snapshot: Vec<Reading>,
     refreshed: u64,
 }
 
 impl Http {
-    pub fn new(address: SocketAddr, recorder: SimpleRecorder) -> Self {
+    pub fn new(address: SocketAddr, metrics: Metrics) -> Self {
         let server = tiny_http::Server::http(address);
         if server.is_err() {
             fatal!("Failed to open {} for HTTP Stats listener", address);
         }
         Self {
-            recorder: recorder,
+            metrics,
             server: server.unwrap(),
             snapshot: Vec::new(),
             refreshed: 0,
@@ -34,7 +34,7 @@ impl Http {
     pub fn run(&mut self) {
         let now = time::precise_time_ns();
         if now - self.refreshed > 500_000_000 {
-            self.snapshot = self.recorder.readings();
+            self.snapshot = self.metrics.readings();
             self.refreshed = time::precise_time_ns();
         }
         if let Ok(Some(request)) = self.server.try_recv() {

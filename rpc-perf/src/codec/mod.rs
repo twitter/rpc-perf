@@ -17,7 +17,7 @@ pub use crate::codec::redis::{Redis, RedisMode};
 pub use codec::{Decoder, Error, Response};
 
 use crate::config::{Action, Config, Generator};
-use crate::stats::SimpleRecorder;
+use crate::stats::Metrics;
 
 use bytes::BytesMut;
 use rand::rngs::ThreadRng;
@@ -241,21 +241,21 @@ pub trait Codec: Send {
     fn set_generator(&mut self, generator: Generator) {
         self.common_mut().set_generator(generator);
     }
-    fn set_recorder(&mut self, recorder: SimpleRecorder) {
-        self.common_mut().set_recorder(recorder);
+    fn set_metrics(&mut self, metrics: Metrics) {
+        self.common_mut().set_metrics(metrics);
     }
 }
 
 pub struct Common {
     generator: Generator,
-    recorder: Option<SimpleRecorder>,
+    metrics: Option<Metrics>,
 }
 
 impl Common {
     pub fn new() -> Self {
         Self {
             generator: Config::default().generator(),
-            recorder: None,
+            metrics: None,
         }
     }
 
@@ -263,12 +263,12 @@ impl Common {
         self.generator = generator;
     }
 
-    pub fn set_recorder(&mut self, recorder: SimpleRecorder) {
-        self.recorder = Some(recorder);
+    pub fn set_metrics(&mut self, metrics: Metrics) {
+        self.metrics = Some(metrics);
     }
 
-    pub fn recorder(&self) -> &Option<SimpleRecorder> {
-        &self.recorder
+    pub fn recorder(&self) -> &Option<Metrics> {
+        &self.metrics
     }
 }
 

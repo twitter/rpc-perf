@@ -13,7 +13,7 @@ pub use crate::client::plain_client::PlainClient;
 pub use crate::client::tls_client::TLSClient;
 use crate::codec::*;
 use crate::session::*;
-use crate::stats::{SimpleRecorder, Stat};
+use crate::stats::{Metrics, Stat};
 use crate::*;
 
 use mio::unix::UnixReady;
@@ -55,8 +55,8 @@ pub trait Client: Send {
     fn set_request_timeout(&mut self, microseconds: usize) {
         self.common_mut().set_request_timeout(microseconds)
     }
-    fn set_stats(&mut self, recorder: SimpleRecorder) {
-        self.common_mut().set_stats(recorder);
+    fn set_metrics(&mut self, metrics: Metrics) {
+        self.common_mut().set_metrics(metrics);
     }
     fn set_close_rate(&mut self, ratelimiter: Option<Arc<Ratelimiter>>) {
         self.common_mut().set_close_rate(ratelimiter);
