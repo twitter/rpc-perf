@@ -10,5 +10,5 @@ repository = "https://github.com/twitter/rpc-perf"
 publish = false
 
 [dependencies]
-log = { version = "0.4.6", features = ["std"] }
+log = { version = "0.4.8", features = ["std"] }
 time = "0.1.42"

@@ -10,7 +10,7 @@ repository = "https://github.com/twitter/rpc-perf"
 readme = "README.md"
 
 [dependencies]
-serde = { version = "1.0.98", optional = true }
+serde = { version = "1.0.101", optional = true }
 
 [features]
 default = ["serde"]

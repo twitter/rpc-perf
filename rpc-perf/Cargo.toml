@@ -22,18 +22,18 @@ datastructures = { path = "../datastructures" }
 logger = { path = "../logger" }
 metrics = { path = "../metrics" }
 mio = "0.6.19"
-rand = "0.7.0"
+rand = "0.7.2"
 ratelimiter = { path = "../ratelimiter" }
-rustls = { version = "0.15.2", optional = true }
-serde = "1.0.94"
-serde_derive = "1.0.94"
+rustls = { version = "0.16.0", optional = true }
+serde = "1.0.101"
+serde_derive = "1.0.101"
 slab = "0.4.2"
 time = "0.1.42"
 timer = { path = "../timer" }
 tiny_http = "0.6.2"
-toml = "0.5.1"
+toml = "0.5.3"
 waterfall = { path = "../waterfall" }
-webpki = { version = "0.19.1", optional = true }
+webpki = { version = "0.21.0", optional = true }
 
 [features]
 default = []
