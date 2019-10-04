@@ -99,6 +99,6 @@ impl Ratelimiter {
     /// }
     /// ```
     pub fn wait(&self) {
-        while self.try_wait().is_err() { }
+        while self.try_wait().is_err() {}
     }
 }

@@ -65,6 +65,7 @@ where
 /// The number of slices are dictated by the `resolution` in nanoseconds and the
 /// `span` of the heatmap in nanoseconds. Each `Histogram` within the `Heatmap`
 /// will store from 0..`max` with a specified `precision`.
+#[rustfmt::skip]
 pub struct Heatmap<T>
 where
     T: Counter + Unsigned,
