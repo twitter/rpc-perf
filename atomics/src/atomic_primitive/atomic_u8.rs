@@ -155,7 +155,7 @@ impl<'de> Visitor<'de> for AtomicU8Visitor {
     where
         E: serde::de::Error,
     {
-        Ok(Self::Value::new(u8::from(value)))
+        Ok(Self::Value::new(value))
     }
 
     fn visit_u16<E>(self, value: u16) -> Result<Self::Value, E>

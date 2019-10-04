@@ -283,11 +283,7 @@ where
                 false
             }
         } else {
-            if other.is_some.load(Ordering::SeqCst) {
-                false
-            } else {
-                true
-            }
+            !other.is_some.load(Ordering::SeqCst)
         }
     }
 }
@@ -340,7 +336,7 @@ where
     where
         D: Deserializer<'de>,
     {
-        T::deserialize(deserializer).map(|v| AtomicOption::some(v))
+        T::deserialize(deserializer).map(AtomicOption::some)
     }
 }
 

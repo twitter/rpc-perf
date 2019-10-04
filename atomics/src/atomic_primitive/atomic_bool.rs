@@ -107,7 +107,7 @@ impl<'de> Visitor<'de> for AtomicBoolVisitor {
     where
         E: serde::de::Error,
     {
-        Ok(AtomicBool::new(bool::from(value)))
+        Ok(AtomicBool::new(value))
     }
 }
 

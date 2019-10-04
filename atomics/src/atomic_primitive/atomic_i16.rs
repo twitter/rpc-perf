@@ -114,7 +114,7 @@ impl<'de> Visitor<'de> for AtomicI16Visitor {
     where
         E: serde::de::Error,
     {
-        Ok(Self::Value::new(i16::from(value)))
+        Ok(Self::Value::new(value))
     }
 
     fn visit_i32<E>(self, value: i32) -> Result<Self::Value, E>
