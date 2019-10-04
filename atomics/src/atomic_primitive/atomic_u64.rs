@@ -176,7 +176,7 @@ impl<'de> Visitor<'de> for AtomicU64Visitor {
     where
         E: serde::de::Error,
     {
-        Ok(Self::Value::new(u64::from(value)))
+        Ok(Self::Value::new(value))
     }
 }
 
