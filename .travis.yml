@@ -7,24 +7,22 @@ os: linux
 dist: trusty
 sudo: required
 env: TYPE=default RUST_BACKTRACE=1
+before_script:
+- rustup component add rustfmt
 script:
 - cargo build --verbose
 - cargo test --verbose
 - cargo build --release --verbose
 - cargo test --release --verbose
+- cargo fmt --all -- --check
 matrix:
   include:
-    - os: linux
-      rust: nightly
-      env: TYPE=rustfmt RUST_BACKTRACE=1
-      script:
-        - cargo install -f rustfmt-nightly
-        - cargo fmt -- --check
     - os: linux
       rust: nightly
       env: TYPE=tls RUST_BACKTRACE=1
       script:
         - cargo build --features tls --release
+        - cargo test --features tls --release
     - os: linux
       rust: nightly
       env: TYPE=clippy RUST_BACKTRACE=1
