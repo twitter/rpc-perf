@@ -15,10 +15,10 @@ datastructures = { path = "../datastructures" }
 dejavu = "2.37.0"
 hsl = "0.1.1"
 logger = { path = "../logger" }
-png = "0.14.1"
-rusttype = "0.7.7"
+png = "0.15.0"
+rusttype = "0.8.1"
 time = "0.1.42"
 
 [dev-dependencies]
-rand = "0.7.0"
-rand_distr = "0.2.1"
+rand = "0.7.2"
+rand_distr = "0.2.2"

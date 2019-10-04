@@ -7,7 +7,6 @@
 use datastructures::*;
 use hsl::HSL;
 use logger::*;
-use png::HasParameters;
 use rusttype::{point, FontCollection, PositionedGlyph, Scale};
 
 use std::collections::HashMap;
@@ -269,7 +268,8 @@ impl ImageBuffer<ColorRgb> {
         if let Ok(file) = File::create(path) {
             let w = BufWriter::new(file);
             let mut encoder = png::Encoder::new(w, self.width as u32, self.height as u32);
-            encoder.set(png::ColorType::RGB).set(png::BitDepth::Eight);
+            encoder.set_color(png::ColorType::RGB);
+            encoder.set_depth(png::BitDepth::Eight);
             if let Ok(mut writer) = encoder.write_header() {
                 if writer.write_image_data(&buffer).is_ok() {
                     Ok(())

@@ -118,7 +118,7 @@ fn do_warmup(config: &Config, metrics: &Metrics) {
 }
 
 #[cfg(feature = "tls")]
-fn make_client(id: usize, codec: Box<Codec>, config: &Config) -> Box<Client> {
+fn make_client(id: usize, codec: Box<dyn Codec>, config: &Config) -> Box<dyn Client> {
     if config.tls_ca().is_some() && config.tls_key().is_some() && config.tls_cert().is_some() {
         let mut client = TLSClient::new(id, codec);
         if let Some(cafile) = config.tls_ca() {
