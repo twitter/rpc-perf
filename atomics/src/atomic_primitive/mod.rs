@@ -7,6 +7,8 @@ use crate::Ordering;
 use core::fmt::Debug;
 
 mod atomic_bool;
+mod atomic_f32;
+mod atomic_f64;
 mod atomic_i16;
 mod atomic_i32;
 mod atomic_i64;
@@ -20,6 +22,8 @@ mod atomic_u8;
 mod atomic_usize;
 
 pub use self::atomic_bool::*;
+pub use self::atomic_f32::*;
+pub use self::atomic_f64::*;
 pub use self::atomic_i16::*;
 pub use self::atomic_i32::*;
 pub use self::atomic_i64::*;
