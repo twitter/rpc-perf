@@ -11,6 +11,8 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+type SharedVecDeque<T> = Arc<Mutex<VecDeque<T>>>;
+
 /// `Histogram` is inspired by HDRHistogram and stores a counter for `Bucket`s
 /// across a range of input values. `Histogram`s store between 0 and the `max`
 /// value passed to the constructor. Optionally, a `Histogram` may retain
@@ -32,7 +34,7 @@ where
     index: Vec<AtomicU64>,
     too_high: AtomicU64,
     precision: AtomicU32,
-    samples: Option<Arc<Mutex<VecDeque<Sample<<T as AtomicPrimitive>::Primitive>>>>>,
+    samples: Option<SharedVecDeque<Sample<<T as AtomicPrimitive>::Primitive>>>,
     window: Option<Arc<Mutex<Duration>>>,
     capacity: Option<AtomicUsize>,
 }

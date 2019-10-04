@@ -77,6 +77,20 @@ where
         self.len.load(Ordering::SeqCst)
     }
 
+    /// Returns true if the buffer is empty
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use datastructures::*;
+    ///
+    /// let x = Buffer::<AtomicU8>::new(4096);
+    /// assert!(x.is_empty())
+    /// ```
+    pub fn is_empty(&self) -> bool {
+        self.len.load(Ordering::SeqCst) == 0
+    }
+
     /// Tries to return one element from the buffer
     /// Returns Ok(None) if the buffer is empty
     /// Returns Ok(Some(T)) if we were able to read a value
