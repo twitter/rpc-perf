@@ -1,7 +1,7 @@
 # rpc-perf
 
 rpc-perf was created to help measure the performance of caching systems. We've found this tool to be
-useful for validating performance of cache backends, effects of kernel version and system tuning, as
+useful for validating the performance of cache backends, effects of kernel version and system tuning, as
 well as testing new hardware platforms and network changes.
 
 **BEWARE** rpc-perf can write to its target and can generate many requests
@@ -45,13 +45,12 @@ cargo build --release --features tls
 ```
 
 This will produce a binary at `../target/release/rpc-perf` which can be run in-place or copied to a
-more convenient location on your system.
+A more convenient location on your system.
 
 ## Configuration
 
-rpc-perf is configured through a combination of a TOML config file and command line parameters. If 
-an option is specified in both the config file and on the command line, the command line wins. See
-the `--help` and the example configurations in `rpc-perf/configs` to learn more about configuration.
+rpc-perf is configured through a combination of a TOML config file and command line parameters. If an option is specified in both the config file and on the command line, the command line wins. See
+the `--help` and the example configurations in `RPC-perf/configs` to learn more about configuration.
 
 ## Sample Usage
 
@@ -76,7 +75,7 @@ rpc-perf --config some_config.toml --endpoint 127.0.0.1:11211 --interval 60 --wi
 
 ## Practices
 
-* Start with a short test before moving on to tests spanning larger periods of time
+* Start with a short test before moving on to tests spanning larger periods
 * If comparing latency between two setups, be sure to set a ratelimit that's achievable on both
 * Keep `--clients` below the number of cores on the machine generating workload
 * Increase `--poolsize` as necessary to simulate production-like connection numbers
