@@ -97,11 +97,18 @@ where
 
     pub fn delete_channel(&self, name: String) {
         debug!("delete channel: {}", name);
-        let mut write = self.write.lock().unwrap();
-        write.empty(name.clone());
-        write.refresh();
-        let mut labels = self.labels.lock().unwrap();
-        labels.remove(&name);
+        if self
+            .read
+            .get_and(&name, |channel| channel.len())
+            .unwrap_or(0)
+            != 0
+        {
+            let mut write = self.write.lock().unwrap();
+            write.empty(name.clone());
+            write.refresh();
+            let mut labels = self.labels.lock().unwrap();
+            labels.remove(&name);
+        }
     }
 
     pub fn readings(&self) -> Vec<Reading> {
