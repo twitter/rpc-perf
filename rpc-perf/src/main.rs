@@ -176,6 +176,7 @@ fn launch_clients(config: &Config, metrics: &stats::Metrics, control: Arc<Atomic
         let mut codec: Box<dyn Codec> = match config.protocol() {
             Protocol::Echo => Box::new(crate::codec::Echo::new()),
             Protocol::Memcache => Box::new(crate::codec::Memcache::new()),
+            Protocol::ThriftCache => Box::new(crate::codec::ThriftCache::new()),
             Protocol::PelikanRds => Box::new(crate::codec::PelikanRds::new()),
             Protocol::Ping => Box::new(crate::codec::Ping::new()),
             Protocol::RedisResp => {

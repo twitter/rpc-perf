@@ -1,0 +1,23 @@
+[general]
+protocol = "thrift_cache" # use the ThriftCache protocol
+interval = 60 # seconds
+windows = 5 # run for 5 intervals
+clients = 1 # use a single client thread
+poolsize = 1 # each client has 1 connection per endpoint
+tcp_nodelay = false # do not enable tcp_nodelay
+request_timeout = 200_000 # microseconds
+connect_timeout = 200_000 # microseconds
+
+[[keyspace]]
+length = 8 # 8 byte keys
+count = 10_000_000 # limit to 10M keys
+weight = 1 # this keyspace has a weight of 1
+commands = [ # specify commands
+    {action = "lrange", weight = 4, items = 8},
+    {action = "rpush", weight = 1, items = 8},
+    {action = "rpushx", weight = 1, items = 8},
+    {action = "ltrim", weight = 1, items = 64},
+]
+values = [ # value length will always be 64 bytes
+    {length = 64, weight = 1},
+]

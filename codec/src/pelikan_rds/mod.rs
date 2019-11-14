@@ -10,11 +10,12 @@ use logger::*;
 use std::io::{BufRead, BufReader};
 use std::str;
 
+#[derive(Default)]
 pub struct PelikanRds {}
 
 impl PelikanRds {
     pub fn new() -> Self {
-        Self {}
+        Default::default()
     }
 
     pub fn get(&self, buf: &mut BytesMut, key: &[u8]) {
@@ -43,6 +44,7 @@ impl PelikanRds {
         }
     }
 
+    #[allow(clippy::unnecessary_unwrap)]
     pub fn sarray_create(
         &self,
         buf: &mut BytesMut,
@@ -128,7 +130,7 @@ impl PelikanRds {
         buf.extend_from_slice(b"\r\n");
     }
 
-    pub fn sarray_insert(&self, buf: &mut BytesMut, key: &[u8], values: &Vec<&[u8]>) {
+    pub fn sarray_insert(&self, buf: &mut BytesMut, key: &[u8], values: &[&[u8]]) {
         let args = 2 + values.len();
         buf.extend_from_slice(
             format!("*{}\r\n$13\r\nSArray.insert\r\n${}\r\n", args, key.len()).as_bytes(),
@@ -141,7 +143,7 @@ impl PelikanRds {
         buf.extend_from_slice(b"\r\n");
     }
 
-    pub fn sarray_remove(&self, buf: &mut BytesMut, key: &[u8], values: &Vec<&[u8]>) {
+    pub fn sarray_remove(&self, buf: &mut BytesMut, key: &[u8], values: &[&[u8]]) {
         let args = 2 + values.len();
         buf.extend_from_slice(
             format!("*{}\r\n$13\r\nSArray.remove\r\n${}\r\n", args, key.len()).as_bytes(),

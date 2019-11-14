@@ -7,12 +7,14 @@ mod memcache;
 mod pelikan_rds;
 mod ping;
 mod redis;
+mod thrift_cache;
 
 pub use crate::codec::echo::Echo;
 pub use crate::codec::memcache::Memcache;
 pub use crate::codec::pelikan_rds::PelikanRds;
 pub use crate::codec::ping::Ping;
 pub use crate::codec::redis::{Redis, RedisMode};
+pub use crate::codec::thrift_cache::ThriftCache;
 
 pub use codec::{Decoder, Error, Response};
 
@@ -25,6 +27,7 @@ use rand::rngs::ThreadRng;
 pub struct Command {
     action: Action,
     key: Option<String>,
+    fields: Option<Vec<String>>,
     values: Option<Vec<String>>,
     ttl: Option<usize>,
     index: Option<u64>,
@@ -39,6 +42,7 @@ impl Command {
         Command {
             action,
             key: None,
+            fields: None,
             values: None,
             ttl: None,
             index: None,
@@ -59,6 +63,47 @@ impl Command {
         let mut command = Command::new(Action::Get);
         command.key = Some(key);
         command
+    }
+
+    pub fn hdel(key: String, fields: Vec<String>) -> Command {
+        let mut command = Command::new(Action::Hdel);
+        command.key = Some(key);
+        command.fields = Some(fields);
+        command
+    }
+
+    pub fn hget(key: String, fields: Vec<String>) -> Command {
+        let mut command = Command::new(Action::Hget);
+        command.key = Some(key);
+        command.fields = Some(fields);
+        command
+    }
+
+    pub fn hset(
+        key: String,
+        fields: Vec<String>,
+        values: Vec<String>,
+        ttl: Option<usize>,
+    ) -> Command {
+        let mut command = Command::new(Action::Hget);
+        command.key = Some(key);
+        command.fields = Some(fields);
+        command.values = Some(values);
+        command.ttl = ttl;
+        command
+    }
+
+    pub fn fields(&self) -> Option<Vec<&[u8]>> {
+        match &self.fields {
+            Some(fields) => {
+                let mut v = Vec::new();
+                for field in fields {
+                    v.push(field.as_bytes())
+                }
+                Some(v)
+            }
+            None => None,
+        }
     }
 
     pub fn llen(key: String) -> Command {
@@ -121,6 +166,10 @@ impl Command {
 
     pub fn action(&self) -> Action {
         self.action
+    }
+
+    pub fn count(&self) -> Option<u64> {
+        self.count
     }
 
     pub fn key(&self) -> Option<&[u8]> {
