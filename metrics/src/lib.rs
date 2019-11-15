@@ -35,6 +35,8 @@
 //! `Reading` stores information about the `Channel` label, the `Output` it
 //! corresponds to, and the value.
 
+#![deny(clippy::all)]
+
 #[macro_use]
 extern crate logger;
 

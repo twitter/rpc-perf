@@ -6,6 +6,8 @@
 //! use as generic types in other datastructures. Also provides non standard
 //! atomic types such as an atomic `Option` type.
 
+#![deny(clippy::all)]
+
 mod atomic_counter;
 mod atomic_option;
 mod atomic_primitive;
