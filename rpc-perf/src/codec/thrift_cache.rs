@@ -103,8 +103,7 @@ impl Codec for ThriftCache {
                     recorder.distribution("keys/size", key.len() as u64);
                 }
                 // TODO: proper handling of start and stop
-                self.codec
-                    .trim(buf, 0, b"0", key, count, true, None);
+                self.codec.trim(buf, 0, b"0", key, count, true, None);
             }
             Action::Rpush => {
                 let key = command.key().unwrap();
