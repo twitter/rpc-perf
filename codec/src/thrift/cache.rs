@@ -46,7 +46,7 @@ impl Cache {
         buffer.write_bytes(key);
 
         buffer.write_bytes(&[thrift::LIST]);
-        buffer.write_i16(4);
+        buffer.write_i16(3);
         buffer.write_bytes(&[thrift::STRING]);
         buffer.write_i32(values.len() as i32);
 
@@ -96,7 +96,7 @@ impl Cache {
         buffer.write_bytes(key);
 
         buffer.write_bytes(&[thrift::LIST]);
-        buffer.write_i16(4);
+        buffer.write_i16(3);
         buffer.write_bytes(&[thrift::STRING]);
         buffer.write_i32(values.len() as i32);
 
