@@ -5,8 +5,8 @@
 use super::*;
 
 use bytes::{Buf, BytesMut, IntoBuf};
-use logger::*;
 
+use std::cmp::Ordering;
 use std::io::{BufRead, BufReader};
 use std::str;
 
@@ -219,14 +219,10 @@ impl Decoder for PelikanRds {
                             Ok(expected) => {
                                 // data len = buf.len() - line.len() - 2x CRLF - 1
                                 let have = buf.len() - line.len() - 5;
-                                if have < expected {
-                                    Err(Error::Incomplete)
-                                } else if have > expected {
-                                    trace!("line: {}", line);
-                                    trace!("have: {} expected: {}", have, expected);
-                                    Err(Error::Error)
-                                } else {
-                                    Ok(Response::Hit)
+                                match have.cmp(&expected) {
+                                    Ordering::Less => Err(Error::Incomplete),
+                                    Ordering::Equal => Ok(Response::Hit),
+                                    Ordering::Greater => Err(Error::Error),
                                 }
                             }
                             Err(_) => Err(Error::Unknown),
