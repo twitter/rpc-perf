@@ -4,6 +4,8 @@
 
 //! A collection of atomic datastructures
 
+#![deny(clippy::all)]
+
 pub use atomics::*;
 
 mod buffer;

@@ -5,16 +5,17 @@
 use super::*;
 
 use bytes::{Buf, BytesMut, IntoBuf};
-use logger::*;
 
+use std::cmp::Ordering;
 use std::io::{BufRead, BufReader};
 use std::str;
 
+#[derive(Default)]
 pub struct PelikanRds {}
 
 impl PelikanRds {
     pub fn new() -> Self {
-        Self {}
+        Default::default()
     }
 
     pub fn get(&self, buf: &mut BytesMut, key: &[u8]) {
@@ -43,6 +44,7 @@ impl PelikanRds {
         }
     }
 
+    #[allow(clippy::unnecessary_unwrap)]
     pub fn sarray_create(
         &self,
         buf: &mut BytesMut,
@@ -128,7 +130,7 @@ impl PelikanRds {
         buf.extend_from_slice(b"\r\n");
     }
 
-    pub fn sarray_insert(&self, buf: &mut BytesMut, key: &[u8], values: &Vec<&[u8]>) {
+    pub fn sarray_insert(&self, buf: &mut BytesMut, key: &[u8], values: &[&[u8]]) {
         let args = 2 + values.len();
         buf.extend_from_slice(
             format!("*{}\r\n$13\r\nSArray.insert\r\n${}\r\n", args, key.len()).as_bytes(),
@@ -141,7 +143,7 @@ impl PelikanRds {
         buf.extend_from_slice(b"\r\n");
     }
 
-    pub fn sarray_remove(&self, buf: &mut BytesMut, key: &[u8], values: &Vec<&[u8]>) {
+    pub fn sarray_remove(&self, buf: &mut BytesMut, key: &[u8], values: &[&[u8]]) {
         let args = 2 + values.len();
         buf.extend_from_slice(
             format!("*{}\r\n$13\r\nSArray.remove\r\n${}\r\n", args, key.len()).as_bytes(),
@@ -217,14 +219,10 @@ impl Decoder for PelikanRds {
                             Ok(expected) => {
                                 // data len = buf.len() - line.len() - 2x CRLF - 1
                                 let have = buf.len() - line.len() - 5;
-                                if have < expected {
-                                    Err(Error::Incomplete)
-                                } else if have > expected {
-                                    trace!("line: {}", line);
-                                    trace!("have: {} expected: {}", have, expected);
-                                    Err(Error::Error)
-                                } else {
-                                    Ok(Response::Hit)
+                                match have.cmp(&expected) {
+                                    Ordering::Less => Err(Error::Incomplete),
+                                    Ordering::Equal => Ok(Response::Hit),
+                                    Ordering::Greater => Err(Error::Error),
                                 }
                             }
                             Err(_) => Err(Error::Unknown),

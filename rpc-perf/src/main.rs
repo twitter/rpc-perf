@@ -2,6 +2,8 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
+#![deny(clippy::all)]
+
 mod client;
 mod codec;
 mod config;
@@ -176,6 +178,7 @@ fn launch_clients(config: &Config, metrics: &stats::Metrics, control: Arc<Atomic
         let mut codec: Box<dyn Codec> = match config.protocol() {
             Protocol::Echo => Box::new(crate::codec::Echo::new()),
             Protocol::Memcache => Box::new(crate::codec::Memcache::new()),
+            Protocol::ThriftCache => Box::new(crate::codec::ThriftCache::new()),
             Protocol::PelikanRds => Box::new(crate::codec::PelikanRds::new()),
             Protocol::Ping => Box::new(crate::codec::Ping::new()),
             Protocol::RedisResp => {

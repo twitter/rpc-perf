@@ -75,6 +75,9 @@ impl Default for Config {
 pub enum Action {
     Delete,
     Get,
+    Hdel,
+    Hget,
+    Hset,
     Llen,
     Lpush,
     Lpushx,
@@ -124,6 +127,40 @@ impl Generator {
             Action::Get => {
                 let key = keyspace.choose_key(rng);
                 crate::codec::Command::get(key)
+            }
+            Action::Hdel => {
+                let key = keyspace.choose_key(rng);
+                let mut fields = Vec::new();
+                for _ in 0..command.items().unwrap_or(1) {
+                    // TODO(bmartin): we should allow for different ways of
+                    //   selecting fields
+                    fields.push(keyspace.choose_key(rng));
+                }
+                crate::codec::Command::hdel(key, fields)
+            }
+            Action::Hget => {
+                let key = keyspace.choose_key(rng);
+                let mut fields = Vec::new();
+                for _ in 0..command.items().unwrap_or(1) {
+                    // TODO(bmartin): we should allow for different ways of
+                    //   selecting fields
+                    fields.push(keyspace.choose_key(rng));
+                }
+                crate::codec::Command::hget(key, fields)
+            }
+            Action::Hset => {
+                let key = keyspace.choose_key(rng);
+                let mut fields = Vec::new();
+                for _ in 0..command.items().unwrap_or(1) {
+                    // TODO(bmartin): we should allow for different ways of
+                    //   selecting fields
+                    fields.push(keyspace.choose_key(rng));
+                }
+                let mut values = Vec::new();
+                for _ in 0..command.items().unwrap_or(1) {
+                    values.push(keyspace.choose_value_string(rng));
+                }
+                crate::codec::Command::hset(key, fields, values, command.ttl())
             }
             Action::Llen => {
                 let key = keyspace.choose_key(rng);
@@ -659,11 +696,13 @@ impl Config {
 
         if let Some(protocol) = matches.value_of("protocol") {
             config.general.set_protocol(match protocol {
+                "echo" => Protocol::Echo,
                 "memcache" => Protocol::Memcache,
+                "pelikan-rds" => Protocol::PelikanRds,
+                "ping" => Protocol::Ping,
                 "redis" => Protocol::RedisResp,
                 "redis-inline" => Protocol::RedisInline,
-                "echo" => Protocol::Echo,
-                "ping" => Protocol::Ping,
+                "thrift-cache" => Protocol::ThriftCache,
                 _ => {
                     fatal!("unknown protocol: {}", protocol);
                 }

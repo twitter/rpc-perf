@@ -277,6 +277,7 @@ pub enum Protocol {
     Echo,
     RedisResp,
     RedisInline,
+    ThriftCache,
 }
 impl Default for Protocol {
     fn default() -> Protocol {

@@ -1,38 +1,39 @@
 language: rust
-rust:
-  - stable
-  - beta
-  - nightly
 os: linux
 dist: trusty
 sudo: required
-env: TYPE=default RUST_BACKTRACE=1
-before_script:
-- rustup component add rustfmt
-script:
-- cargo build --verbose
-- cargo test --verbose
-- cargo build --release --verbose
-- cargo test --release --verbose
-- cargo fmt --all -- --check
 matrix:
+  fast_finish: true
   include:
     - os: linux
-      rust: nightly
+      rust: stable
+      env: TYPE=default RUST_BACKTRACE=1
+      script:
+        - cargo build --verbose
+        - cargo test --verbose
+        - cargo build --release --verbose
+        - cargo test --release --verbose
+        - cargo run --release -- --version
+    - os: linux
+      rust: stable
       env: TYPE=tls RUST_BACKTRACE=1
       script:
-        - cargo build --features tls --release
-        - cargo test --features tls --release
+        - cd rpc-perf
+        - cargo build --features tls
+        - cargo test --features tls
+        - cargo build --release --features tls
+        - cargo test --release --features tls
+        - cargo run --release --features tls -- --version
+    - os: linux
+      rust: stable
+      env: TYPE=rustfmt RUST_BACKTRACE=1
+      script:
+        - rustup component add rustfmt --toolchain stable
+        - cargo +stable fmt -- --check
     - os: linux
       rust: nightly
       env: TYPE=clippy RUST_BACKTRACE=1
       script:
-        - rustup component add clippy --toolchain=nightly || cargo install --git https://github.com/rust-lang/rust-clippy/ --force clippy
-        - cargo clippy
-    - os: linux
-      rust: nightly
-      env: TYPE=benchmark RUST_BACKTRACE=1
-      script:
-        - bash bench.sh
-  allow_failures:
-    - rust: nightly
+        - rustup toolchain install nightly-2019-10-04
+        - rustup component add clippy --toolchain nightly-2019-10-04
+        - cargo +nightly-2019-10-04 clippy --features tls

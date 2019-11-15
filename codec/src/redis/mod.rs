@@ -5,8 +5,8 @@
 use super::*;
 
 use bytes::{Buf, BytesMut, IntoBuf};
-use logger::*;
 
+use std::cmp::Ordering;
 use std::io::{BufRead, BufReader};
 use std::str;
 
@@ -24,10 +24,10 @@ impl Redis {
         Self { mode }
     }
 
-    fn command(&self, buf: &mut BytesMut, command: &str, args: &Vec<&[u8]>) {
+    fn command(&self, buf: &mut BytesMut, command: &str, args: &[&[u8]]) {
         match self.mode {
             Mode::Inline => {
-                buf.extend_from_slice(format!("{}", command).as_bytes());
+                buf.extend_from_slice(command.to_string().as_bytes());
                 for arg in args {
                     buf.extend_from_slice(b" ");
                     buf.extend_from_slice(arg);
@@ -47,7 +47,7 @@ impl Redis {
         }
     }
 
-    pub fn delete(&self, buf: &mut BytesMut, keys: &Vec<&[u8]>) {
+    pub fn delete(&self, buf: &mut BytesMut, keys: &[&[u8]]) {
         self.command(buf, "delete", keys);
     }
 
@@ -71,7 +71,7 @@ impl Redis {
         self.command(buf, "hsetnx", &args);
     }
 
-    pub fn mget(&self, buf: &mut BytesMut, keys: &Vec<&[u8]>) {
+    pub fn mget(&self, buf: &mut BytesMut, keys: &[&[u8]]) {
         self.command(buf, "mget", keys);
     }
 
@@ -103,13 +103,13 @@ impl Redis {
         self.command(buf, "lpop", &args);
     }
 
-    pub fn lpush(&self, buf: &mut BytesMut, key: &[u8], values: &Vec<&[u8]>) {
+    pub fn lpush(&self, buf: &mut BytesMut, key: &[u8], values: &[&[u8]]) {
         let mut args = vec![key];
         args.extend_from_slice(&values);
         self.command(buf, "lpush", &args);
     }
 
-    pub fn lpushx(&self, buf: &mut BytesMut, key: &[u8], values: &Vec<&[u8]>) {
+    pub fn lpushx(&self, buf: &mut BytesMut, key: &[u8], values: &[&[u8]]) {
         let mut args = vec![key];
         args.extend_from_slice(&values);
         self.command(buf, "lpushx", &args);
@@ -135,13 +135,13 @@ impl Redis {
         self.command(buf, "ltrim", &args);
     }
 
-    pub fn rpush(&self, buf: &mut BytesMut, key: &[u8], values: &Vec<&[u8]>) {
+    pub fn rpush(&self, buf: &mut BytesMut, key: &[u8], values: &[&[u8]]) {
         let mut args = vec![key];
         args.extend_from_slice(&values);
         self.command(buf, "rpush", &args);
     }
 
-    pub fn rpushx(&self, buf: &mut BytesMut, key: &[u8], values: &Vec<&[u8]>) {
+    pub fn rpushx(&self, buf: &mut BytesMut, key: &[u8], values: &[&[u8]]) {
         let mut args = vec![key];
         args.extend_from_slice(&values);
         self.command(buf, "rpushx", &args);
@@ -200,14 +200,10 @@ impl Decoder for Redis {
                             Ok(expected) => {
                                 // data len = buf.len() - line.len() - 2x CRLF - 1
                                 let have = buf.len() - line.len() - 5;
-                                if have < expected {
-                                    Err(Error::Incomplete)
-                                } else if have > expected {
-                                    trace!("line: {}", line);
-                                    trace!("have: {} expected: {}", have, expected);
-                                    Err(Error::Error)
-                                } else {
-                                    Ok(Response::Hit)
+                                match have.cmp(&expected) {
+                                    Ordering::Less => Err(Error::Incomplete),
+                                    Ordering::Equal => Ok(Response::Hit),
+                                    Ordering::Greater => Err(Error::Error),
                                 }
                             }
                             Err(_) => Err(Error::Unknown),

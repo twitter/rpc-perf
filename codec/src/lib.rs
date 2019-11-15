@@ -12,11 +12,14 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
+#![deny(clippy::all)]
+
 mod echo;
 mod memcache;
 mod pelikan_rds;
 mod ping;
 mod redis;
+mod thrift;
 
 pub use crate::echo::Echo;
 pub use crate::memcache::Memcache;
@@ -24,6 +27,7 @@ pub use crate::pelikan_rds::PelikanRds;
 pub use crate::ping::Ping;
 pub use crate::redis::Mode as RedisMode;
 pub use crate::redis::Redis;
+pub use crate::thrift::Cache as ThriftCache;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Response {

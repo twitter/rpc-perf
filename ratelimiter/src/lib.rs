@@ -4,6 +4,8 @@
 
 //! This library provides a thread safe token bucket ratelimitier
 
+#![deny(clippy::all)]
+
 use datastructures::*;
 
 /// A token bucket ratelimiter
