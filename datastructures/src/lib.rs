@@ -10,6 +10,7 @@ pub use atomics::*;
 
 mod buffer;
 mod counter;
+pub mod ddsketch;
 mod heatmap;
 mod histogram;
 
