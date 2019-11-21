@@ -145,11 +145,7 @@ fn make_client(id: usize, codec: Box<dyn Codec>, _config: &Config) -> Box<dyn Cl
 
 fn launch_clients(config: &Config, metrics: &stats::Metrics, control: Arc<AtomicBool>) {
     let request_ratelimiter = if let Some(limit) = config.request_ratelimit() {
-        let ratelimiter = Ratelimiter::new(
-            config.clients() as u64,
-            1,
-            limit as u64,
-        );
+        let ratelimiter = Ratelimiter::new(config.clients() as u64, 1, limit as u64);
         ratelimiter.strategy(config.request_distribution());
         Some(Arc::new(ratelimiter))
     } else {

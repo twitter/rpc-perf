@@ -54,7 +54,6 @@ impl TryFrom<usize> for Refill {
     }
 }
 
-
 const SECOND: u64 = 1_000_000_000;
 
 /// A token bucket ratelimiter
@@ -107,18 +106,10 @@ impl Ratelimiter {
         if now >= next {
             let strategy = Refill::try_from(self.strategy.get());
             let tick = match strategy {
-                Ok(Refill::Smooth) => {
-                    self.tick.get()
-                }
-                Ok(Refill::Uniform) => {
-                    self.uniform.sample(&mut rand::thread_rng()) as u64
-                }
-                Ok(Refill::Normal) => {
-                    self.normal.sample(&mut rand::thread_rng()) as u64
-                }
-                Err(_) => {
-                    self.tick.get()
-                }
+                Ok(Refill::Smooth) => self.tick.get(),
+                Ok(Refill::Uniform) => self.uniform.sample(&mut rand::thread_rng()) as u64,
+                Ok(Refill::Normal) => self.normal.sample(&mut rand::thread_rng()) as u64,
+                Err(_) => self.tick.get(),
             };
             self.next.add(tick);
             self.available.add(self.quantum.get());
