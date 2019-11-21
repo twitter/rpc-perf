@@ -6,6 +6,7 @@ members = [
     "datastructures",
     "logger",
     "metrics",
+    "metrics-core",
     "ratelimiter",
     "rpc-perf",
     "timer",
