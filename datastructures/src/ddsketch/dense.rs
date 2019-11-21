@@ -1,13 +1,14 @@
-use crate::counter::{Counter, Saturating, Unsigned};
 
-use atomics::{AtomicPrimitive, AtomicU64, Ordering};
+use crate::counter::Saturating;
 
-/// An atomic DDSketch.
-pub struct AtomicDDSketch<T = AtomicU64>
-where
-    T: Counter + Unsigned,
-    <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating + Into<u64>,
-{
+use std::ops::AddAssign;
+use std::convert::TryFrom;
+
+/// A non-atomic DDSketch.
+/// 
+/// This implementation should be preferred over `AtomicDDSketch`
+/// when concurrent insertion into the sketch is not needed.
+pub struct DenseDDSketch<T = u64> {
     buckets: Vec<T>,
 
     gamma: f64,
@@ -17,16 +18,58 @@ where
     /// width of less than 1 which is useless since we are storign integers.
     cutoff: usize,
 
-    count: AtomicU64,
+    min: u64,
+    max: u64,
+    count: u64,
     limit: u64,
-    min: AtomicU64,
-    max: AtomicU64,
 }
 
-impl<T> AtomicDDSketch<T>
+// Utility functions that don't require knowing anything about T
+impl<T> DenseDDSketch<T> {
+    /// Get the bucket-index of a value.
+    fn index_of(&self, value: u64) -> usize {
+        match value {
+            x if x > self.limit => self.buckets.len() - 1,
+            x if x < self.cutoff as u64 => x as usize,
+            x => (x as f64).log(self.gamma).ceil() as usize + 1,
+        }
+    }
+
+    /// Total count of samples in the sketch.
+    pub fn count(&self) -> u64 {
+        self.count
+    }
+
+    /// Maximum value present in the sketch
+    pub fn max(&self) -> u64 {
+        self.max
+    }
+
+    /// Minimum value present in the sketch
+    pub fn min(&self) -> u64 {
+        self.min
+    }
+
+    /// Maximum value that the sketch is sized to store.
+    /// 
+    /// Note that there is another bucket to catch values
+    /// greater than this so they don't get lost, but there
+    /// are no precision guarantees.
+    pub fn limit(&self) -> u64 {
+        self.limit
+    }
+
+    /// Indicates whether the sketch has no values within it.
+    /// 
+    /// This is the same as checking if `count() == 0`.
+    pub fn is_empty(&self) -> bool {
+        self.count() == 0
+    }
+}
+
+impl<T> DenseDDSketch<T>
 where
-    T: Counter + Unsigned,
-    <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating + Into<u64>,
+    T: Saturating + Default + PartialEq + Copy + Into<u64>
 {
     /// Create a sketch that can store values up to `limit` with
     /// a relative precision of `alpha`.
@@ -108,10 +151,10 @@ where
             gamma,
             cutoff: cutoff as usize + 1,
 
-            count: AtomicU64::new(0),
+            count: 0,
             limit,
-            min: AtomicU64::new(std::u64::MAX),
-            max: AtomicU64::new(std::u64::MIN),
+            min: std::u64::MAX,
+            max: std::u64::MIN,
         }
     }
 
@@ -126,57 +169,44 @@ where
         Self::with_limit(std::u64::MAX, alpha)
     }
 
-    /// The number of buckets in the sketch.
-    pub fn num_buckets(&self) -> usize {
-        self.buckets.len()
-    }
-
-    /// Get the bucket-index of a value.
-    fn index_of(&self, value: u64) -> usize {
-        match value {
-            x if x > self.limit => self.buckets.len() - 1,
-            x if x < self.cutoff as u64 => x as usize,
-            x => (x as f64).log(self.gamma).ceil() as usize + 1,
-        }
-    }
-
     /// Increment the bucket holding `value` by `count`.
-    pub fn increment(&self, value: u64, count: <T as AtomicPrimitive>::Primitive) {
-        atomic_max(&self.max, value);
-        atomic_min(&self.min, value);
-        self.count.saturating_add(count.into());
+    pub fn increment(&mut self, value: u64, count: T) {
+        self.min = self.min.min(value);
+        self.max = self.max.max(value);
+        self.count = self.count.saturating_add(count.into());
 
-        self.buckets[self.index_of(value)].saturating_add(count);
-    }
-
-    /// Clear all buckets within the sketch.
-    /// 
-    /// Note that clearing while other threads are inserting
-    /// into the sketch is likely to leave it in a somewhat
-    /// inconsistent state.
-    pub fn clear(&self) {
-        self.min.store(std::u64::MAX, Ordering::Relaxed);
-        self.max.store(std::u64::MAX, Ordering::Relaxed);
-        self.count.store(0, Ordering::Relaxed);
-
-        for bucket in self.buckets.iter() {
-            bucket.set(Default::default());
-        }
+        let index = self.index_of(value);
+        saturating_inc(&mut self.buckets[index], count);
     }
 
     /// Total count of samples in the sketch.
-    pub fn count(&self) -> u64 {
-        self.count.load(Ordering::Relaxed)
+    pub fn clear(&mut self) {
+        self.max = std::u64::MIN;
+        self.min = std::u64::MAX;
+        self.count = 0;
+
+        for bucket in self.buckets.iter_mut() {
+            *bucket = T::default();
+        }
     }
 
-    /// The number of samples that were over the limit and are too
-    /// high to store in any given bucket.
-    pub fn too_high(&self) -> u64 {
-        if self.limit == std::u64::MAX {
-            return 0;
-        }
+    /// Merge two different sketches.
+    ///
+    /// # Panics
+    /// This function will panic if the number of buckets is
+    /// different between the two sketches.
+    pub fn merge(&mut self, other: &Self) {
+        // Cannot merge differently-sized buckets
+        assert_eq!(self.buckets.len(), other.buckets.len());
 
-        self.buckets.last().unwrap().get().into()
+        self.count = self.count.saturating_add(other.count);
+        self.min = self.min.min(other.min);
+        self.max = self.max.max(other.max);
+
+        self.buckets
+            .iter_mut()
+            .zip(other.buckets.iter().copied())
+            .for_each(|(x, y)| saturating_inc(x, y));
     }
 
     /// Returns the approximate value of the quantile specified from
@@ -193,22 +223,19 @@ where
             return 0;
         }
 
-        let min = self.min.load(Ordering::Relaxed);
-        let max = self.max.load(Ordering::Relaxed);
-
         if q < 0.0 {
-            return min;
+            return self.min;
         }
         if q >= 1.0 {
-            return max;
+            return self.max;
         }
 
-        let rank = (q * self.count() as f64) as u64;
+        let rank = (q * self.count as f64) as u64;
         let index = self
             .buckets
             .iter()
-            .scan(0u64, |total, count| {
-                *total += count.load(Ordering::Relaxed).into();
+            .scan(0u64, |total: &mut u64, &count| {
+                *total += count.into();
                 Some(*total)
             })
             .enumerate()
@@ -218,38 +245,24 @@ where
 
         let index = match index {
             Some(idx) if idx < self.cutoff => idx,
-            Some(idx) if idx == self.buckets.len() - 1 => return max,
+            Some(idx) if idx == self.buckets.len() - 1 => return self.max,
             Some(idx) => idx - 1,
-            None => return max,
+            None => return self.max,
         };
 
         ((self.gamma.powi(index as i32) / (0.5 * (self.gamma + 1.0))).round() as u64)
-            .min(max)
-            .max(min)
+            .min(self.max)
+            .max(self.min)
     }
 
-    /// Merge two different sketches.
-    ///
-    /// # Panics
-    /// This function will panic if the number of buckets is
-    /// different between the two sketches.
-    pub fn merge(&self, other: &Self) {
-        assert_eq!(
-            self.buckets.len(),
-            other.buckets.len(),
-            "Attempted to merge differently-sized DDSketches"
-        );
+    /// The number of samples that were over the limit and are too
+    /// high to store in any given bucket.
+    pub fn too_high(&self) -> u64 {
+        if self.limit == std::u64::MAX {
+            return 0;
+        }
 
-        self.count.saturating_add(other.count());
-        atomic_min(&self.min, other.min.load(Ordering::Relaxed));
-        atomic_max(&self.max, other.max.load(Ordering::Relaxed));
-
-        self.buckets
-            .iter()
-            .zip(other.buckets.iter())
-            .for_each(|(x, y)| {
-                x.saturating_add(y.load(Ordering::Relaxed));
-            });
+        (*self.buckets.last().unwrap()).into()
     }
 
     /// Get the approximate rank of `value` within the sketch.
@@ -261,20 +274,52 @@ where
 
         self.buckets[..index]
             .iter()
-            .map(|x| x.load(Ordering::Relaxed).into())
+            .map(|&x| -> u64 { x.into() })
             .sum()
     }
 }
 
-fn atomic_max(atomic: &AtomicU64, value: u64) {
-    let mut existing = atomic.load(Ordering::Relaxed);
-    while existing < value {
-        existing = atomic.compare_and_swap(existing, value, Ordering::Relaxed);
+fn saturating_inc<T>(loc: &mut T, val: T)
+where
+    T: Saturating
+{
+    *loc = loc.saturating_add(val);
+}
+
+impl<T> Extend<u64> for DenseDDSketch<T>
+where
+    T: Saturating + AddAssign<T> + Default + PartialEq + Copy + Into<u64> + TryFrom<u64>,
+    <T as TryFrom<u64>>::Error: std::fmt::Debug
+{
+    fn extend<I: IntoIterator<Item = u64>>(&mut self, iter: I) {
+        let one = T::try_from(1).expect("1 is not convertable to T");
+        for item in iter {
+            self.increment(item, one)
+        }
     }
 }
-fn atomic_min(atomic: &AtomicU64, value: u64) {
-    let mut existing = atomic.load(Ordering::Relaxed);
-    while existing > value {
-        existing = atomic.compare_and_swap(existing, value, Ordering::Relaxed);
-    }
+
+#[test]
+fn test_clear() {
+    let mut sketch = DenseDDSketch::<u64>::with_limit(64, 0.5);
+
+    assert!(sketch.is_empty());
+    assert_eq!(sketch.min(), std::u64::MAX);
+    assert_eq!(sketch.max(), std::u64::MIN);
+
+    sketch.increment(11, 33);
+    sketch.increment(888, 34);
+    sketch.increment(61, 33);
+
+    assert_eq!(sketch.count(), 100);
+    assert_eq!(sketch.max(), 888);
+    assert_eq!(sketch.min(), 11);
+    assert!(!sketch.is_empty());
+
+    sketch.clear();
+
+    assert!(sketch.is_empty());
+    assert_eq!(sketch.count(), 0);
+    assert_eq!(sketch.min(), std::u64::MAX);
+    assert_eq!(sketch.max(), std::u64::MIN);
 }
