@@ -14,6 +14,7 @@ use rand::distributions::{Alphanumeric, Distribution, Uniform};
 use rand::rngs::ThreadRng;
 use rand::seq::SliceRandom;
 use rand::Rng;
+use ratelimiter::Refill;
 use serde_derive::*;
 
 use std::io::Read;
@@ -776,6 +777,10 @@ impl Config {
 
     pub fn request_ratelimit(&self) -> Option<usize> {
         self.general.request_ratelimit()
+    }
+
+    pub fn request_distribution(&self) -> Refill {
+        self.general.request_distribution()
     }
 
     pub fn request_timeout(&self) -> usize {

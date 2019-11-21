@@ -788,9 +788,11 @@ dependencies = [
 
 [[package]]
 name = "ratelimiter"
-version = "0.3.1"
+version = "0.4.0"
 dependencies = [
  "datastructures 0.4.0",
+ "rand 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand_distr 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.42 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -867,7 +869,7 @@ dependencies = [
  "metrics 0.4.1",
  "mio 0.6.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "ratelimiter 0.3.1",
+ "ratelimiter 0.4.0",
  "rustls 0.16.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.101 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.101 (registry+https://github.com/rust-lang/crates.io-index)",

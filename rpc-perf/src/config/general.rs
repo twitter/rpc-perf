@@ -2,6 +2,8 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
+use ratelimiter::Refill;
+
 use crate::config::*;
 
 #[derive(Clone, Debug, Deserialize)]
@@ -23,6 +25,9 @@ pub struct General {
     logging: Level,
     endpoints: Option<Vec<String>>,
     request_ratelimit: Option<usize>,
+    #[serde(with = "Distribution")]
+    #[serde(default = "default_request_distribution")]
+    request_distribution: Refill,
     connect_ratelimit: Option<usize>,
     close_rate: Option<usize>,
     tls_key: Option<String>,
@@ -103,6 +108,10 @@ impl General {
 
     pub fn set_request_ratelimit(&mut self, per_second: Option<usize>) {
         self.request_ratelimit = per_second;
+    }
+
+    pub fn request_distribution(&self) -> Refill {
+        self.request_distribution
     }
 
     pub fn connect_ratelimit(&self) -> Option<usize> {
@@ -220,6 +229,7 @@ impl Default for General {
             logging: Level::Info,
             protocol: Default::default(),
             request_ratelimit: None,
+            request_distribution: default_request_distribution(),
             connect_ratelimit: None,
             close_rate: None,
             tls_key: None,
@@ -279,6 +289,7 @@ pub enum Protocol {
     RedisInline,
     ThriftCache,
 }
+
 impl Default for Protocol {
     fn default() -> Protocol {
         Protocol::Memcache
@@ -296,6 +307,21 @@ enum LevelDef {
     Debug,
     Trace,
 }
+
 fn default_logging_level() -> Level {
     Level::Info
+}
+
+#[derive(Clone, Deserialize, Debug)]
+#[serde(rename_all = "lowercase")]
+#[serde(remote = "Refill")]
+#[serde(deny_unknown_fields)]
+enum Distribution {
+    Smooth,
+    Uniform,
+    Normal,
+}
+
+fn default_request_distribution() -> Refill {
+    Refill::Smooth
 }
