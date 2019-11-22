@@ -21,11 +21,7 @@ fn main() {
 
     info!("Welcome to the simulator!");
 
-    for shape in &[
-        Shape::Cauchy,
-        Shape::Normal,
-        Shape::Uniform,
-    ] {
+    for shape in &[Shape::Cauchy, Shape::Normal, Shape::Uniform] {
         simulate(*shape);
     }
 }
