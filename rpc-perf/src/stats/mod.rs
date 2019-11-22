@@ -299,7 +299,7 @@ impl Metrics {
             if let Some(windows) = config.windows() {
                 Some(Arc::new(Heatmap::new(
                     SECOND as u64,
-                    2,
+                    3,
                     SECOND as u64,
                     (windows * config.interval() * SECOND) as u64,
                 )))
