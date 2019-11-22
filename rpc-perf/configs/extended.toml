@@ -8,6 +8,7 @@ tcp_nodelay = false # do not enable tcp_nodelay
 request_timeout = 200_000 # microseconds
 connect_timeout = 200_000 # microseconds
 request_ratelimit = 100_000 # 100K requests/second
+request_distribution = "smooth" # personality: smooth, normal, uniform
 connect_ratelimit = 1000 # 1K connects/second
 warmup_hitrate = 0.9 # do warmup until 90% hitrate is achieved
 waterfall = "waterfall.png" # produce a waterfall at end of run
