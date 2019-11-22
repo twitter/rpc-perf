@@ -6,9 +6,11 @@
 use datastructures::*;
 use logger::*;
 use rand::{thread_rng, Rng};
-use rand_distr::{Distribution, Normal};
+use rand_distr::*;
 
 use std::collections::HashMap;
+
+pub const SECOND: u64 = 1_000_000_000;
 
 fn main() {
     Logger::new()
@@ -19,39 +21,83 @@ fn main() {
 
     info!("Welcome to the simulator!");
 
-    let histogram = Histogram::<AtomicU64>::new(1_000_000, 2, None, None);
-    let heatmap = Heatmap::<AtomicU64>::new(1_000_000, 2, 1_000_000, 5_000_000_000);
+    for shape in &[Shape::Cauchy, Shape::Normal, Shape::Uniform] {
+        simulate(*shape);
+    }
+}
 
-    let distribution = Normal::new(500.0, 250.0).unwrap();
+#[derive(Copy, Clone, Debug)]
+pub enum Shape {
+    Cauchy,
+    Normal,
+    Uniform,
+}
+
+pub fn simulate(shape: Shape) {
+    println!("simulating for {:?}", shape);
+    let duration = 60;
+
+    let heatmap = Heatmap::<AtomicU64>::new(SECOND, 3, SECOND, duration * SECOND);
+
+    let cauchy = Cauchy::new(200_000.0, 25_000.0).unwrap();
+    let normal = Normal::new(200_000.0, 25_000.0).unwrap();
+    let uniform = Uniform::new_inclusive(175_000.0, 225_000.0);
 
     let start = std::time::Instant::now();
+    let mut latch = std::time::Instant::now();
+
+    let mut rng = thread_rng();
 
     loop {
         let now = std::time::Instant::now();
-        if now - start >= std::time::Duration::new(5, 0) {
+        if now - start >= std::time::Duration::new(duration, 0) {
             break;
         }
-        if now - start >= std::time::Duration::new(0, 1_000_000) {
+        if now - latch >= std::time::Duration::new(1, 0) {
             heatmap.latch();
+            latch = now;
         }
-        let value: f64 = distribution.sample(&mut thread_rng());
+        let value: f64 = match shape {
+            Shape::Cauchy => cauchy.sample(&mut rng),
+            Shape::Normal => normal.sample(&mut rng),
+            Shape::Uniform => uniform.sample(&mut rng),
+        };
         let value = value.floor() as u64;
-        histogram.increment(value, 1);
         heatmap.increment(time::precise_time_ns(), value, 1);
     }
 
-    info!(
-        "data: samples: {} too_high: {} mean: {:?} mode: {:?}",
-        histogram.total_count(),
-        histogram.too_high(),
-        histogram.mean(),
-        histogram.mode(),
-    );
+    render(shape, heatmap);
+}
+
+pub fn render(shape: Shape, heatmap: Heatmap<AtomicU64>) {
     let mut labels = HashMap::new();
-    labels.insert(0, "0".to_string());
-    labels.insert(100, "100".to_string());
-    labels.insert(1000, "1000".to_string());
-    labels.insert(10000, "10000".to_string());
-    labels.insert(100000, "100000".to_string());
-    waterfall::save_waterfall(&heatmap, "waterfall.png", labels, 1_000_000_000);
+    labels.insert(100, "100ns".to_string());
+    labels.insert(200, "200ns".to_string());
+    labels.insert(400, "400ns".to_string());
+    labels.insert(1_000, "1us".to_string());
+    labels.insert(2_000, "2us".to_string());
+    labels.insert(4_000, "4us".to_string());
+    labels.insert(10_000, "10us".to_string());
+    labels.insert(20_000, "20us".to_string());
+    labels.insert(40_000, "40us".to_string());
+    labels.insert(100_000, "100us".to_string());
+    labels.insert(200_000, "200us".to_string());
+    labels.insert(400_000, "400us".to_string());
+    labels.insert(1_000_000, "1ms".to_string());
+    labels.insert(2_000_000, "2ms".to_string());
+    labels.insert(4_000_000, "4ms".to_string());
+    labels.insert(10_000_000, "10ms".to_string());
+    labels.insert(20_000_000, "20ms".to_string());
+    labels.insert(40_000_000, "40ms".to_string());
+    labels.insert(100_000_000, "100ms".to_string());
+    labels.insert(200_000_000, "200ms".to_string());
+    labels.insert(400_000_000, "400ms".to_string());
+
+    let filename = match shape {
+        Shape::Cauchy => "cauchy.png",
+        Shape::Normal => "normal.png",
+        Shape::Uniform => "uniform.png",
+    };
+
+    waterfall::save_waterfall(&heatmap, filename, labels, 60 * SECOND);
 }
