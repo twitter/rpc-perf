@@ -92,7 +92,8 @@ impl Codec for ThriftCache {
                     recorder.increment("commands/range");
                     recorder.distribution("keys/size", key.len() as u64);
                 }
-                self.codec.range(buf, 0, b"0", key, Some(0), command.count.map(|x| x as i32));
+                self.codec
+                    .range(buf, 0, b"0", key, Some(0), command.count.map(|x| x as i32));
             }
             Action::Ltrim => {
                 let key = command.key().unwrap();
