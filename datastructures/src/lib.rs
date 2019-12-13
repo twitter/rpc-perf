@@ -10,10 +10,12 @@ pub use atomics::*;
 
 mod buffer;
 mod counter;
+mod ddsketch;
 mod heatmap;
 mod histogram;
 
 pub use crate::buffer::*;
 pub use crate::counter::*;
+pub use crate::ddsketch::*;
 pub use crate::heatmap::*;
 pub use crate::histogram::*;
