@@ -11,6 +11,7 @@ members = [
     "rpc-perf",
     "timer",
     "waterfall",
+    "latencygraph"
 ]
 
 [profile.dev]

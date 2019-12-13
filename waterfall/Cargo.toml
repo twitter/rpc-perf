@@ -11,13 +11,16 @@ publish = false
 
 [dependencies]
 atomics = { path = "../atomics" }
-datastructures = { path = "../datastructures" }
+datastructures = { path = "../datastructures", features = [ "serde" ] }
 dejavu = "2.37.0"
 hsl = "0.1.1"
 logger = { path = "../logger" }
 png = "0.15.0"
 rusttype = "0.8.1"
 time = "0.1.42"
+
+serde = "1.0"
+serde_json = "1.0"
 
 [dev-dependencies]
 rand = "0.7.2"

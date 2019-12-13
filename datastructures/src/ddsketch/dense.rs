@@ -8,6 +8,7 @@ use std::convert::TryFrom;
 /// 
 /// This implementation should be preferred over `AtomicDDSketch`
 /// when concurrent insertion into the sketch is not needed.
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct DenseDDSketch<T = u64> {
     buckets: Vec<T>,
 

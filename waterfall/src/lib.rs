@@ -8,11 +8,26 @@ use datastructures::*;
 use hsl::HSL;
 use logger::*;
 use rusttype::{point, FontCollection, PositionedGlyph, Scale};
+use serde::Serialize;
 
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufWriter;
 use std::path::Path;
+
+pub fn save_summary<T>(
+    summary: &AtomicDDSketch<T>,
+    file: &str
+) where
+    T: Counter + Unsigned + Serialize,
+    <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating,
+    u64: From<<T as AtomicPrimitive>::Primitive>,
+{
+
+    let mut json_file = std::fs::File::create(file.to_string() + ".json").unwrap();
+    serde_json::to_writer_pretty(&mut json_file, summary).unwrap();
+    
+}
 
 /// Render and save a waterfall from a `Heatmap` to a file. You can specify
 /// `labels` for the value axis. And spacing of labels on the time axis is

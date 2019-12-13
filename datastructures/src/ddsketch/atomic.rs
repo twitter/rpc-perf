@@ -3,6 +3,7 @@ use crate::counter::{Counter, Saturating, Unsigned};
 use atomics::{AtomicPrimitive, AtomicU64, Ordering};
 
 /// An atomic DDSketch.
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct AtomicDDSketch<T = AtomicU64>
 where
     T: Counter + Unsigned,

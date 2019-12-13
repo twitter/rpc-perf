@@ -6,11 +6,16 @@
 
 #![deny(clippy::all)]
 
+
+#[macro_use]
+#[cfg(feature = "serde")]
+extern crate serde;
+
 pub use atomics::*;
 
 mod buffer;
 mod counter;
-pub mod ddsketch;
+mod ddsketch;
 mod heatmap;
 mod histogram;
 
@@ -18,3 +23,4 @@ pub use crate::buffer::*;
 pub use crate::counter::*;
 pub use crate::heatmap::*;
 pub use crate::histogram::*;
+pub use crate::ddsketch::*;

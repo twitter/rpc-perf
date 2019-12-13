@@ -23,6 +23,7 @@ type SharedVecDeque<T> = Arc<Mutex<VecDeque<T>>>;
 /// the user to customize the `Histogram` to trade-off between being able to
 /// hold larger counts per `Bucket` or use less memory by selecting which type
 /// to use for the counters.
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Histogram<T>
 where
     T: Counter + Unsigned,
@@ -34,8 +35,11 @@ where
     index: Vec<AtomicU64>,
     too_high: AtomicU64,
     precision: AtomicU32,
+    #[serde(skip)]
     samples: Option<SharedVecDeque<Sample<<T as AtomicPrimitive>::Primitive>>>,
+    #[serde(skip)]
     window: Option<Arc<Mutex<Duration>>>,
+    #[serde(skip)]
     capacity: Option<AtomicUsize>,
 }
 

@@ -1,0 +1,15 @@
+[package]
+name = "latencygraph"
+version = "0.1.0"
+authors = ["Sean Lynch <slynch@twitter.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+datastructures = { path="../datastructures", features = [ "serde" ] }
+atomics = { path="../atomics" }
+
+plotters = "0.2"
+superslice = "1.0"
+serde_json = "1.0"

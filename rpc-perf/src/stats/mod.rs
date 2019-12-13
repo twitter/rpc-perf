@@ -9,7 +9,7 @@ pub use crate::stats::http::Http;
 use crate::client::SECOND;
 use crate::config::Config;
 
-use datastructures::Heatmap;
+use datastructures::{Heatmap, AtomicDDSketch};
 use logger::*;
 use metrics::{self, Histogram, Measurement, Output, Percentile, Reading, Source};
 
@@ -290,23 +290,13 @@ fn delta_percent<T: ToString>(
 #[derive(Clone)]
 pub struct Metrics {
     inner: metrics::Metrics<metrics::AtomicU64>,
-    heatmap: Option<Arc<Heatmap<metrics::AtomicU64>>>,
+    heatmap: Option<Arc<AtomicDDSketch<metrics::AtomicU64>>>,
 }
 
 impl Metrics {
     pub fn new(config: &Config) -> Self {
         let heatmap = if config.waterfall().is_some() {
-            if let Some(windows) = config.windows() {
-                Some(Arc::new(Heatmap::new(
-                    SECOND as u64,
-                    3,
-                    SECOND as u64,
-                    (windows * config.interval() * SECOND) as u64,
-                )))
-            } else {
-                warn!("Unable to initialize waterfall output without fixed duration");
-                None
-            }
+            Some(Arc::new(AtomicDDSketch::new(0.001)))
         } else {
             None
         };
@@ -388,7 +378,7 @@ impl Metrics {
 
     pub fn heatmap_increment(&self, start: u64, stop: u64) {
         if let Some(ref heatmap) = self.heatmap {
-            heatmap.increment(start, stop - start, 1);
+            heatmap.increment(stop - start, 1);
         }
     }
 
@@ -447,7 +437,8 @@ impl Metrics {
             labels.insert(100_000_000, "100ms".to_string());
             labels.insert(200_000_000, "200ms".to_string());
             labels.insert(400_000_000, "400ms".to_string());
-            waterfall::save_waterfall(&heatmap, &file, labels, 60 * SECOND as u64);
+            waterfall::save_summary(&heatmap, &file);
+            // waterfall::save_waterfall(&heatmap, &file, labels, 60 * SECOND as u64);
         }
     }
 }
