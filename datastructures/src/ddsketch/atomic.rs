@@ -92,8 +92,7 @@ where
         };
 
         if limit == std::u64::MAX {
-            // Don't need an overflow bucket if the entire range
-            // is covered.
+            // Don't need an overflow bucket if the entire range is covered.
             num_buckets -= 1;
         }
 
@@ -146,8 +145,8 @@ where
 
     /// Increment the bucket holding `value` by `count`.
     pub fn increment(&self, value: u64, count: <T as AtomicPrimitive>::Primitive) {
-        atomic_max(&self.max, value);
-        atomic_min(&self.min, value);
+        self.max.store_max(value, Ordering::Relaxed);
+        self.min.store_min(value, Ordering::Relaxed);
         self.count.saturating_add(count.into());
 
         self.buckets[self.index_of(value)].saturating_add(count);
@@ -192,6 +191,11 @@ where
     ///
     /// If those two conditions are not met, then no error bounds are
     /// given for the returned quantile.
+    ///
+    /// # Note
+    /// If the sketches are being updated concurrently then rank
+    /// calculation may end up being innaccurate if the sketch is
+    /// updated during the calculation.
     pub fn quantile(&self, q: f64) -> u64 {
         if q.is_nan() {
             return 0;
@@ -234,6 +238,11 @@ where
 
     /// Merge two different sketches.
     ///
+    /// # Note
+    /// If the sketches are being updated concurrently then merging
+    /// can end up being incorrect due to observing different states
+    /// of the sketch.
+    ///
     /// # Panics
     /// This function will panic if the number of buckets is
     /// different between the two sketches.
@@ -244,22 +253,29 @@ where
             "Attempted to merge differently-sized DDSketches"
         );
 
-        self.count.saturating_add(other.count());
-        atomic_min(&self.min, other.min.load(Ordering::Relaxed));
-        atomic_max(&self.max, other.max.load(Ordering::Relaxed));
-
         self.buckets
             .iter()
             .zip(other.buckets.iter())
             .for_each(|(x, y)| {
                 x.saturating_add(y.load(Ordering::Relaxed));
             });
+
+        self.count.saturating_add(other.count());
+        self.min
+            .store_min(other.min.load(Ordering::Relaxed), Ordering::Relaxed);
+        self.max
+            .store_max(other.max.load(Ordering::Relaxed), Ordering::Relaxed);
     }
 
     /// Get the approximate rank of `value` within the sketch.
     ///
     /// For any given distribution this may be arbitrarily inaccurate depending
     /// on what fraction of the values in the sketch are mapped the same bucket.
+    ///
+    /// # Note
+    /// If the sketches are being updated concurrently then quantile
+    /// calculation may end up being innaccurate if the sketch is
+    /// updated during the quantile calculation.
     pub fn rank(&self, value: u64) -> u64 {
         let index = self.index_of(value);
 
@@ -267,18 +283,5 @@ where
             .iter()
             .map(|x| x.load(Ordering::Relaxed).into())
             .sum()
-    }
-}
-
-fn atomic_max(atomic: &AtomicU64, value: u64) {
-    let mut existing = atomic.load(Ordering::Relaxed);
-    while existing < value {
-        existing = atomic.compare_and_swap(existing, value, Ordering::Relaxed);
-    }
-}
-fn atomic_min(atomic: &AtomicU64, value: u64) {
-    let mut existing = atomic.load(Ordering::Relaxed);
-    while existing > value {
-        existing = atomic.compare_and_swap(existing, value, Ordering::Relaxed);
     }
 }

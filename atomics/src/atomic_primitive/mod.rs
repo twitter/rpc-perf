@@ -143,4 +143,52 @@ pub trait AtomicPrimitive: Send + Sync + Debug + PartialEq {
         success: Ordering,
         failure: Ordering,
     ) -> Result<Self::Primitive, Self::Primitive>;
+
+    /// Set the `AtomicPrimitive` to the maximum between its current value
+    /// and `value`.
+    ///
+    /// The return value is always the previous value. If it is less than
+    /// `value` then the primitive was updated.
+    ///
+    /// Note that the default implementation of this is built using
+    /// `compare_and_swap`. In the case where the value is not updated then
+    /// no write is performed. In this case using `AcqRel` will only perform
+    /// an `Acquire` load and not have `Release` semantics. Using `Acquire`
+    /// makes the store part of the operation `Relaxed` and using `Release`
+    /// makes the load part of the operation `Relaxed`.
+    fn store_max(&self, value: Self::Primitive, ordering: Ordering) -> Self::Primitive
+    where
+        Self::Primitive: PartialOrd + Clone,
+    {
+        let mut existing = self.load(ordering);
+        while existing < value.clone() {
+            existing = self.compare_and_swap(existing, value.clone(), ordering);
+        }
+
+        existing
+    }
+
+    /// Set the `AtomicPrimitive` to the minimum between its current value
+    /// and `value`.
+    ///
+    /// The return value is always the previous value. If it is greater than
+    /// `value` then the primitive was updated.
+    ///
+    /// Note that the default implementation of this is built using
+    /// `compare_and_swap`. In the case where the value is not updated then
+    /// no write is performed. In this case using `AcqRel` will only perform
+    /// an `Acquire` load and not have `Release` semantics. Using `Acquire`
+    /// makes the store part of the operation `Relaxed` and using `Release`
+    /// makes the load part of the operation `Relaxed`.
+    fn store_min(&self, value: Self::Primitive, ordering: Ordering) -> Self::Primitive
+    where
+        Self::Primitive: PartialOrd + Clone,
+    {
+        let mut existing = self.load(ordering);
+        while existing > value.clone() {
+            existing = self.compare_and_swap(existing, value.clone(), ordering);
+        }
+
+        existing
+    }
 }
