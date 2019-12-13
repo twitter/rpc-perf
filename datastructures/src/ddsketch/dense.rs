@@ -1,11 +1,10 @@
-
 use crate::counter::Saturating;
 
-use std::ops::AddAssign;
 use std::convert::TryFrom;
+use std::ops::AddAssign;
 
 /// A non-atomic DDSketch.
-/// 
+///
 /// This implementation should be preferred over `AtomicDDSketch`
 /// when concurrent insertion into the sketch is not needed.
 pub struct DenseDDSketch<T = u64> {
@@ -51,7 +50,7 @@ impl<T> DenseDDSketch<T> {
     }
 
     /// Maximum value that the sketch is sized to store.
-    /// 
+    ///
     /// Note that there is another bucket to catch values
     /// greater than this so they don't get lost, but there
     /// are no precision guarantees.
@@ -60,7 +59,7 @@ impl<T> DenseDDSketch<T> {
     }
 
     /// Indicates whether the sketch has no values within it.
-    /// 
+    ///
     /// This is the same as checking if `count() == 0`.
     pub fn is_empty(&self) -> bool {
         self.count() == 0
@@ -69,7 +68,7 @@ impl<T> DenseDDSketch<T> {
 
 impl<T> DenseDDSketch<T>
 where
-    T: Saturating + Default + PartialEq + Copy + Into<u64>
+    T: Saturating + Default + PartialEq + Copy + Into<u64>,
 {
     /// Create a sketch that can store values up to `limit` with
     /// a relative precision of `alpha`.
@@ -266,7 +265,7 @@ where
     }
 
     /// Get the approximate rank of `value` within the sketch.
-    /// 
+    ///
     /// For any given distribution this may be arbitrarily inaccurate depending
     /// on what fraction of the values in the sketch are mapped the same bucket.
     pub fn rank(&self, value: u64) -> u64 {
@@ -281,7 +280,7 @@ where
 
 fn saturating_inc<T>(loc: &mut T, val: T)
 where
-    T: Saturating
+    T: Saturating,
 {
     *loc = loc.saturating_add(val);
 }
@@ -289,7 +288,7 @@ where
 impl<T> Extend<u64> for DenseDDSketch<T>
 where
     T: Saturating + AddAssign<T> + Default + PartialEq + Copy + Into<u64> + TryFrom<u64>,
-    <T as TryFrom<u64>>::Error: std::fmt::Debug
+    <T as TryFrom<u64>>::Error: std::fmt::Debug,
 {
     fn extend<I: IntoIterator<Item = u64>>(&mut self, iter: I) {
         let one = T::try_from(1).expect("1 is not convertable to T");

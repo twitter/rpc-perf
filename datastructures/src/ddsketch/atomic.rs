@@ -150,7 +150,7 @@ where
     }
 
     /// Clear all buckets within the sketch.
-    /// 
+    ///
     /// Note that clearing while other threads are inserting
     /// into the sketch is likely to leave it in a somewhat
     /// inconsistent state.
@@ -253,7 +253,7 @@ where
     }
 
     /// Get the approximate rank of `value` within the sketch.
-    /// 
+    ///
     /// For any given distribution this may be arbitrarily inaccurate depending
     /// on what fraction of the values in the sketch are mapped the same bucket.
     pub fn rank(&self, value: u64) -> u64 {
