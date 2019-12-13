@@ -6,6 +6,8 @@
 
 mod atomic;
 mod dense;
+mod error;
 
 pub use self::atomic::AtomicDDSketch;
 pub use self::dense::DenseDDSketch;
+pub use self::error::{DDSketchError, DDSketchErrorKind};

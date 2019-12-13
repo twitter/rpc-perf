@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
+use super::{DDSketchError, DDSketchErrorKind};
 use crate::counter::Saturating;
 
 use std::convert::TryFrom;
@@ -43,6 +44,11 @@ impl<T> DenseDDSketch<T> {
         self.count
     }
 
+    /// The number of buckets in the sketch.
+    pub fn num_buckets(&self) -> usize {
+        self.buckets.len()
+    }
+
     /// Maximum value present in the sketch
     pub fn max(&self) -> u64 {
         self.max
@@ -77,15 +83,13 @@ where
     /// Create a sketch that can store values up to `limit` with
     /// a relative precision of `alpha`.
     ///
-    /// # Panics
-    /// Panics if `alpha` is not in the range `(0, 1)` or if
+    /// Returns an error if `alpha` is not in the range `(0, 1)` or if
     /// *log<sub>(1 + alpha)/(1 - alpha)</sub>(limit)* is greater
     /// than `std::i32::MAX`.
-    pub fn with_limit(limit: u64, alpha: f64) -> Self {
-        assert!(
-            alpha > 0.0 && alpha < 1.0,
-            "alpha must be in the range (0.0, 1.0)"
-        );
+    pub fn with_limit(limit: u64, alpha: f64) -> Result<Self, DDSketchError> {
+        if alpha <= 0.0 || alpha >= 1.0 {
+            return Err(DDSketchError::new(DDSketchErrorKind::InvalidAlpha));
+        }
 
         // Here's how the formula below works.
         //
@@ -141,15 +145,14 @@ where
 
         // Need to keep the maximum exponent less than std::i32::MAX
         // since powi takes an i32.
-        assert!(
-            log_limit <= std::i32::MAX as f64,
-            "Sketch would use too many buckets - try decreasing the required precision"
-        );
+        if log_limit > std::i32::MAX as f64 {
+            return Err(DDSketchError::new(DDSketchErrorKind::TooManyBuckets));
+        }
 
         let mut buckets = Vec::new();
         buckets.resize_with(num_buckets, Default::default);
 
-        Self {
+        Ok(Self {
             buckets,
             gamma,
             cutoff: cutoff as usize + 1,
@@ -158,17 +161,16 @@ where
             limit,
             min: std::u64::MAX,
             max: std::u64::MIN,
-        }
+        })
     }
 
     /// Create a sketch that can store any `u64` with a relative
     /// precision of `alpha`.
     ///
-    /// # Panics
-    /// Panics if `alpha` is not in the range `(0, 1)` or if
+    /// Returns an error if `alpha` is not in the range `(0, 1)` or if
     /// *log<sub>(1 + alpha)/(1 - alpha)</sub>(std::u64::MAX)* is greater
     /// than `std::i32::MAX`.
-    pub fn new(alpha: f64) -> Self {
+    pub fn new(alpha: f64) -> Result<Self, DDSketchError> {
         Self::with_limit(std::u64::MAX, alpha)
     }
 
@@ -195,12 +197,12 @@ where
 
     /// Merge two different sketches.
     ///
-    /// # Panics
-    /// This function will panic if the number of buckets is
+    /// This function will return an error if the number of buckets is
     /// different between the two sketches.
-    pub fn merge(&mut self, other: &Self) {
-        // Cannot merge differently-sized buckets
-        assert_eq!(self.buckets.len(), other.buckets.len());
+    pub fn merge(&mut self, other: &Self) -> Result<(), DDSketchError> {
+        if self.num_buckets() != other.num_buckets() {
+            return Err(DDSketchError::new(DDSketchErrorKind::Unmergeable));
+        }
 
         self.count = self.count.saturating_add(other.count);
         self.min = self.min.min(other.min);
@@ -210,6 +212,8 @@ where
             .iter_mut()
             .zip(other.buckets.iter().copied())
             .for_each(|(x, y)| saturating_inc(x, y));
+
+        Ok(())
     }
 
     /// Returns the approximate value of the quantile specified from
@@ -304,7 +308,7 @@ where
 
 #[test]
 fn test_clear() {
-    let mut sketch = DenseDDSketch::<u64>::with_limit(64, 0.5);
+    let mut sketch = DenseDDSketch::<u64>::with_limit(64, 0.5).expect("Failed to create sketch");
 
     assert!(sketch.is_empty());
     assert_eq!(sketch.min(), std::u64::MAX);
