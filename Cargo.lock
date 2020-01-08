@@ -195,7 +195,7 @@ dependencies = [
  "criterion 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "datastructures 0.4.0",
  "logger 0.1.0",
- "metrics 0.4.1",
+ "metrics 0.5.0",
  "rand 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.42 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -550,7 +550,7 @@ dependencies = [
 
 [[package]]
 name = "metrics"
-version = "0.4.1"
+version = "0.5.0"
 dependencies = [
  "chashmap 2.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "datastructures 0.4.0",
@@ -932,7 +932,7 @@ dependencies = [
  "crc 1.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "datastructures 0.4.0",
  "logger 0.1.0",
- "metrics 0.4.1",
+ "metrics 0.5.0",
  "mio 0.6.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ratelimiter 0.4.0",
