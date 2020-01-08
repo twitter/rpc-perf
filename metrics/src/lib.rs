@@ -94,7 +94,10 @@ mod tests {
     #[test]
     fn counter_channel() {
         let metrics = Metrics::<AtomicU64>::new();
-        metrics.register(&TestStat::Counter, Some(Summary::Histogram(2_000_000_000, 3, None)));
+        metrics.register(
+            &TestStat::Counter,
+            Some(Summary::Histogram(2_000_000_000, 3, None)),
+        );
         assert_eq!(metrics.reading(&TestStat::Counter).unwrap(), 0);
         assert_eq!(metrics.percentile(&TestStat::Counter, 0.0), None);
         metrics.record_counter(&TestStat::Counter, 1_000_000_000, 1);
@@ -123,7 +126,10 @@ mod tests {
     #[test]
     fn counter_wraparound() {
         let metrics = Metrics::<AtomicU64>::new();
-        metrics.register(&TestStat::Counter, Some(Summary::Histogram(2_000_000_000, 3, None)));
+        metrics.register(
+            &TestStat::Counter,
+            Some(Summary::Histogram(2_000_000_000, 3, None)),
+        );
         assert_eq!(metrics.reading(&TestStat::Counter).unwrap(), 0);
         metrics.record_counter(&TestStat::Counter, 0_u64.wrapping_sub(2_000_000_000), 0);
         metrics.record_counter(&TestStat::Counter, 0_u64.wrapping_sub(1_000_000_000), 1);
@@ -149,7 +155,10 @@ mod tests {
     #[test]
     fn distribution_channel() {
         let metrics = Metrics::<AtomicU64>::new();
-        metrics.register(&TestStat::Distribution, Some(Summary::Histogram(2_000_000_000, 3, None)));
+        metrics.register(
+            &TestStat::Distribution,
+            Some(Summary::Histogram(2_000_000_000, 3, None)),
+        );
         assert_eq!(metrics.reading(&TestStat::Distribution).unwrap(), 0);
         metrics.record_distribution(&TestStat::Distribution, 0, 1, 1);
         assert_eq!(metrics.reading(&TestStat::Distribution).unwrap(), 1);
@@ -162,14 +171,20 @@ mod tests {
         assert_eq!(metrics.percentile(&TestStat::Distribution, 0.90), Some(90));
         assert_eq!(metrics.percentile(&TestStat::Distribution, 0.95), Some(95));
         assert_eq!(metrics.percentile(&TestStat::Distribution, 0.99), Some(99));
-        assert_eq!(metrics.percentile(&TestStat::Distribution, 0.999), Some(100));
+        assert_eq!(
+            metrics.percentile(&TestStat::Distribution, 0.999),
+            Some(100)
+        );
         assert_eq!(metrics.percentile(&TestStat::Distribution, 1.00), Some(100));
     }
 
     #[test]
     fn gauge_channel() {
         let metrics = Metrics::<AtomicU64>::new();
-        metrics.register(&TestStat::Gauge, Some(Summary::Histogram(2_000_000_000, 3, None)));
+        metrics.register(
+            &TestStat::Gauge,
+            Some(Summary::Histogram(2_000_000_000, 3, None)),
+        );
         assert_eq!(metrics.reading(&TestStat::Gauge).unwrap(), 0);
         metrics.record_gauge(&TestStat::Gauge, 1, 0);
         assert_eq!(metrics.reading(&TestStat::Gauge).unwrap(), 0);
@@ -184,12 +199,15 @@ mod tests {
     #[test]
     fn time_interval_channel() {
         let metrics = Metrics::<AtomicU64>::new();
-        metrics.register(&TestStat::TimeInterval, Some(Summary::Histogram(2_000_000_000, 3, None)));
+        metrics.register(
+            &TestStat::TimeInterval,
+            Some(Summary::Histogram(2_000_000_000, 3, None)),
+        );
         assert_eq!(metrics.reading(&TestStat::TimeInterval).unwrap(), 0);
         metrics.record_time_interval(&TestStat::TimeInterval, 0, 1);
         assert_eq!(metrics.reading(&TestStat::TimeInterval).unwrap(), 1);
         for i in 1..100 {
-            metrics.record_time_interval(&TestStat::TimeInterval, i, i+1);
+            metrics.record_time_interval(&TestStat::TimeInterval, i, i + 1);
         }
         assert_eq!(metrics.reading(&TestStat::TimeInterval).unwrap(), 100);
         assert_eq!(metrics.percentile(&TestStat::TimeInterval, 0.0), Some(1));

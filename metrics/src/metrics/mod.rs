@@ -49,7 +49,13 @@ where
         }
     }
 
-    pub fn record_distribution(&self, statistic: &dyn Statistic, time: u64, value: u64, count: <T as AtomicPrimitive>::Primitive) {
+    pub fn record_distribution(
+        &self,
+        statistic: &dyn Statistic,
+        time: u64,
+        value: u64,
+        count: <T as AtomicPrimitive>::Primitive,
+    ) {
         if let Some(channel) = self.data.get(statistic.name()) {
             channel.record_distribution(time, value, count);
         }
@@ -61,7 +67,12 @@ where
         }
     }
 
-    pub fn record_increment(&self, statistic: &dyn Statistic, time: u64, count: <T as AtomicPrimitive>::Primitive) {
+    pub fn record_increment(
+        &self,
+        statistic: &dyn Statistic,
+        time: u64,
+        count: <T as AtomicPrimitive>::Primitive,
+    ) {
         if let Some(channel) = self.data.get(statistic.name()) {
             channel.record_increment(time, count);
         }

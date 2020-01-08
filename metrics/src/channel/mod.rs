@@ -194,7 +194,12 @@ where
     // for Distribution measurements:
     // counter tracks sum of all counts
     // histogram tracks values
-    pub fn record_distribution(&self, time: u64, value: u64, count: <T as AtomicPrimitive>::Primitive) {
+    pub fn record_distribution(
+        &self,
+        time: u64,
+        value: u64,
+        count: <T as AtomicPrimitive>::Primitive,
+    ) {
         if self.source() == Source::Distribution {
             self.reading.add(u64::from(count));
             if let Some(ref histogram) = self.histogram {
@@ -287,7 +292,9 @@ where
     /// histogram for the `Channel`
     pub fn percentile(&self, percentile: f64) -> Option<u64> {
         if let Some(ref histogram) = self.histogram {
-            histogram.percentile(percentile).map(|v| (v as f64 * self.statistic.multiplier) as u64)
+            histogram
+                .percentile(percentile)
+                .map(|v| (v as f64 * self.statistic.multiplier) as u64)
         } else {
             None
         }

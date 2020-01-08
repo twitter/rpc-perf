@@ -276,10 +276,19 @@ impl Metrics {
             _ => None,
         };
         self.inner.register(statistic, summary);
-        self.inner.register_output(statistic, metrics::Output::Reading);
+        self.inner
+            .register_output(statistic, metrics::Output::Reading);
         if summary.is_some() {
-            for percentile in vec![Percentile::p50, Percentile::p75, Percentile::p90, Percentile::p99, Percentile::p999, Percentile::p9999] {
-                self.inner.register_output(statistic, metrics::Output::Percentile(percentile));
+            for percentile in vec![
+                Percentile::p50,
+                Percentile::p75,
+                Percentile::p90,
+                Percentile::p99,
+                Percentile::p999,
+                Percentile::p9999,
+            ] {
+                self.inner
+                    .register_output(statistic, metrics::Output::Percentile(percentile));
             }
         }
     }
@@ -289,12 +298,12 @@ impl Metrics {
     }
 
     pub fn increment(&self, statistic: &dyn Statistic) {
-        self.inner.record_increment(statistic, time::precise_time_ns(), 1)
+        self.inner
+            .record_increment(statistic, time::precise_time_ns(), 1)
     }
 
     pub fn time_interval(&self, statistic: &dyn Statistic, start: u64, stop: u64) {
-        self.inner
-            .record_time_interval(statistic, start, stop);
+        self.inner.record_time_interval(statistic, start, stop);
     }
 
     pub fn heatmap_increment(&self, start: u64, stop: u64) {
@@ -304,7 +313,8 @@ impl Metrics {
     }
 
     pub fn distribution(&self, statistic: &dyn Statistic, value: u64) {
-        self.inner.record_distribution(statistic, time::precise_time_ns(), value, 1);
+        self.inner
+            .record_distribution(statistic, time::precise_time_ns(), value, 1);
     }
 
     pub fn percentile(&self, statistic: &dyn Statistic, percentile: f64) -> Option<u64> {
