@@ -4,6 +4,7 @@
 
 use crate::codec::*;
 use crate::config::Action;
+use crate::stats::Stat;
 
 use bytes::BytesMut;
 use logger::*;
@@ -41,8 +42,8 @@ impl Codec for PelikanRds {
             Action::Get => {
                 let key = command.key().unwrap();
                 if let Some(recorder) = self.common.recorder() {
-                    recorder.increment("commands/get");
-                    recorder.distribution("keys/size", key.len() as u64);
+                    recorder.increment(&Stat::CommandsGet);
+                    recorder.distribution(&Stat::KeySize, key.len() as u64);
                 }
                 self.codec.get(buf, key);
             }
@@ -50,9 +51,9 @@ impl Codec for PelikanRds {
                 let key = command.key().unwrap();
                 let value = command.value().unwrap();
                 if let Some(recorder) = self.common.recorder() {
-                    recorder.increment("commands/set");
-                    recorder.distribution("keys/size", key.len() as u64);
-                    recorder.distribution("values/size", value.len() as u64);
+                    recorder.increment(&Stat::CommandsSet);
+                    recorder.distribution(&Stat::KeySize, key.len() as u64);
+                    recorder.distribution(&Stat::ValueSize, value.len() as u64);
                 }
                 self.codec.set(buf, key, value, command.ttl());
             }
@@ -60,8 +61,8 @@ impl Codec for PelikanRds {
                 let key = command.key().unwrap();
                 let esize = command.esize().unwrap();
                 if let Some(recorder) = self.common.recorder() {
-                    recorder.increment("commands/create");
-                    recorder.distribution("keys/size", key.len() as u64);
+                    recorder.increment(&Stat::CommandsDelete);
+                    recorder.distribution(&Stat::KeySize, key.len() as u64);
                 }
                 self.codec.sarray_create(
                     buf,
@@ -74,8 +75,8 @@ impl Codec for PelikanRds {
             Action::SarrayDelete => {
                 let key = command.key().unwrap();
                 if let Some(recorder) = self.common.recorder() {
-                    recorder.increment("commands/delete");
-                    recorder.distribution("keys/size", key.len() as u64);
+                    recorder.increment(&Stat::CommandsDelete);
+                    recorder.distribution(&Stat::KeySize, key.len() as u64);
                 }
                 self.codec.sarray_delete(buf, key);
             }
@@ -83,17 +84,17 @@ impl Codec for PelikanRds {
                 let key = command.key().unwrap();
                 let value = command.value().unwrap();
                 if let Some(recorder) = self.common.recorder() {
-                    recorder.increment("commands/find");
-                    recorder.distribution("keys/size", key.len() as u64);
-                    recorder.distribution("values/size", value.len() as u64);
+                    recorder.increment(&Stat::CommandsFind);
+                    recorder.distribution(&Stat::KeySize, key.len() as u64);
+                    recorder.distribution(&Stat::ValueSize, value.len() as u64);
                 }
                 self.codec.sarray_find(buf, key, value);
             }
             Action::SarrayGet => {
                 let key = command.key().unwrap();
                 if let Some(recorder) = self.common.recorder() {
-                    recorder.increment("commands/get");
-                    recorder.distribution("keys/size", key.len() as u64);
+                    recorder.increment(&Stat::CommandsGet);
+                    recorder.distribution(&Stat::KeySize, key.len() as u64);
                 }
                 // TODO: implement index and count
                 self.codec.sarray_get(buf, key, None, None);
@@ -102,18 +103,18 @@ impl Codec for PelikanRds {
                 let key = command.key().unwrap();
                 let values = command.values().unwrap();
                 if let Some(recorder) = self.common.recorder() {
-                    recorder.increment("commands/set");
-                    recorder.distribution("keys/size", key.len() as u64);
+                    recorder.increment(&Stat::CommandsSet);
+                    recorder.distribution(&Stat::KeySize, key.len() as u64);
                     let len: usize = values.iter().map(|v| v.len()).sum();
-                    recorder.distribution("values/size", len as u64);
+                    recorder.distribution(&Stat::ValueSize, len as u64);
                 }
                 self.codec.sarray_insert(buf, key, &values);
             }
             Action::SarrayLen => {
                 let key = command.key().unwrap();
                 if let Some(recorder) = self.common.recorder() {
-                    recorder.increment("commands/len");
-                    recorder.distribution("keys/size", key.len() as u64);
+                    recorder.increment(&Stat::CommandsLen);
+                    recorder.distribution(&Stat::KeySize, key.len() as u64);
                 }
                 self.codec.sarray_len(buf, key);
             }
@@ -121,18 +122,18 @@ impl Codec for PelikanRds {
                 let key = command.key().unwrap();
                 let values = command.values().unwrap();
                 if let Some(recorder) = self.common.recorder() {
-                    recorder.increment("commands/remove");
-                    recorder.distribution("keys/size", key.len() as u64);
+                    recorder.increment(&Stat::CommandsRemove);
+                    recorder.distribution(&Stat::KeySize, key.len() as u64);
                     let len: usize = values.iter().map(|v| v.len()).sum();
-                    recorder.distribution("values/size", len as u64);
+                    recorder.distribution(&Stat::ValueSize, len as u64);
                 }
                 self.codec.sarray_remove(buf, key, &values);
             }
             Action::SarrayTruncate => {
                 let key = command.key().unwrap();
                 if let Some(recorder) = self.common.recorder() {
-                    recorder.increment("commands/truncate");
-                    recorder.distribution("keys/size", key.len() as u64);
+                    recorder.increment(&Stat::CommandsTruncate);
+                    recorder.distribution(&Stat::KeySize, key.len() as u64);
                 }
                 self.codec
                     .sarray_truncate(buf, key, command.count.unwrap_or(0))

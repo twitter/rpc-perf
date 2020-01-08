@@ -1,6 +1,6 @@
 use core::time::Duration;
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub enum Summary {
     Histogram(u64, u32, Option<Duration>),
 }

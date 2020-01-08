@@ -4,6 +4,7 @@
 
 use crate::codec::*;
 use crate::config::Action;
+use crate::stats::Stat;
 
 use bytes::BytesMut;
 use logger::*;
@@ -47,8 +48,8 @@ impl Codec for Memcache {
             Action::Get => {
                 let key = command.key().unwrap();
                 if let Some(recorder) = self.common.recorder() {
-                    recorder.increment("commands/get");
-                    recorder.distribution("keys/size", key.len() as u64);
+                    recorder.increment(&Stat::CommandsGet);
+                    recorder.distribution(&Stat::KeySize, key.len() as u64);
                 }
                 self.codec.get(buf, key);
             }
@@ -56,9 +57,9 @@ impl Codec for Memcache {
                 let key = command.key().unwrap();
                 let value = command.value().unwrap();
                 if let Some(recorder) = self.common.recorder() {
-                    recorder.increment("commands/set");
-                    recorder.distribution("keys/size", key.len() as u64);
-                    recorder.distribution("values/size", value.len() as u64);
+                    recorder.increment(&Stat::CommandsSet);
+                    recorder.distribution(&Stat::KeySize, key.len() as u64);
+                    recorder.distribution(&Stat::ValueSize, value.len() as u64);
                 }
                 self.codec
                     .set(buf, key, value, command.ttl().map(|ttl| ttl as u32), None);

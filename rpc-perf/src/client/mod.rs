@@ -93,11 +93,11 @@ pub trait Client: Send {
 
     // stats helpers
     fn stat_increment(&self, label: Stat) {
-        self.common().stat_increment(label);
+        self.common().stat_increment(&label);
     }
 
     fn stat_interval(&self, label: Stat, start: u64, stop: u64) {
-        self.common().stat_interval(label, start, stop);
+        self.common().stat_interval(&label, start, stop);
     }
 
     fn heatmap_increment(&self, start: u64, stop: u64) {

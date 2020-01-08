@@ -166,13 +166,13 @@ impl Common {
         self.stats = Some(metrics);
     }
 
-    pub fn stat_increment(&self, label: Stat) {
+    pub fn stat_increment(&self, label: &Stat) {
         if let Some(ref stats) = self.stats {
             stats.increment(label);
         }
     }
 
-    pub fn stat_interval(&self, label: Stat, start: u64, stop: u64) {
+    pub fn stat_interval(&self, label: &Stat, start: u64, stop: u64) {
         if let Some(ref stats) = self.stats {
             stats.time_interval(label, start, stop);
         }

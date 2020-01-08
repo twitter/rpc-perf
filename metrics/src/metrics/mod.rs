@@ -155,14 +155,14 @@ where
         }
     }
 
-    pub fn add_output(&self, name: String, output: Output) {
-        if let Some(channel) = self.data.get(&name) {
+    pub fn register_output(&self, statistic: &dyn Statistic, output: Output) {
+        if let Some(channel) = self.data.get(statistic.name()) {
             channel.add_output(output);
         }
     }
 
-    pub fn delete_output(&self, name: String, output: Output) {
-        if let Some(channel) = self.data.get(&name) {
+    pub fn deregister_output(&self, statistic: &dyn Statistic, output: Output) {
+        if let Some(channel) = self.data.get(statistic.name()) {
             channel.delete_output(output);
         }
     }

@@ -77,7 +77,7 @@ impl Http {
             let output = reading.output();
             let value = reading.value();
             match output {
-                Output::Counter => {
+                Output::Reading => {
                     data.push(format!("{}/count: {}", label, value));
                 }
                 Output::Percentile(percentile) => match percentile {
@@ -131,7 +131,7 @@ impl Http {
             let output = reading.output();
             let value = reading.value();
             match output {
-                Output::Counter => {
+                Output::Reading => {
                     data.push(format!("\"{}/count\": {}", label, value));
                 }
                 Output::Percentile(percentile) => match percentile {
