@@ -9,6 +9,26 @@ use datastructures::*;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 
+pub struct ChannelStatistic {
+    name: String,
+    description: Option<String>,
+    source: Source,
+    multiplier: f64,
+    unit: Option<String>,
+}
+
+impl ChannelStatistic {
+    fn new(statistic: &dyn Statistic) -> Self {
+        Self {
+            name: statistic.name().to_string(),
+            description: statistic.description().map(|v| v.to_string()),
+            source: statistic.source(),
+            multiplier: statistic.multiplier(),
+            unit: statistic.unit().map(|v| v.to_string()),
+        }
+    }
+}
+
 /// A channel tracks measurements that are taken from the same datasource. For
 /// example, you might use a channel to track requests and another for CPU
 /// utilization.
@@ -17,9 +37,8 @@ where
     T: Counter + Unsigned,
     <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating + From<u8>,
 {
-    name: Arc<Mutex<String>>,
-    source: Source,
-    counter: AtomicU64,
+    statistic: Arc<ChannelStatistic>,
+    reading: AtomicU64,
     histogram: Option<Histogram<T>>,
     last_write: AtomicU64,
     latched: bool,
@@ -40,7 +59,7 @@ where
     }
 }
 
-impl<T: 'static> Eq for Channel<T>
+impl<'a, T: 'static> Eq for Channel<T>
 where
     T: Counter + Unsigned,
     <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating + From<u8>,
@@ -56,11 +75,17 @@ where
 {
     /// Create a new channel with a given name, source, and an optional
     /// histogram which can be used to generate percentile metrics
-    pub fn new(name: String, source: Source, histogram: Option<Histogram<T>>) -> Self {
+    pub fn new(statistic: &dyn Statistic, summary: Option<Summary>) -> Self {
+        let statistic = ChannelStatistic::new(statistic);
+        let histogram = if let Some(Summary::Histogram(max, precision, duration)) = summary {
+            Some(Histogram::new(max, precision, duration, None))
+        } else {
+            None
+        };
+
         Self {
-            name: Arc::new(Mutex::new(name)),
-            source,
-            counter: AtomicU64::default(),
+            statistic: Arc::new(statistic),
+            reading: AtomicU64::default(),
             histogram,
             last_write: AtomicU64::default(),
             latched: true,
@@ -73,43 +98,35 @@ where
 
     /// Return the name of the `Channel`
     pub fn name(&self) -> String {
-        self.name.lock().unwrap().clone()
+        self.statistic.name.clone()
     }
 
     /// Return the source of the `Channel`
     pub fn source(&self) -> Source {
-        self.source
+        self.statistic.source
     }
 
-    /// Record a new measurement for the `Channel`
-    pub fn record(&self, measurement: Measurement<<T as AtomicPrimitive>::Primitive>) {
-        match measurement {
-            Measurement::Counter { value, time } => {
-                self.record_counter(value, time);
-            }
-            Measurement::Delta { value, time } => self.record_delta(value, time),
-            Measurement::Distribution { value, count, time } => {
-                self.record_distribution(value, count, time);
-            }
-            Measurement::Gauge { value, time } => {
-                self.record_gauge(value, time);
-            }
-            Measurement::Increment { count, time } => self.record_increment(count, time),
-            Measurement::TimeInterval { start, stop } => self.record_time_interval(start, stop),
-        }
+    /// Return the description of the `Channel`
+    pub fn description(&self) -> Option<String> {
+        self.statistic.description.clone()
+    }
+
+    /// Return the units for the `Channel`
+    pub fn unit(&self) -> Option<String> {
+        self.statistic.unit.clone()
     }
 
     // for Counter measurements:
     // counter tracks value
     // histogram tracks rate of change
-    fn record_counter(&self, value: u64, time: u64) {
-        if self.source == Source::Counter {
+    pub fn record_counter(&self, time: u64, value: u64) {
+        if self.source() == Source::Counter {
             if self.has_data.load(Ordering::SeqCst) {
                 // calculate the difference between consecutive readings and the rate
-                let delta_value = value.wrapping_sub(self.counter.get());
+                let delta_value = value.wrapping_sub(self.reading.get());
                 let delta_time = time.wrapping_sub(self.last_write.get());
                 let rate = (delta_value as f64 * (1_000_000_000.0 / delta_time as f64)) as u64;
-                self.counter.add(delta_value);
+                self.reading.add(delta_value);
                 if let Some(ref histogram) = self.histogram {
                     histogram.increment(rate, <T as AtomicPrimitive>::Primitive::from(1_u8));
                 }
@@ -130,7 +147,7 @@ where
                     self.min.set(rate, time);
                 }
             } else {
-                self.counter.set(value);
+                self.reading.set(value);
                 self.has_data.store(true, Ordering::SeqCst);
             }
             self.last_write.set(time);
@@ -140,13 +157,13 @@ where
     // for Delta measurements:
     // counter is sum of values
     // histogram tracks rate of change
-    fn record_delta(&self, value: u64, time: u64) {
-        if self.source == Source::Counter {
+    pub fn record_delta(&self, time: u64, value: u64) {
+        if self.source() == Source::Counter {
             if self.has_data.load(Ordering::SeqCst) {
                 // calculate the rate
                 let delta_time = time.wrapping_sub(self.last_write.get());
                 let rate = (value as f64 * (1_000_000_000.0 / delta_time as f64)) as u64;
-                self.counter.add(value);
+                self.reading.add(value);
                 if let Some(ref histogram) = self.histogram {
                     histogram.increment(rate, <T as AtomicPrimitive>::Primitive::from(1_u8));
                 }
@@ -167,7 +184,7 @@ where
                     self.min.set(rate, time);
                 }
             } else {
-                self.counter.set(value);
+                self.reading.set(value);
                 self.has_data.store(true, Ordering::SeqCst);
             }
             self.last_write.set(time);
@@ -177,9 +194,9 @@ where
     // for Distribution measurements:
     // counter tracks sum of all counts
     // histogram tracks values
-    fn record_distribution(&self, value: u64, count: <T as AtomicPrimitive>::Primitive, time: u64) {
-        if self.source == Source::Distribution {
-            self.counter.add(u64::from(count));
+    pub fn record_distribution(&self, time: u64, value: u64, count: <T as AtomicPrimitive>::Primitive) {
+        if self.source() == Source::Distribution {
+            self.reading.add(u64::from(count));
             if let Some(ref histogram) = self.histogram {
                 histogram.increment(value, count);
             }
@@ -192,9 +209,9 @@ where
     // histogram tracks readings
     // max tracks largest reading
     // min tracks smallest reading
-    fn record_gauge(&self, value: u64, time: u64) {
-        if self.source == Source::Gauge {
-            self.counter.set(value);
+    pub fn record_gauge(&self, time: u64, value: u64) {
+        if self.source() == Source::Gauge {
+            self.reading.set(value);
             if let Some(ref histogram) = self.histogram {
                 histogram.increment(value, <T as AtomicPrimitive>::Primitive::from(1_u8));
             }
@@ -221,9 +238,9 @@ where
     // for Increment measurements:
     // counter tracks sum of all increments
     // histogram tracks magnitude of increments
-    fn record_increment(&self, count: <T as AtomicPrimitive>::Primitive, time: u64) {
-        if self.source == Source::Counter {
-            self.counter.add(u64::from(count));
+    pub fn record_increment(&self, time: u64, count: <T as AtomicPrimitive>::Primitive) {
+        if self.source() == Source::Counter {
+            self.reading.add(u64::from(count));
             if let Some(ref histogram) = self.histogram {
                 histogram.increment(
                     u64::from(count),
@@ -235,9 +252,9 @@ where
     }
 
     // for TimeInterval measurements, we increment the histogram with duration of event
-    fn record_time_interval(&self, start: u64, stop: u64) {
-        if self.source == Source::TimeInterval {
-            self.counter.add(1);
+    pub fn record_time_interval(&self, start: u64, stop: u64) {
+        if self.source() == Source::TimeInterval {
+            self.reading.add(1);
             let duration = stop - start;
             if let Some(ref histogram) = self.histogram {
                 histogram.increment(duration, <T as AtomicPrimitive>::Primitive::from(1_u8));
@@ -261,16 +278,16 @@ where
         }
     }
 
-    /// Get the counter from the `Channel`
-    pub fn counter(&self) -> u64 {
-        self.counter.get()
+    /// Get the main reading (counter or gauge) from the `Channel`
+    pub fn reading(&self) -> u64 {
+        (self.reading.get() as f64 * self.statistic.multiplier) as u64
     }
 
     /// Calculate a percentile from the histogram, returns `None` if there is no
     /// histogram for the `Channel`
     pub fn percentile(&self, percentile: f64) -> Option<u64> {
         if let Some(ref histogram) = self.histogram {
-            histogram.percentile(percentile)
+            histogram.percentile(percentile).map(|v| (v as f64 * self.statistic.multiplier) as u64)
         } else {
             None
         }
@@ -305,7 +322,7 @@ where
     pub fn zero(&self) {
         self.has_data.store(false, Ordering::SeqCst);
         self.last_write.set(0);
-        self.counter.set(0);
+        self.reading.set(0);
         if let Some(ref histogram) = self.histogram {
             histogram.clear();
         }
@@ -320,8 +337,8 @@ where
         let outputs = self.outputs.lock().unwrap();
         for output in &*outputs {
             match output {
-                Output::Counter => {
-                    result.push(Reading::new(self.name(), output.clone(), self.counter()));
+                Output::Reading => {
+                    result.push(Reading::new(self.name(), output.clone(), self.reading()));
                 }
                 Output::MaxPointTime => {
                     if self.max.time() > 0 {
@@ -349,8 +366,8 @@ where
         let outputs = self.outputs.lock().unwrap();
         for output in &*outputs {
             match output {
-                Output::Counter => {
-                    result.insert(output.clone(), self.counter());
+                Output::Reading => {
+                    result.insert(output.clone(), self.reading());
                 }
                 Output::MaxPointTime => {
                     if self.max.time() > 0 {

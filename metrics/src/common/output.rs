@@ -7,7 +7,7 @@ use crate::Percentile;
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 /// Outputs are used to specify the metrics exported for a channel
 pub enum Output {
-    Counter,
+    Reading,
     MaxPointTime,
     MinPointTime,
     Percentile(Percentile),

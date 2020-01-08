@@ -10,7 +10,6 @@ repository = "https://github.com/twitter/rpc-perf"
 publish = false
 
 [dependencies]
-evmap = "7.1.0"
+chashmap = "2.2.2"
 datastructures = { path = "../datastructures" }
-logger = { path = "../logger" }
-time = "0.1.42"
+# time = "0.1.42"
