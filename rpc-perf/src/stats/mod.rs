@@ -20,7 +20,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 pub fn register_stats(metrics: &Metrics) {
-    for statistic in vec![
+    for statistic in &[
         Stat::CommandsDelete,
         Stat::CommandsGet,
         Stat::CommandsRange,
@@ -43,7 +43,7 @@ pub fn register_stats(metrics: &Metrics) {
         Stat::ResponsesHit,
         Stat::ResponsesMiss,
     ] {
-        metrics.register(&statistic);
+        metrics.register(statistic);
     }
 }
 
@@ -279,7 +279,7 @@ impl Metrics {
         self.inner
             .register_output(statistic, metrics::Output::Reading);
         if summary.is_some() {
-            for percentile in vec![
+            for percentile in &[
                 Percentile::p50,
                 Percentile::p75,
                 Percentile::p90,
@@ -288,7 +288,7 @@ impl Metrics {
                 Percentile::p9999,
             ] {
                 self.inner
-                    .register_output(statistic, metrics::Output::Percentile(percentile));
+                    .register_output(statistic, metrics::Output::Percentile(*percentile));
             }
         }
     }
