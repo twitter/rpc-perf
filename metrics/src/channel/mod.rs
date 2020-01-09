@@ -93,15 +93,14 @@ where
     /// Create a new channel with a given name, source, and an optional
     /// histogram which can be used to generate percentile metrics
     pub fn new(statistic: &dyn Statistic, summary: Option<Summary>) -> Self {
-        let statistic = ChannelStatistic::new(statistic);
-        let histogram = if let Some(Summary::Histogram(max, precision, duration)) = summary {
-            Some(Histogram::new(max, precision, duration, None))
+        let histogram = if let Some(summary) = summary {
+            summary.build_histogram::<T>()
         } else {
             None
         };
 
         Self {
-            statistic,
+            statistic: ChannelStatistic::new(statistic),
             reading: AtomicU64::default(),
             histogram,
             last_write: AtomicU64::default(),

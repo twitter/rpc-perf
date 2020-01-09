@@ -271,8 +271,8 @@ impl Metrics {
 
     pub fn register(&self, statistic: &dyn Statistic) {
         let summary = match statistic.source() {
-            Source::TimeInterval => Some(Summary::Histogram(60_000_000_000, 3, None)),
-            Source::Distribution => Some(Summary::Histogram(1_000_000_000, 3, None)),
+            Source::TimeInterval => Some(Summary::histogram(60_000_000_000, 3, None)),
+            Source::Distribution => Some(Summary::histogram(1_000_000_000, 3, None)),
             _ => None,
         };
         self.inner.register(statistic, summary);

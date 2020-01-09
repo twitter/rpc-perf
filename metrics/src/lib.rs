@@ -96,7 +96,7 @@ mod tests {
         let metrics = Metrics::<AtomicU64>::new();
         metrics.register(
             &TestStat::Counter,
-            Some(Summary::Histogram(2_000_000_000, 3, None)),
+            Some(Summary::histogram(2_000_000_000, 3, None)),
         );
         assert_eq!(metrics.reading(&TestStat::Counter).unwrap(), 0);
         assert_eq!(metrics.percentile(&TestStat::Counter, 0.0), None);
@@ -128,7 +128,7 @@ mod tests {
         let metrics = Metrics::<AtomicU64>::new();
         metrics.register(
             &TestStat::Counter,
-            Some(Summary::Histogram(2_000_000_000, 3, None)),
+            Some(Summary::histogram(2_000_000_000, 3, None)),
         );
         assert_eq!(metrics.reading(&TestStat::Counter).unwrap(), 0);
         metrics.record_counter(&TestStat::Counter, 0_u64.wrapping_sub(2_000_000_000), 0);
@@ -157,7 +157,7 @@ mod tests {
         let metrics = Metrics::<AtomicU64>::new();
         metrics.register(
             &TestStat::Distribution,
-            Some(Summary::Histogram(2_000_000_000, 3, None)),
+            Some(Summary::histogram(2_000_000_000, 3, None)),
         );
         assert_eq!(metrics.reading(&TestStat::Distribution).unwrap(), 0);
         metrics.record_distribution(&TestStat::Distribution, 0, 1, 1);
@@ -183,7 +183,7 @@ mod tests {
         let metrics = Metrics::<AtomicU64>::new();
         metrics.register(
             &TestStat::Gauge,
-            Some(Summary::Histogram(2_000_000_000, 3, None)),
+            Some(Summary::histogram(2_000_000_000, 3, None)),
         );
         assert_eq!(metrics.reading(&TestStat::Gauge).unwrap(), 0);
         metrics.record_gauge(&TestStat::Gauge, 1, 0);
@@ -201,7 +201,7 @@ mod tests {
         let metrics = Metrics::<AtomicU64>::new();
         metrics.register(
             &TestStat::TimeInterval,
-            Some(Summary::Histogram(2_000_000_000, 3, None)),
+            Some(Summary::histogram(2_000_000_000, 3, None)),
         );
         assert_eq!(metrics.reading(&TestStat::TimeInterval).unwrap(), 0);
         metrics.record_time_interval(&TestStat::TimeInterval, 0, 1);
