@@ -86,7 +86,7 @@ where
 
     pub fn description(&self, statistic: &dyn Statistic) -> Option<String> {
         if let Some(channel) = self.data.get(statistic.name()) {
-            channel.description()
+            channel.description().map(|v| v.to_string())
         } else {
             None
         }
@@ -94,7 +94,7 @@ where
 
     pub fn unit(&self, statistic: &dyn Statistic) -> Option<String> {
         if let Some(channel) = self.data.get(statistic.name()) {
-            channel.unit()
+            channel.unit().map(|v| v.to_string())
         } else {
             None
         }

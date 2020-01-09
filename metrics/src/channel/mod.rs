@@ -27,6 +27,24 @@ impl ChannelStatistic {
     }
 }
 
+impl Statistic for ChannelStatistic {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn source(&self) -> Source {
+        self.source
+    }
+
+    fn description(&self) -> Option<&str> {
+        self.description.as_ref().map(|v| v.as_ref())
+    }
+
+    fn unit(&self) -> Option<&str> {
+        self.unit.as_ref().map(|v| v.as_ref())
+    }
+}
+
 /// A channel tracks measurements that are taken from the same datasource. For
 /// example, you might use a channel to track requests and another for CPU
 /// utilization.
@@ -95,23 +113,23 @@ where
     }
 
     /// Return the name of the `Channel`
-    pub fn name(&self) -> String {
-        self.statistic.name.clone()
+    pub fn name(&self) -> &str {
+        self.statistic.name()
     }
 
     /// Return the source of the `Channel`
     pub fn source(&self) -> Source {
-        self.statistic.source
+        self.statistic.source()
     }
 
     /// Return the description of the `Channel`
-    pub fn description(&self) -> Option<String> {
-        self.statistic.description.clone()
+    pub fn description(&self) -> Option<&str> {
+        self.statistic.description()
     }
 
     /// Return the units for the `Channel`
-    pub fn unit(&self) -> Option<String> {
-        self.statistic.unit.clone()
+    pub fn unit(&self) -> Option<&str> {
+        self.statistic.unit()
     }
 
     // for Counter measurements:
@@ -341,21 +359,21 @@ where
         for output in &*outputs {
             match output {
                 Output::Reading => {
-                    result.push(Reading::new(self.name(), output.clone(), self.reading()));
+                    result.push(Reading::new(self.name().to_string(), output.clone(), self.reading()));
                 }
                 Output::MaxPointTime => {
                     if self.max.time() > 0 {
-                        result.push(Reading::new(self.name(), output.clone(), self.max.time()));
+                        result.push(Reading::new(self.name().to_string(), output.clone(), self.max.time()));
                     }
                 }
                 Output::MinPointTime => {
                     if self.max.time() > 0 {
-                        result.push(Reading::new(self.name(), output.clone(), self.min.time()));
+                        result.push(Reading::new(self.name().to_string(), output.clone(), self.min.time()));
                     }
                 }
                 Output::Percentile(percentile) => {
                     if let Some(value) = self.percentile(percentile.as_f64()) {
-                        result.push(Reading::new(self.name(), output.clone(), value));
+                        result.push(Reading::new(self.name().to_string(), output.clone(), value));
                     }
                 }
             }
