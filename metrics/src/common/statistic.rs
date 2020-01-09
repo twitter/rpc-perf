@@ -13,11 +13,6 @@ pub trait Statistic {
         None
     }
 
-    /// scaling that must be applied to the measurement before reporting
-    fn multiplier(&self) -> f64 {
-        1.0
-    }
-
     /// describe the meaning of the statistic
     fn description(&self) -> Option<&str> {
         None

@@ -13,7 +13,6 @@ pub struct ChannelStatistic {
     name: String,
     description: Option<String>,
     source: Source,
-    multiplier: f64,
     unit: Option<String>,
 }
 
@@ -23,7 +22,6 @@ impl ChannelStatistic {
             name: statistic.name().to_string(),
             description: statistic.description().map(|v| v.to_string()),
             source: statistic.source(),
-            multiplier: statistic.multiplier(),
             unit: statistic.unit().map(|v| v.to_string()),
         }
     }
@@ -285,16 +283,14 @@ where
 
     /// Get the main reading (counter or gauge) from the `Channel`
     pub fn reading(&self) -> u64 {
-        (self.reading.get() as f64 * self.statistic.multiplier) as u64
+        self.reading.get()
     }
 
     /// Calculate a percentile from the histogram, returns `None` if there is no
     /// histogram for the `Channel`
     pub fn percentile(&self, percentile: f64) -> Option<u64> {
         if let Some(ref histogram) = self.histogram {
-            histogram
-                .percentile(percentile)
-                .map(|v| (v as f64 * self.statistic.multiplier) as u64)
+            histogram.percentile(percentile)
         } else {
             None
         }
