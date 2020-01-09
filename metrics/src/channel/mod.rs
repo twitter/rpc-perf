@@ -9,6 +9,7 @@ use datastructures::*;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 
+#[derive(Clone)]
 pub struct ChannelStatistic {
     name: String,
     description: Option<String>,
@@ -53,7 +54,7 @@ where
     T: Counter + Unsigned,
     <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating + From<u8>,
 {
-    statistic: Arc<ChannelStatistic>,
+    statistic: ChannelStatistic,
     reading: AtomicU64,
     histogram: Option<Histogram<T>>,
     last_write: AtomicU64,
@@ -71,7 +72,7 @@ where
     u64: From<<T as AtomicPrimitive>::Primitive>,
 {
     fn eq(&self, other: &Channel<T>) -> bool {
-        self.name() == other.name()
+        self.statistic.name() == other.statistic.name()
     }
 }
 
@@ -100,7 +101,7 @@ where
         };
 
         Self {
-            statistic: Arc::new(statistic),
+            statistic,
             reading: AtomicU64::default(),
             histogram,
             last_write: AtomicU64::default(),
@@ -112,31 +113,11 @@ where
         }
     }
 
-    /// Return the name of the `Channel`
-    pub fn name(&self) -> &str {
-        self.statistic.name()
-    }
-
-    /// Return the source of the `Channel`
-    pub fn source(&self) -> Source {
-        self.statistic.source()
-    }
-
-    /// Return the description of the `Channel`
-    pub fn description(&self) -> Option<&str> {
-        self.statistic.description()
-    }
-
-    /// Return the units for the `Channel`
-    pub fn unit(&self) -> Option<&str> {
-        self.statistic.unit()
-    }
-
     // for Counter measurements:
     // counter tracks value
     // histogram tracks rate of change
     pub fn record_counter(&self, time: u64, value: u64) {
-        if self.source() == Source::Counter {
+        if self.statistic.source() == Source::Counter {
             if self.has_data.load(Ordering::SeqCst) {
                 // calculate the difference between consecutive readings and the rate
                 let delta_value = value.wrapping_sub(self.reading.get());
@@ -174,7 +155,7 @@ where
     // counter is sum of values
     // histogram tracks rate of change
     pub fn record_delta(&self, time: u64, value: u64) {
-        if self.source() == Source::Counter {
+        if self.statistic.source() == Source::Counter {
             if self.has_data.load(Ordering::SeqCst) {
                 // calculate the rate
                 let delta_time = time.wrapping_sub(self.last_write.get());
@@ -216,7 +197,7 @@ where
         value: u64,
         count: <T as AtomicPrimitive>::Primitive,
     ) {
-        if self.source() == Source::Distribution {
+        if self.statistic.source() == Source::Distribution {
             self.reading.add(u64::from(count));
             if let Some(ref histogram) = self.histogram {
                 histogram.increment(value, count);
@@ -231,7 +212,7 @@ where
     // max tracks largest reading
     // min tracks smallest reading
     pub fn record_gauge(&self, time: u64, value: u64) {
-        if self.source() == Source::Gauge {
+        if self.statistic.source() == Source::Gauge {
             self.reading.set(value);
             if let Some(ref histogram) = self.histogram {
                 histogram.increment(value, <T as AtomicPrimitive>::Primitive::from(1_u8));
@@ -260,7 +241,7 @@ where
     // counter tracks sum of all increments
     // histogram tracks magnitude of increments
     pub fn record_increment(&self, time: u64, count: <T as AtomicPrimitive>::Primitive) {
-        if self.source() == Source::Counter {
+        if self.statistic.source() == Source::Counter {
             self.reading.add(u64::from(count));
             if let Some(ref histogram) = self.histogram {
                 histogram.increment(
@@ -274,7 +255,7 @@ where
 
     // for TimeInterval measurements, we increment the histogram with duration of event
     pub fn record_time_interval(&self, start: u64, stop: u64) {
-        if self.source() == Source::TimeInterval {
+        if self.statistic.source() == Source::TimeInterval {
             self.reading.add(1);
             let duration = stop - start;
             if let Some(ref histogram) = self.histogram {
@@ -359,21 +340,21 @@ where
         for output in &*outputs {
             match output {
                 Output::Reading => {
-                    result.push(Reading::new(self.name().to_string(), output.clone(), self.reading()));
+                    result.push(Reading::new(self.statistic.name().to_string(), output.clone(), self.reading()));
                 }
                 Output::MaxPointTime => {
                     if self.max.time() > 0 {
-                        result.push(Reading::new(self.name().to_string(), output.clone(), self.max.time()));
+                        result.push(Reading::new(self.statistic.name().to_string(), output.clone(), self.max.time()));
                     }
                 }
                 Output::MinPointTime => {
                     if self.max.time() > 0 {
-                        result.push(Reading::new(self.name().to_string(), output.clone(), self.min.time()));
+                        result.push(Reading::new(self.statistic.name().to_string(), output.clone(), self.min.time()));
                     }
                 }
                 Output::Percentile(percentile) => {
                     if let Some(value) = self.percentile(percentile.as_f64()) {
-                        result.push(Reading::new(self.name().to_string(), output.clone(), value));
+                        result.push(Reading::new(self.statistic.name().to_string(), output.clone(), value));
                     }
                 }
             }

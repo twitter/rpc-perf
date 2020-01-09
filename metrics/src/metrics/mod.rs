@@ -84,22 +84,6 @@ where
         }
     }
 
-    pub fn description(&self, statistic: &dyn Statistic) -> Option<String> {
-        if let Some(channel) = self.data.get(statistic.name()) {
-            channel.description().map(|v| v.to_string())
-        } else {
-            None
-        }
-    }
-
-    pub fn unit(&self, statistic: &dyn Statistic) -> Option<String> {
-        if let Some(channel) = self.data.get(statistic.name()) {
-            channel.unit().map(|v| v.to_string())
-        } else {
-            None
-        }
-    }
-
     pub fn reading(&self, statistic: &dyn Statistic) -> Option<u64> {
         if let Some(channel) = self.data.get(statistic.name()) {
             Some(channel.reading())
