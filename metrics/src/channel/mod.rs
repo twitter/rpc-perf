@@ -339,21 +339,37 @@ where
         for output in &*outputs {
             match output {
                 Output::Reading => {
-                    result.push(Reading::new(self.statistic.name().to_string(), output.clone(), self.reading()));
+                    result.push(Reading::new(
+                        self.statistic.name().to_string(),
+                        output.clone(),
+                        self.reading(),
+                    ));
                 }
                 Output::MaxPointTime => {
                     if self.max.time() > 0 {
-                        result.push(Reading::new(self.statistic.name().to_string(), output.clone(), self.max.time()));
+                        result.push(Reading::new(
+                            self.statistic.name().to_string(),
+                            output.clone(),
+                            self.max.time(),
+                        ));
                     }
                 }
                 Output::MinPointTime => {
                     if self.max.time() > 0 {
-                        result.push(Reading::new(self.statistic.name().to_string(), output.clone(), self.min.time()));
+                        result.push(Reading::new(
+                            self.statistic.name().to_string(),
+                            output.clone(),
+                            self.min.time(),
+                        ));
                     }
                 }
                 Output::Percentile(percentile) => {
                     if let Some(value) = self.percentile(percentile.as_f64()) {
-                        result.push(Reading::new(self.statistic.name().to_string(), output.clone(), value));
+                        result.push(Reading::new(
+                            self.statistic.name().to_string(),
+                            output.clone(),
+                            value,
+                        ));
                     }
                 }
             }
