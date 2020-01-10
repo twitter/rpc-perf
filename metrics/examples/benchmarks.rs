@@ -139,7 +139,7 @@ pub fn sized_run(
             MeasurementType::Increment => TestStat::Counter(id),
             MeasurementType::TimeInterval => TestStat::TimeInterval(id),
         };
-        metrics.register(&statistic, Some(Summary::Histogram(2_000_000_000, 3, None)));
+        metrics.register(&statistic, Some(Summary::histogram(2_000_000_000, 3, None)));
         thread_pool.push(thread::spawn(move || {
             for value in 0..(max / threads) {
                 match measurement_type {
