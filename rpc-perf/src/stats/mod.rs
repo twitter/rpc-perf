@@ -1,8 +1,11 @@
-// Copyright 2019 Twitter, Inc.
+// Copyright 2019-2020 Twitter, Inc.
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
 pub mod http;
+mod stat;
+
+pub use stat::Stat;
 
 pub use crate::stats::http::Http;
 
@@ -11,33 +14,37 @@ use crate::config::Config;
 
 use datastructures::Heatmap;
 use logger::*;
-use metrics::{self, Histogram, Measurement, Output, Percentile, Reading, Source};
+use metrics::{self, Output, Percentile, Reading, Source, Statistic, Summary};
 
 use std::collections::HashMap;
 use std::sync::Arc;
 
 pub fn register_stats(metrics: &Metrics) {
-    metrics.add_counter_channel(Stat::CommandsGet);
-    metrics.add_counter_channel(Stat::CommandsSet);
-    metrics.add_distribution_channel(Stat::KeySize, 60_000_000_000, 3);
-    metrics.add_distribution_channel(Stat::ValueSize, 60_000_000_000, 3);
-    metrics.add_counter_channel(Stat::Window);
-    metrics.add_counter_channel(Stat::RequestsEnqueued);
-    metrics.add_counter_channel(Stat::RequestsDequeued);
-    metrics.add_counter_channel(Stat::RequestsError);
-    metrics.add_counter_channel(Stat::RequestsTimeout);
-    metrics.add_counter_channel(Stat::ConnectionsTotal);
-    metrics.add_histogram_channel(Stat::ConnectionsOpened, 60_000_000_000, 3);
-    metrics.add_counter_channel(Stat::ConnectionsClosed);
-    metrics.add_counter_channel(Stat::ConnectionsError);
-    metrics.add_counter_channel(Stat::ConnectionsClientClosed);
-    metrics.add_counter_channel(Stat::ConnectionsServerClosed);
-    metrics.add_counter_channel(Stat::ConnectionsTimeout);
-    metrics.add_histogram_channel(Stat::ResponsesTotal, 60_000_000_000, 3);
-    metrics.add_counter_channel(Stat::ResponsesOk);
-    metrics.add_counter_channel(Stat::ResponsesError);
-    metrics.add_counter_channel(Stat::ResponsesHit);
-    metrics.add_counter_channel(Stat::ResponsesMiss);
+    for statistic in &[
+        Stat::CommandsDelete,
+        Stat::CommandsGet,
+        Stat::CommandsRange,
+        Stat::CommandsSet,
+        Stat::KeySize,
+        Stat::ValueSize,
+        Stat::Window,
+        Stat::RequestsEnqueued,
+        Stat::RequestsDequeued,
+        Stat::ConnectionsTotal,
+        Stat::ConnectionsOpened,
+        Stat::ConnectionsClosed,
+        Stat::ConnectionsError,
+        Stat::ConnectionsClientClosed,
+        Stat::ConnectionsServerClosed,
+        Stat::ConnectionsTimeout,
+        Stat::ResponsesTotal,
+        Stat::ResponsesOk,
+        Stat::ResponsesError,
+        Stat::ResponsesHit,
+        Stat::ResponsesMiss,
+    ] {
+        metrics.register(statistic);
+    }
 }
 
 pub struct StandardOut {
@@ -58,37 +65,37 @@ impl StandardOut {
     fn display_percentiles(&self, stat: Stat, label: &str, divisor: u64, unit: &str) {
         let p25 = self
             .metrics
-            .percentile(stat, 0.25)
+            .percentile(&stat, 0.25)
             .map(|v| format!("{}", v / divisor))
             .unwrap_or_else(|| "none".to_string());
         let p50 = self
             .metrics
-            .percentile(stat, 0.50)
+            .percentile(&stat, 0.50)
             .map(|v| format!("{}", v / divisor))
             .unwrap_or_else(|| "none".to_string());
         let p75 = self
             .metrics
-            .percentile(stat, 0.75)
+            .percentile(&stat, 0.75)
             .map(|v| format!("{}", v / divisor))
             .unwrap_or_else(|| "none".to_string());
         let p90 = self
             .metrics
-            .percentile(stat, 0.90)
+            .percentile(&stat, 0.90)
             .map(|v| format!("{}", v / divisor))
             .unwrap_or_else(|| "none".to_string());
         let p99 = self
             .metrics
-            .percentile(stat, 0.99)
+            .percentile(&stat, 0.99)
             .map(|v| format!("{}", v / divisor))
             .unwrap_or_else(|| "none".to_string());
         let p999 = self
             .metrics
-            .percentile(stat, 0.999)
+            .percentile(&stat, 0.999)
             .map(|v| format!("{}", v / divisor))
             .unwrap_or_else(|| "none".to_string());
         let p9999 = self
             .metrics
-            .percentile(stat, 0.9999)
+            .percentile(&stat, 0.9999)
             .map(|v| format!("{}", v / divisor))
             .unwrap_or_else(|| "none".to_string());
         info!(
@@ -99,26 +106,26 @@ impl StandardOut {
 
     pub fn print(&mut self) {
         let current = self.metrics.hash_map();
-        let window = self.metrics.counter(Stat::Window);
+        let window = self.metrics.counter(&Stat::Window);
         info!("-----");
         info!("Window: {}", window);
 
         // connections
         info!(
             "Connections: Attempts: {} Opened: {} Errors: {} Timeouts: {} Open: {}",
-            delta_count(&self.previous, &current, Stat::ConnectionsTotal).unwrap_or(0),
-            delta_count(&self.previous, &current, Stat::ConnectionsOpened).unwrap_or(0),
-            delta_count(&self.previous, &current, Stat::ConnectionsError).unwrap_or(0),
-            delta_count(&self.previous, &current, Stat::ConnectionsTimeout).unwrap_or(0),
+            delta_count(&self.previous, &current, &Stat::ConnectionsTotal).unwrap_or(0),
+            delta_count(&self.previous, &current, &Stat::ConnectionsOpened).unwrap_or(0),
+            delta_count(&self.previous, &current, &Stat::ConnectionsError).unwrap_or(0),
+            delta_count(&self.previous, &current, &Stat::ConnectionsTimeout).unwrap_or(0),
             self.metrics
-                .counter(Stat::ConnectionsOpened)
-                .saturating_sub(self.metrics.counter(Stat::ConnectionsClosed)),
+                .counter(&Stat::ConnectionsOpened)
+                .saturating_sub(self.metrics.counter(&Stat::ConnectionsClosed)),
         );
 
         info!(
             "Commands: Get: {} Set: {}",
-            delta_count(&self.previous, &current, Stat::CommandsGet).unwrap_or(0),
-            delta_count(&self.previous, &current, Stat::CommandsSet).unwrap_or(0),
+            delta_count(&self.previous, &current, &Stat::CommandsGet).unwrap_or(0),
+            delta_count(&self.previous, &current, &Stat::CommandsSet).unwrap_or(0),
         );
 
         self.display_percentiles(Stat::KeySize, "Keys", 1, "bytes");
@@ -126,28 +133,28 @@ impl StandardOut {
 
         info!(
             "Requests: Sent: {} Timeout: {} Prepared: {} Queue Depth: {}",
-            delta_count(&self.previous, &current, Stat::RequestsDequeued).unwrap_or(0),
-            delta_count(&self.previous, &current, Stat::RequestsTimeout).unwrap_or(0),
-            delta_count(&self.previous, &current, Stat::RequestsEnqueued).unwrap_or(0),
-            self.metrics.counter(Stat::RequestsEnqueued)
-                - self.metrics.counter(Stat::RequestsDequeued),
+            delta_count(&self.previous, &current, &Stat::RequestsDequeued).unwrap_or(0),
+            delta_count(&self.previous, &current, &Stat::RequestsTimeout).unwrap_or(0),
+            delta_count(&self.previous, &current, &Stat::RequestsEnqueued).unwrap_or(0),
+            self.metrics.counter(&Stat::RequestsEnqueued)
+                - self.metrics.counter(&Stat::RequestsDequeued),
         );
 
         info!(
             "Responses: Ok: {} Error: {} Hit: {} Miss: {}",
-            delta_count(&self.previous, &current, Stat::ResponsesOk).unwrap_or(0),
-            delta_count(&self.previous, &current, Stat::ResponsesError).unwrap_or(0),
-            delta_count(&self.previous, &current, Stat::ResponsesHit).unwrap_or(0),
-            delta_count(&self.previous, &current, Stat::ResponsesMiss).unwrap_or(0),
+            delta_count(&self.previous, &current, &Stat::ResponsesOk).unwrap_or(0),
+            delta_count(&self.previous, &current, &Stat::ResponsesError).unwrap_or(0),
+            delta_count(&self.previous, &current, &Stat::ResponsesHit).unwrap_or(0),
+            delta_count(&self.previous, &current, &Stat::ResponsesMiss).unwrap_or(0),
         );
 
         info!(
             "Rate: Request: {:.2} rps Response: {:.2} rps Connect: {:.2} cps",
-            delta_count(&self.previous, &current, Stat::RequestsDequeued).unwrap_or(0) as f64
+            delta_count(&self.previous, &current, &Stat::RequestsDequeued).unwrap_or(0) as f64
                 / self.interval as f64,
-            delta_count(&self.previous, &current, Stat::ResponsesTotal).unwrap_or(0) as f64
+            delta_count(&self.previous, &current, &Stat::ResponsesTotal).unwrap_or(0) as f64
                 / self.interval as f64,
-            delta_count(&self.previous, &current, Stat::ConnectionsTotal).unwrap_or(0) as f64
+            delta_count(&self.previous, &current, &Stat::ConnectionsTotal).unwrap_or(0) as f64
                 / self.interval as f64,
         );
 
@@ -156,28 +163,28 @@ impl StandardOut {
             delta_percent(
                 &self.previous,
                 &current,
-                Stat::ResponsesTotal,
-                Stat::RequestsDequeued
+                &Stat::ResponsesTotal,
+                &Stat::RequestsDequeued
             )
             .unwrap_or(100.0),
             delta_percent(
                 &self.previous,
                 &current,
-                Stat::ResponsesOk,
-                Stat::ResponsesTotal
+                &Stat::ResponsesOk,
+                &Stat::ResponsesTotal
             )
             .unwrap_or(100.0),
             delta_percent(
                 &self.previous,
                 &current,
-                Stat::ConnectionsOpened,
-                Stat::ConnectionsTotal
+                &Stat::ConnectionsOpened,
+                &Stat::ConnectionsTotal
             )
             .unwrap_or(100.0),
         );
 
-        let hit = delta_count(&self.previous, &current, Stat::ResponsesHit).unwrap_or(0);
-        let miss = delta_count(&self.previous, &current, Stat::ResponsesMiss).unwrap_or(0);
+        let hit = delta_count(&self.previous, &current, &Stat::ResponsesHit).unwrap_or(0);
+        let miss = delta_count(&self.previous, &current, &Stat::ResponsesMiss).unwrap_or(0);
         let hitrate = 100.0 * hit as f64 / (hit + miss) as f64;
 
         info!("Hit-rate: {:.2}%", hitrate);
@@ -188,70 +195,16 @@ impl StandardOut {
     }
 }
 
-#[derive(Copy, Clone)]
-pub enum Stat {
-    Window,
-    RequestsEnqueued,
-    RequestsDequeued,
-    RequestsError,
-    RequestsTimeout,
-    ConnectionsTotal,
-    ConnectionsOpened,
-    ConnectionsClosed,
-    ConnectionsError,
-    ConnectionsClientClosed,
-    ConnectionsServerClosed,
-    ConnectionsTimeout,
-    ResponsesTotal,
-    ResponsesOk,
-    ResponsesError,
-    ResponsesHit,
-    ResponsesMiss,
-    CommandsGet,
-    CommandsSet,
-    KeySize,
-    ValueSize,
-}
-
-impl ToString for Stat {
-    fn to_string(&self) -> String {
-        let label = match self {
-            Stat::CommandsGet => "commands/get",
-            Stat::CommandsSet => "commands/set",
-            Stat::KeySize => "keys/size",
-            Stat::ValueSize => "values/size",
-            Stat::Window => "window",
-            Stat::RequestsEnqueued => "requests/enqueued",
-            Stat::RequestsDequeued => "requests/dequeued",
-            Stat::RequestsError => "requests/error",
-            Stat::RequestsTimeout => "requests/timeout",
-            Stat::ConnectionsTotal => "connections/total",
-            Stat::ConnectionsOpened => "connections/opened",
-            Stat::ConnectionsClosed => "connections/closed/total",
-            Stat::ConnectionsError => "connections/error",
-            Stat::ConnectionsClientClosed => "connections/closed/client",
-            Stat::ConnectionsServerClosed => "connections/closed/server",
-            Stat::ConnectionsTimeout => "connections/timeout",
-            Stat::ResponsesTotal => "responses/total",
-            Stat::ResponsesOk => "responses/ok",
-            Stat::ResponsesError => "responses/error",
-            Stat::ResponsesHit => "responses/hit",
-            Stat::ResponsesMiss => "responses/miss",
-        };
-        label.to_string()
-    }
-}
-
-fn delta_count<T: ToString>(
+fn delta_count(
     a: &HashMap<String, HashMap<metrics::Output, u64>>,
     b: &HashMap<String, HashMap<metrics::Output, u64>>,
-    label: T,
+    label: &dyn Statistic,
 ) -> Option<u64> {
-    let output = metrics::Output::Counter;
-    let label = label.to_string();
-    if let Some(a_outputs) = a.get(&label) {
+    let output = metrics::Output::Reading;
+    let label = label.name();
+    if let Some(a_outputs) = a.get(label) {
         let a_value = a_outputs.get(&output).unwrap_or(&0);
-        if let Some(b_outputs) = b.get(&label) {
+        if let Some(b_outputs) = b.get(label) {
             let b_value = b_outputs.get(&output).unwrap_or(&0);
 
             Some(b_value - a_value)
@@ -263,11 +216,11 @@ fn delta_count<T: ToString>(
     }
 }
 
-fn delta_percent<T: ToString>(
+fn delta_percent(
     a: &HashMap<String, HashMap<metrics::Output, u64>>,
     b: &HashMap<String, HashMap<metrics::Output, u64>>,
-    label_a: T,
-    label_b: T,
+    label_a: &dyn Statistic,
+    label_b: &dyn Statistic,
 ) -> Option<f64> {
     let delta_a = delta_count(a, b, label_a);
     let delta_b = delta_count(a, b, label_b);
@@ -289,8 +242,8 @@ fn delta_percent<T: ToString>(
 
 #[derive(Clone)]
 pub struct Metrics {
-    inner: metrics::Metrics<metrics::AtomicU64>,
-    heatmap: Option<Arc<Heatmap<metrics::AtomicU64>>>,
+    inner: Arc<metrics::Metrics<metrics::AtomicU64>>,
+    heatmap: Arc<Option<Arc<Heatmap<metrics::AtomicU64>>>>,
 }
 
 impl Metrics {
@@ -311,100 +264,61 @@ impl Metrics {
             None
         };
         Self {
-            inner: metrics::Metrics::new(),
-            heatmap,
+            inner: Arc::new(metrics::Metrics::new()),
+            heatmap: Arc::new(heatmap),
         }
     }
 
-    pub fn add_counter_channel<T: ToString>(&self, label: T) {
+    pub fn register(&self, statistic: &dyn Statistic) {
+        let summary = match statistic.source() {
+            Source::TimeInterval => Some(Summary::histogram(60_000_000_000, 3, None)),
+            Source::Distribution => Some(Summary::histogram(1_000_000_000, 3, None)),
+            _ => None,
+        };
+        self.inner.register(statistic, summary);
         self.inner
-            .add_channel(label.to_string(), metrics::Source::Counter, None);
-        self.inner
-            .add_output(label.to_string(), metrics::Output::Counter);
+            .register_output(statistic, metrics::Output::Reading);
+        if summary.is_some() {
+            for percentile in &[
+                Percentile::p50,
+                Percentile::p75,
+                Percentile::p90,
+                Percentile::p99,
+                Percentile::p999,
+                Percentile::p9999,
+            ] {
+                self.inner
+                    .register_output(statistic, metrics::Output::Percentile(*percentile));
+            }
+        }
     }
 
-    pub fn add_histogram_channel<T: ToString>(&self, label: T, max: u64, precision: u32) {
-        let histogram_config = Histogram::new(max, precision, None, None);
-        self.inner.add_channel(
-            label.to_string(),
-            Source::TimeInterval,
-            Some(histogram_config),
-        );
-        self.inner.add_output(label.to_string(), Output::Counter);
-        self.inner
-            .add_output(label.to_string(), Output::Percentile(Percentile::p50));
-        self.inner
-            .add_output(label.to_string(), Output::Percentile(Percentile::p75));
-        self.inner
-            .add_output(label.to_string(), Output::Percentile(Percentile::p90));
-        self.inner
-            .add_output(label.to_string(), Output::Percentile(Percentile::p99));
-        self.inner
-            .add_output(label.to_string(), Output::Percentile(Percentile::p999));
-        self.inner
-            .add_output(label.to_string(), Output::Percentile(Percentile::p9999));
+    pub fn counter(&self, statistic: &dyn Statistic) -> u64 {
+        self.inner.reading(statistic).unwrap_or(0)
     }
 
-    pub fn add_distribution_channel<T: ToString>(&self, label: T, max: u64, precision: u32) {
-        let histogram_config = Histogram::new(max, precision, None, None);
-        self.inner.add_channel(
-            label.to_string(),
-            Source::Distribution,
-            Some(histogram_config),
-        );
-        self.inner.add_output(label.to_string(), Output::Counter);
+    pub fn increment(&self, statistic: &dyn Statistic) {
         self.inner
-            .add_output(label.to_string(), Output::Percentile(Percentile::p50));
-        self.inner
-            .add_output(label.to_string(), Output::Percentile(Percentile::p75));
-        self.inner
-            .add_output(label.to_string(), Output::Percentile(Percentile::p90));
-        self.inner
-            .add_output(label.to_string(), Output::Percentile(Percentile::p99));
-        self.inner
-            .add_output(label.to_string(), Output::Percentile(Percentile::p999));
-        self.inner
-            .add_output(label.to_string(), Output::Percentile(Percentile::p9999));
+            .record_increment(statistic, time::precise_time_ns(), 1)
     }
 
-    pub fn counter<T: ToString>(&self, label: T) -> u64 {
-        self.inner.counter(label.to_string())
-    }
-
-    pub fn increment<T: ToString>(&self, label: T) {
-        self.inner.record(
-            label.to_string(),
-            Measurement::Increment {
-                time: time::precise_time_ns(),
-                count: 1,
-            },
-        )
-    }
-
-    pub fn time_interval<T: ToString>(&self, label: T, start: u64, stop: u64) {
-        self.inner
-            .record(label.to_string(), Measurement::TimeInterval { start, stop });
+    pub fn time_interval(&self, statistic: &dyn Statistic, start: u64, stop: u64) {
+        self.inner.record_time_interval(statistic, start, stop);
     }
 
     pub fn heatmap_increment(&self, start: u64, stop: u64) {
-        if let Some(ref heatmap) = self.heatmap {
+        if let Some(ref heatmap) = *self.heatmap {
             heatmap.increment(start, stop - start, 1);
         }
     }
 
-    pub fn distribution<T: ToString>(&self, label: T, value: u64) {
-        self.inner.record(
-            label.to_string(),
-            Measurement::Distribution {
-                time: time::precise_time_ns(),
-                value,
-                count: 1,
-            },
-        );
+    pub fn distribution(&self, statistic: &dyn Statistic, value: u64) {
+        self.inner
+            .record_distribution(statistic, time::precise_time_ns(), value, 1);
     }
 
-    pub fn percentile<T: ToString>(&self, label: T, percentile: f64) -> Option<u64> {
-        self.inner.percentile(label.to_string(), percentile)
+    pub fn percentile(&self, statistic: &dyn Statistic, percentile: f64) -> Option<u64> {
+        self.inner.percentile(statistic, percentile)
     }
 
     pub fn latch(&self) {
@@ -424,7 +338,7 @@ impl Metrics {
     }
 
     pub fn save_waterfall(&self, file: String) {
-        if let Some(ref heatmap) = self.heatmap {
+        if let Some(ref heatmap) = *self.heatmap {
             let mut labels = HashMap::new();
             labels.insert(100, "100ns".to_string());
             labels.insert(200, "200ns".to_string());

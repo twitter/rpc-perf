@@ -1,4 +1,4 @@
-// Copyright 2019 Twitter, Inc.
+// Copyright 2019-2020 Twitter, Inc.
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -6,6 +6,7 @@ pub use codec::RedisMode;
 
 use crate::codec::*;
 use crate::config::Action;
+use crate::stats::Stat;
 
 use bytes::BytesMut;
 use logger::*;
@@ -44,24 +45,24 @@ impl Codec for Redis {
                 let key = command.key().unwrap();
                 let keys = vec![key];
                 if let Some(recorder) = self.common.recorder() {
-                    recorder.increment("commands/delete");
-                    recorder.distribution("keys/size", key.len() as u64);
+                    recorder.increment(&Stat::CommandsDelete);
+                    recorder.distribution(&Stat::KeySize, key.len() as u64);
                 }
                 self.codec.delete(buf, &keys);
             }
             Action::Get => {
                 let key = command.key().unwrap();
                 if let Some(recorder) = self.common.recorder() {
-                    recorder.increment("commands/get");
-                    recorder.distribution("keys/size", key.len() as u64);
+                    recorder.increment(&Stat::CommandsGet);
+                    recorder.distribution(&Stat::KeySize, key.len() as u64);
                 }
                 self.codec.get(buf, key);
             }
             Action::Llen => {
                 let key = command.key().unwrap();
                 if let Some(recorder) = self.common.recorder() {
-                    recorder.increment("commands/len");
-                    recorder.distribution("keys/size", key.len() as u64);
+                    recorder.increment(&Stat::CommandsLen);
+                    recorder.distribution(&Stat::KeySize, key.len() as u64);
                 }
                 self.codec.llen(buf, key);
             }
@@ -69,10 +70,10 @@ impl Codec for Redis {
                 let key = command.key().unwrap();
                 let values = command.values().unwrap();
                 if let Some(recorder) = self.common.recorder() {
-                    recorder.increment("commands/push");
-                    recorder.distribution("keys/size", key.len() as u64);
+                    recorder.increment(&Stat::CommandsPush);
+                    recorder.distribution(&Stat::KeySize, key.len() as u64);
                     let len: usize = values.iter().map(|v| v.len()).sum();
-                    recorder.distribution("values/size", len as u64);
+                    recorder.distribution(&Stat::ValueSize, len as u64);
                 }
                 self.codec.lpush(buf, key, &values);
             }
@@ -80,18 +81,18 @@ impl Codec for Redis {
                 let key = command.key().unwrap();
                 let values = command.values().unwrap();
                 if let Some(recorder) = self.common.recorder() {
-                    recorder.increment("commands/push");
-                    recorder.distribution("keys/size", key.len() as u64);
+                    recorder.increment(&Stat::CommandsPush);
+                    recorder.distribution(&Stat::KeySize, key.len() as u64);
                     let len: usize = values.iter().map(|v| v.len()).sum();
-                    recorder.distribution("values/size", len as u64);
+                    recorder.distribution(&Stat::ValueSize, len as u64);
                 }
                 self.codec.lpushx(buf, key, &values);
             }
             Action::Lrange => {
                 let key = command.key().unwrap();
                 if let Some(recorder) = self.common.recorder() {
-                    recorder.increment("commands/range");
-                    recorder.distribution("keys/size", key.len() as u64);
+                    recorder.increment(&Stat::CommandsRange);
+                    recorder.distribution(&Stat::KeySize, key.len() as u64);
                 }
                 // TODO: proper handling of start and stop
                 self.codec
@@ -100,8 +101,8 @@ impl Codec for Redis {
             Action::Ltrim => {
                 let key = command.key().unwrap();
                 if let Some(recorder) = self.common.recorder() {
-                    recorder.increment("commands/trim");
-                    recorder.distribution("keys/size", key.len() as u64);
+                    recorder.increment(&Stat::CommandsTrim);
+                    recorder.distribution(&Stat::KeySize, key.len() as u64);
                 }
                 // TODO: proper handling of start and stop
                 self.codec
@@ -111,10 +112,10 @@ impl Codec for Redis {
                 let key = command.key().unwrap();
                 let values = command.values().unwrap();
                 if let Some(recorder) = self.common.recorder() {
-                    recorder.increment("commands/push");
-                    recorder.distribution("keys/size", key.len() as u64);
+                    recorder.increment(&Stat::CommandsPush);
+                    recorder.distribution(&Stat::KeySize, key.len() as u64);
                     let len: usize = values.iter().map(|v| v.len()).sum();
-                    recorder.distribution("values/size", len as u64);
+                    recorder.distribution(&Stat::ValueSize, len as u64);
                 }
                 self.codec.rpush(buf, key, &values);
             }
@@ -122,10 +123,10 @@ impl Codec for Redis {
                 let key = command.key().unwrap();
                 let values = command.values().unwrap();
                 if let Some(recorder) = self.common.recorder() {
-                    recorder.increment("commands/push");
-                    recorder.distribution("keys/size", key.len() as u64);
+                    recorder.increment(&Stat::CommandsPush);
+                    recorder.distribution(&Stat::KeySize, key.len() as u64);
                     let len: usize = values.iter().map(|v| v.len()).sum();
-                    recorder.distribution("values/size", len as u64);
+                    recorder.distribution(&Stat::ValueSize, len as u64);
                 }
                 self.codec.rpushx(buf, key, &values);
             }
@@ -133,9 +134,9 @@ impl Codec for Redis {
                 let key = command.key().unwrap();
                 let value = command.value().unwrap();
                 if let Some(recorder) = self.common.recorder() {
-                    recorder.increment("commands/set");
-                    recorder.distribution("keys/size", key.len() as u64);
-                    recorder.distribution("values/size", value.len() as u64);
+                    recorder.increment(&Stat::CommandsSet);
+                    recorder.distribution(&Stat::KeySize, key.len() as u64);
+                    recorder.distribution(&Stat::ValueSize, value.len() as u64);
                 }
                 self.codec.set(buf, key, value, command.ttl());
             }

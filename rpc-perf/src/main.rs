@@ -1,4 +1,4 @@
-// Copyright 2019 Twitter, Inc.
+// Copyright 2019-2020 Twitter, Inc.
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -64,11 +64,11 @@ pub fn main() {
 
     loop {
         std::thread::sleep(std::time::Duration::new(config.interval() as u64, 0));
-        metrics.increment(Stat::Window);
+        metrics.increment(&Stat::Window);
         stats_stdout.print();
 
         if let Some(max_window) = config.windows() {
-            if metrics.counter(Stat::Window) >= max_window as u64 {
+            if metrics.counter(&Stat::Window) >= max_window as u64 {
                 control.store(false, Ordering::SeqCst);
                 break;
             }
@@ -93,10 +93,10 @@ fn do_warmup(config: &Config, metrics: &Metrics) {
         let mut warm = 0;
         loop {
             std::thread::sleep(std::time::Duration::new(config.interval() as u64, 0));
-            metrics.increment(Stat::Window);
+            metrics.increment(&Stat::Window);
 
-            let hit = metrics.counter(Stat::ResponsesHit) as f64;
-            let miss = metrics.counter(Stat::ResponsesMiss) as f64;
+            let hit = metrics.counter(&Stat::ResponsesHit) as f64;
+            let miss = metrics.counter(&Stat::ResponsesMiss) as f64;
             let hitrate = hit / (hit + miss);
 
             debug!("Hit-rate: {:.2}%", hitrate * 100.0);

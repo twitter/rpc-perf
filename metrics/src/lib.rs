@@ -1,4 +1,4 @@
-// Copyright 2019 Twitter, Inc.
+// Copyright 2019-2020 Twitter, Inc.
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -37,15 +37,12 @@
 
 #![deny(clippy::all)]
 
-#[macro_use]
-extern crate logger;
-
 mod channel;
 mod common;
 mod metrics;
 
-pub use crate::channel::Channel;
-pub use crate::common::{Measurement, Output, Percentile, Point, Reading, Source};
+use crate::channel::Channel;
+pub use crate::common::*;
 pub use crate::metrics::Metrics;
 
 pub use datastructures::*;
@@ -53,6 +50,33 @@ pub use datastructures::*;
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    enum TestStat {
+        Counter,
+        Gauge,
+        Distribution,
+        TimeInterval,
+    }
+
+    impl Statistic for TestStat {
+        fn name(&self) -> &str {
+            match self {
+                Self::Counter => "a",
+                Self::Gauge => "b",
+                Self::Distribution => "c",
+                Self::TimeInterval => "d",
+            }
+        }
+
+        fn source(&self) -> Source {
+            match self {
+                Self::Counter => Source::Counter,
+                Self::Gauge => Source::Gauge,
+                Self::Distribution => Source::Distribution,
+                Self::TimeInterval => Source::TimeInterval,
+            }
+        }
+    }
 
     fn approx_eq(a: u64, b: u64, precision: u64) -> bool {
         let power = 10_u64.pow(precision as u32) as f64;
@@ -70,47 +94,30 @@ mod tests {
     #[test]
     fn counter_channel() {
         let metrics = Metrics::<AtomicU64>::new();
-        let name = "test".to_string();
-        let histogram_config = Histogram::<AtomicU64>::new(2_000_000_000, 3, None, None);
-        metrics.add_channel(name.clone(), Source::Counter, Some(histogram_config));
-        assert_eq!(metrics.counter("test".to_string()), 0);
-        assert_eq!(metrics.percentile("test".to_string(), 0.0), None);
-        metrics.record(
-            "test".to_string(),
-            Measurement::Counter {
-                time: 1_000_000_000,
-                value: 1,
-            },
+        metrics.register(
+            &TestStat::Counter,
+            Some(Summary::histogram(2_000_000_000, 3, None)),
         );
-        assert_eq!(metrics.counter("test".to_string()), 1);
-        metrics.record(
-            "test".to_string(),
-            Measurement::Counter {
-                time: 2_000_000_000,
-                value: 1,
-            },
-        );
-        assert_eq!(metrics.counter("test".to_string()), 1);
-        metrics.record(
-            "test".to_string(),
-            Measurement::Counter {
-                time: 3_000_000_000,
-                value: 2,
-            },
-        );
-        assert_eq!(metrics.counter("test".to_string()), 2);
+        assert_eq!(metrics.reading(&TestStat::Counter).unwrap(), 0);
+        assert_eq!(metrics.percentile(&TestStat::Counter, 0.0), None);
+        metrics.record_counter(&TestStat::Counter, 1_000_000_000, 1);
+        assert_eq!(metrics.reading(&TestStat::Counter).unwrap(), 1);
+        metrics.record_counter(&TestStat::Counter, 2_000_000_000, 1);
+        assert_eq!(metrics.reading(&TestStat::Counter).unwrap(), 1);
+        metrics.record_counter(&TestStat::Counter, 3_000_000_000, 2);
+        assert_eq!(metrics.reading(&TestStat::Counter).unwrap(), 2);
         assert!(approx_eq(
-            metrics.percentile("test".to_string(), 0.0).unwrap(),
+            metrics.percentile(&TestStat::Counter, 0.0).unwrap(),
             0,
             3
         ));
         assert!(approx_eq(
-            metrics.percentile("test".to_string(), 0.5).unwrap(),
+            metrics.percentile(&TestStat::Counter, 0.5).unwrap(),
             0,
             3
         ));
         assert!(approx_eq(
-            metrics.percentile("test".to_string(), 1.0).unwrap(),
+            metrics.percentile(&TestStat::Counter, 1.0).unwrap(),
             1,
             3
         ));
@@ -119,109 +126,28 @@ mod tests {
     #[test]
     fn counter_wraparound() {
         let metrics = Metrics::<AtomicU64>::new();
-        let name = "test".to_string();
-        let histogram = Histogram::new(2_000_000_000, 3, None, None);
-        metrics.add_channel(name.clone(), Source::Counter, Some(histogram));
-        assert_eq!(metrics.counter("test".to_string()), 0);
-        metrics.record(
-            "test".to_string(),
-            Measurement::Counter {
-                time: 0_u64.wrapping_sub(2_000_000_000),
-                value: 0,
-            },
+        metrics.register(
+            &TestStat::Counter,
+            Some(Summary::histogram(2_000_000_000, 3, None)),
         );
-        metrics.record(
-            "test".to_string(),
-            Measurement::Counter {
-                time: 0_u64.wrapping_sub(1_000_000_000),
-                value: 1,
-            },
-        );
-        assert_eq!(metrics.counter("test".to_string()), 1);
-        metrics.record(
-            "test".to_string(),
-            Measurement::Counter { time: 0, value: 2 },
-        );
-        assert_eq!(metrics.counter("test".to_string()), 2);
+        assert_eq!(metrics.reading(&TestStat::Counter).unwrap(), 0);
+        metrics.record_counter(&TestStat::Counter, 0_u64.wrapping_sub(2_000_000_000), 0);
+        metrics.record_counter(&TestStat::Counter, 0_u64.wrapping_sub(1_000_000_000), 1);
+        assert_eq!(metrics.reading(&TestStat::Counter).unwrap(), 1);
+        metrics.record_counter(&TestStat::Counter, 0, 2);
+        assert_eq!(metrics.reading(&TestStat::Counter).unwrap(), 2);
         assert!(approx_eq(
-            metrics.percentile("test".to_string(), 0.0).unwrap(),
+            metrics.percentile(&TestStat::Counter, 0.0).unwrap(),
             1,
             3
         ));
         metrics.zero();
-        assert_eq!(metrics.counter("test".to_string()), 0);
-        metrics.record(
-            "test".to_string(),
-            Measurement::Counter {
-                time: 0,
-                value: 0_u64.wrapping_sub(1),
-            },
-        );
-        metrics.record(
-            "test".to_string(),
-            Measurement::Counter {
-                time: 1_000_000_000,
-                value: 0,
-            },
-        );
+        assert_eq!(metrics.reading(&TestStat::Counter).unwrap(), 0);
+        metrics.record_counter(&TestStat::Counter, 0, 0_u64.wrapping_sub(1));
+        metrics.record_counter(&TestStat::Counter, 1_000_000_000, 0);
         assert!(approx_eq(
-            metrics.percentile("test".to_string(), 0.0).unwrap(),
+            metrics.percentile(&TestStat::Counter, 0.0).unwrap(),
             1,
-            3
-        ));
-    }
-
-    #[test]
-    fn counter_data() {
-        let metrics = Metrics::<AtomicU64>::new();
-        let name = "test".to_string();
-        let histogram = Histogram::new(80_000_000_000, 3, None, None);
-        metrics.add_channel(name.clone(), Source::Counter, Some(histogram));
-        assert_eq!(metrics.counter("test".to_string()), 0);
-        let data: Vec<u64> = vec![
-            20334687810196614,
-            20334700932559005,
-            20334707934416079,
-            20334715466281658,
-            20334722865691396,
-            20334729437570419,
-            20334736349172794,
-            20334744140066654,
-            20334752014842899,
-            20334759773262663,
-            20334767739399083,
-            20334776042704014,
-            20334783846926280,
-            20334792112381879,
-            20334800539448702,
-            20334806702815373,
-            20334813358296654,
-            20334821659085751,
-            20334831578426342,
-            20334840167485094,
-            20334847154018880,
-            20334855102223627,
-            20334863614546286,
-            20334872101854187,
-            20334881347777697,
-            20334889378069475,
-            20334897879629869,
-            20334907138339519,
-            20334917775675515,
-        ];
-        for (time, &value) in data.iter().enumerate() {
-            let time = time as u64 * 1_000_000_000;
-            metrics.record("test".to_string(), Measurement::Counter { time, value });
-            assert_eq!(metrics.counter("test".to_string()), value);
-        }
-        assert!(approx_eq(
-            metrics.percentile("test".to_string(), 0.0).unwrap(),
-            6169999999,
-            3
-        ));
-        assert!(approx_eq(
-            metrics.percentile("test".to_string(), 1.0).unwrap(),
-            13199999999,
             3
         ));
     }
@@ -229,93 +155,67 @@ mod tests {
     #[test]
     fn distribution_channel() {
         let metrics = Metrics::<AtomicU64>::new();
-        let name = "test".to_string();
-        let histogram = Histogram::new(100, 3, None, None);
-        metrics.add_channel(name.clone(), Source::Distribution, Some(histogram));
-        assert_eq!(metrics.counter("test".to_string()), 0);
-        metrics.record(
-            "test".to_string(),
-            Measurement::Distribution {
-                value: 1,
-                count: 1,
-                time: 0,
-            },
+        metrics.register(
+            &TestStat::Distribution,
+            Some(Summary::histogram(2_000_000_000, 3, None)),
         );
-        assert_eq!(metrics.counter("test".to_string()), 1);
+        assert_eq!(metrics.reading(&TestStat::Distribution).unwrap(), 0);
+        metrics.record_distribution(&TestStat::Distribution, 0, 1, 1);
+        assert_eq!(metrics.reading(&TestStat::Distribution).unwrap(), 1);
         for i in 2..101 {
-            metrics.record(
-                "test".to_string(),
-                Measurement::Distribution {
-                    value: i,
-                    count: 1,
-                    time: 0,
-                },
-            );
+            metrics.record_distribution(&TestStat::Distribution, 0, i, 1);
         }
-        assert_eq!(metrics.counter("test".to_string()), 100);
-        assert_eq!(metrics.percentile("test".to_string(), 0.0), Some(1));
-        assert_eq!(metrics.percentile("test".to_string(), 0.50), Some(50));
-        assert_eq!(metrics.percentile("test".to_string(), 0.90), Some(90));
-        assert_eq!(metrics.percentile("test".to_string(), 0.95), Some(95));
-        assert_eq!(metrics.percentile("test".to_string(), 0.99), Some(99));
-        assert_eq!(metrics.percentile("test".to_string(), 0.999), Some(100));
-        assert_eq!(metrics.percentile("test".to_string(), 1.00), Some(100));
+        assert_eq!(metrics.reading(&TestStat::Distribution).unwrap(), 100);
+        assert_eq!(metrics.percentile(&TestStat::Distribution, 0.0), Some(1));
+        assert_eq!(metrics.percentile(&TestStat::Distribution, 0.50), Some(50));
+        assert_eq!(metrics.percentile(&TestStat::Distribution, 0.90), Some(90));
+        assert_eq!(metrics.percentile(&TestStat::Distribution, 0.95), Some(95));
+        assert_eq!(metrics.percentile(&TestStat::Distribution, 0.99), Some(99));
+        assert_eq!(
+            metrics.percentile(&TestStat::Distribution, 0.999),
+            Some(100)
+        );
+        assert_eq!(metrics.percentile(&TestStat::Distribution, 1.00), Some(100));
     }
 
     #[test]
     fn gauge_channel() {
         let metrics = Metrics::<AtomicU64>::new();
-        let name = "test".to_string();
-        let histogram = Histogram::new(100, 3, None, None);
-        metrics.add_channel(name.clone(), Source::Gauge, Some(histogram));
-        assert_eq!(metrics.counter("test".to_string()), 0);
-        metrics.record("test".to_string(), Measurement::Gauge { value: 0, time: 1 });
-        assert_eq!(metrics.counter("test".to_string()), 0);
-        metrics.record(
-            "test".to_string(),
-            Measurement::Gauge {
-                value: 100,
-                time: 1,
-            },
+        metrics.register(
+            &TestStat::Gauge,
+            Some(Summary::histogram(2_000_000_000, 3, None)),
         );
-        assert_eq!(metrics.counter("test".to_string()), 100);
-        metrics.record("test".to_string(), Measurement::Gauge { value: 0, time: 1 });
-        assert_eq!(metrics.counter("test".to_string()), 0);
-        metrics.record(
-            "test".to_string(),
-            Measurement::Gauge { value: 42, time: 1 },
-        );
-        assert_eq!(metrics.counter("test".to_string()), 42);
+        assert_eq!(metrics.reading(&TestStat::Gauge).unwrap(), 0);
+        metrics.record_gauge(&TestStat::Gauge, 1, 0);
+        assert_eq!(metrics.reading(&TestStat::Gauge).unwrap(), 0);
+        metrics.record_gauge(&TestStat::Gauge, 1, 100);
+        assert_eq!(metrics.reading(&TestStat::Gauge).unwrap(), 100);
+        metrics.record_gauge(&TestStat::Gauge, 1, 0);
+        assert_eq!(metrics.reading(&TestStat::Gauge).unwrap(), 0);
+        metrics.record_gauge(&TestStat::Gauge, 1, 42);
+        assert_eq!(metrics.reading(&TestStat::Gauge).unwrap(), 42);
     }
 
     #[test]
     fn time_interval_channel() {
         let metrics = Metrics::<AtomicU64>::new();
-        let name = "test".to_string();
-        let histogram = Histogram::new(100, 3, None, None);
-        metrics.add_channel(name.clone(), Source::TimeInterval, Some(histogram));
-        assert_eq!(metrics.counter("test".to_string()), 0);
-        metrics.record(
-            "test".to_string(),
-            Measurement::TimeInterval { start: 0, stop: 1 },
+        metrics.register(
+            &TestStat::TimeInterval,
+            Some(Summary::histogram(2_000_000_000, 3, None)),
         );
-        assert_eq!(metrics.counter("test".to_string()), 1);
+        assert_eq!(metrics.reading(&TestStat::TimeInterval).unwrap(), 0);
+        metrics.record_time_interval(&TestStat::TimeInterval, 0, 1);
+        assert_eq!(metrics.reading(&TestStat::TimeInterval).unwrap(), 1);
         for i in 1..100 {
-            metrics.record(
-                "test".to_string(),
-                Measurement::TimeInterval {
-                    start: i,
-                    stop: i + 1,
-                },
-            );
+            metrics.record_time_interval(&TestStat::TimeInterval, i, i + 1);
         }
-        assert_eq!(metrics.counter("test".to_string()), 100);
-        assert_eq!(metrics.percentile("test".to_string(), 0.0), Some(1));
-        assert_eq!(metrics.percentile("test".to_string(), 0.50), Some(1));
-        assert_eq!(metrics.percentile("test".to_string(), 0.90), Some(1));
-        assert_eq!(metrics.percentile("test".to_string(), 0.95), Some(1));
-        assert_eq!(metrics.percentile("test".to_string(), 0.99), Some(1));
-        assert_eq!(metrics.percentile("test".to_string(), 0.999), Some(1));
-        assert_eq!(metrics.percentile("test".to_string(), 1.00), Some(1));
+        assert_eq!(metrics.reading(&TestStat::TimeInterval).unwrap(), 100);
+        assert_eq!(metrics.percentile(&TestStat::TimeInterval, 0.0), Some(1));
+        assert_eq!(metrics.percentile(&TestStat::TimeInterval, 0.50), Some(1));
+        assert_eq!(metrics.percentile(&TestStat::TimeInterval, 0.90), Some(1));
+        assert_eq!(metrics.percentile(&TestStat::TimeInterval, 0.95), Some(1));
+        assert_eq!(metrics.percentile(&TestStat::TimeInterval, 0.99), Some(1));
+        assert_eq!(metrics.percentile(&TestStat::TimeInterval, 0.999), Some(1));
+        assert_eq!(metrics.percentile(&TestStat::TimeInterval, 1.00), Some(1));
     }
 }

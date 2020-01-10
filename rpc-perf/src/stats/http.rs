@@ -1,4 +1,4 @@
-// Copyright 2019 Twitter, Inc.
+// Copyright 2019-2020 Twitter, Inc.
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -77,7 +77,7 @@ impl Http {
             let output = reading.output();
             let value = reading.value();
             match output {
-                Output::Counter => {
+                Output::Reading => {
                     data.push(format!("{}/count: {}", label, value));
                 }
                 Output::Percentile(percentile) => match percentile {
@@ -131,7 +131,7 @@ impl Http {
             let output = reading.output();
             let value = reading.value();
             match output {
-                Output::Counter => {
+                Output::Reading => {
                     data.push(format!("\"{}/count\": {}", label, value));
                 }
                 Output::Percentile(percentile) => match percentile {

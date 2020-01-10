@@ -1,4 +1,4 @@
-// Copyright 2019 Twitter, Inc.
+// Copyright 2019-2020 Twitter, Inc.
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -168,13 +168,13 @@ impl Common {
 
     pub fn stat_increment(&self, label: Stat) {
         if let Some(ref stats) = self.stats {
-            stats.increment(label);
+            stats.increment(&label);
         }
     }
 
     pub fn stat_interval(&self, label: Stat, start: u64, stop: u64) {
         if let Some(ref stats) = self.stats {
-            stats.time_interval(label, start, stop);
+            stats.time_interval(&label, start, stop);
         }
     }
 

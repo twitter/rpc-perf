@@ -1,6 +1,6 @@
 [package]
 name = "metrics"
-version = "0.4.1"
+version = "0.5.0"
 authors = ["Brian Martin <bmartin@twitter.com>"]
 edition = "2018"
 license = "Apache-2.0"
@@ -10,7 +10,7 @@ repository = "https://github.com/twitter/rpc-perf"
 publish = false
 
 [dependencies]
-evmap = "7.1.0"
+chashmap = "2.2.2"
 datastructures = { path = "../datastructures" }
-logger = { path = "../logger" }
-time = "0.1.42"
+serde = "1.0.103"
+serde_derive = "1.0.103"

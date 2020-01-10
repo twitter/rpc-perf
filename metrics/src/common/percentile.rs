@@ -1,9 +1,12 @@
-// Copyright 2019 Twitter, Inc.
+// Copyright 2019-2020 Twitter, Inc.
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+use serde_derive::*;
+
+#[derive(Copy, Clone, Debug, Deserialize, PartialEq, Eq, Hash)]
 #[allow(non_camel_case_types)]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
 /// Percentiles are used to specify the exported percentiles from histograms
 pub enum Percentile {
     Minimum,

@@ -1,18 +1,19 @@
-// Copyright 2019 Twitter, Inc.
+// Copyright 2019-2020 Twitter, Inc.
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
 use crate::*;
 use std::collections::HashMap;
 
+use chashmap::CHashMap;
 use datastructures::*;
-use evmap::{ReadHandle, ReadHandleFactory, WriteHandle};
 
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
 /// The general structure which holds data and is used to add channels and their
 /// outputs, record measurements, and produce readings
+#[derive(Clone)]
 pub struct Metrics<T: 'static>
 where
     T: Counter + Unsigned,
@@ -20,25 +21,7 @@ where
     u64: From<<T as AtomicPrimitive>::Primitive>,
 {
     labels: Arc<Mutex<HashSet<String>>>,
-    read_factory: ReadHandleFactory<String, Arc<Channel<T>>>,
-    read: ReadHandle<String, Arc<Channel<T>>>,
-    write: Arc<Mutex<WriteHandle<String, Arc<Channel<T>>>>>,
-}
-
-impl<T> Clone for Metrics<T>
-where
-    T: Counter + Unsigned,
-    <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating + From<u8>,
-    u64: From<<T as AtomicPrimitive>::Primitive>,
-{
-    fn clone(&self) -> Self {
-        Self {
-            labels: self.labels.clone(),
-            read_factory: self.read_factory.clone(),
-            read: self.read_factory.handle(),
-            write: self.write.clone(),
-        }
-    }
+    data: Arc<CHashMap<String, Arc<Channel<T>>>>,
 }
 
 impl<T> Metrics<T>
@@ -48,66 +31,90 @@ where
     u64: From<<T as AtomicPrimitive>::Primitive>,
 {
     pub fn new() -> Self {
-        let (read, write) = evmap::new();
         Self {
             labels: Arc::new(Mutex::new(HashSet::new())),
-            read_factory: read.factory(),
-            read,
-            write: Arc::new(Mutex::new(write)),
+            data: Arc::new(CHashMap::new()),
         }
     }
 
-    pub fn record(
+    pub fn record_counter(&self, statistic: &dyn Statistic, time: u64, value: u64) {
+        if let Some(channel) = self.data.get(statistic.name()) {
+            channel.record_counter(time, value);
+        }
+    }
+
+    pub fn record_gauge(&self, statistic: &dyn Statistic, time: u64, value: u64) {
+        if let Some(channel) = self.data.get(statistic.name()) {
+            channel.record_gauge(time, value);
+        }
+    }
+
+    pub fn record_distribution(
         &self,
-        channel: String,
-        measurement: Measurement<<T as AtomicPrimitive>::Primitive>,
+        statistic: &dyn Statistic,
+        time: u64,
+        value: u64,
+        count: <T as AtomicPrimitive>::Primitive,
     ) {
-        self.read
-            .get_and(&channel, |channel| (*channel)[0].record(measurement));
-    }
-
-    pub fn counter(&self, channel: String) -> u64 {
-        self.read
-            .get_and(&channel, |channel| (*channel)[0].counter())
-            .unwrap_or(0)
-    }
-
-    pub fn percentile(&self, channel: String, percentile: f64) -> Option<u64> {
-        self.read
-            .get_and(&channel, |channel| (*channel)[0].percentile(percentile))
-            .unwrap_or(None)
-    }
-
-    pub fn add_channel(&self, name: String, source: Source, histogram: Option<Histogram<T>>) {
-        debug!("add channel: {} source: {:?}", name, source);
-        let channel = Channel::new(name.clone(), source, histogram);
-        if self
-            .read
-            .get_and(&name, |channel| channel.len())
-            .unwrap_or(0)
-            == 0
-        {
-            let mut write = self.write.lock().unwrap();
-            write.insert(name.clone(), Arc::new(channel));
-            write.refresh();
-            let mut labels = self.labels.lock().unwrap();
-            labels.insert(name);
+        if let Some(channel) = self.data.get(statistic.name()) {
+            channel.record_distribution(time, value, count);
         }
     }
 
-    pub fn delete_channel(&self, name: String) {
-        debug!("delete channel: {}", name);
-        if self
-            .read
-            .get_and(&name, |channel| channel.len())
-            .unwrap_or(0)
-            != 0
-        {
-            let mut write = self.write.lock().unwrap();
-            write.empty(name.clone());
-            write.refresh();
+    pub fn record_delta(&self, statistic: &dyn Statistic, time: u64, value: u64) {
+        if let Some(channel) = self.data.get(statistic.name()) {
+            channel.record_delta(time, value);
+        }
+    }
+
+    pub fn record_increment(
+        &self,
+        statistic: &dyn Statistic,
+        time: u64,
+        count: <T as AtomicPrimitive>::Primitive,
+    ) {
+        if let Some(channel) = self.data.get(statistic.name()) {
+            channel.record_increment(time, count);
+        }
+    }
+
+    pub fn record_time_interval(&self, statistic: &dyn Statistic, start: u64, stop: u64) {
+        if let Some(channel) = self.data.get(statistic.name()) {
+            channel.record_time_interval(start, stop);
+        }
+    }
+
+    pub fn reading(&self, statistic: &dyn Statistic) -> Option<u64> {
+        if let Some(channel) = self.data.get(statistic.name()) {
+            Some(channel.reading())
+        } else {
+            None
+        }
+    }
+
+    pub fn percentile(&self, statistic: &dyn Statistic, percentile: f64) -> Option<u64> {
+        if let Some(channel) = self.data.get(statistic.name()) {
+            channel.percentile(percentile)
+        } else {
+            None
+        }
+    }
+
+    pub fn register(&self, statistic: &dyn Statistic, summary: Option<Summary>) {
+        if !self.data.contains_key(statistic.name()) {
             let mut labels = self.labels.lock().unwrap();
-            labels.remove(&name);
+            labels.insert(statistic.name().to_string());
+            let channel = Channel::new(statistic, summary);
+            self.data
+                .insert(statistic.name().to_string(), Arc::new(channel));
+        }
+    }
+
+    pub fn deregister(&self, statistic: &dyn Statistic) {
+        if self.data.contains_key(statistic.name()) {
+            let mut labels = self.labels.lock().unwrap();
+            labels.remove(statistic.name());
+            self.data.remove(statistic.name());
         }
     }
 
@@ -115,9 +122,8 @@ where
         let mut result = Vec::new();
         let labels = self.labels.lock().unwrap();
         for label in &*labels {
-            let readings = self.read.get_and(label, |channel| (*channel)[0].readings());
-            if let Some(readings) = readings {
-                result.extend(readings);
+            if let Some(channel) = self.data.get(label) {
+                result.extend(channel.readings());
             }
         }
         result
@@ -127,9 +133,8 @@ where
         let mut result = HashMap::new();
         let labels = self.labels.lock().unwrap();
         for label in &*labels {
-            let readings = self.read.get_and(label, |channel| (*channel)[0].hash_map());
-            if let Some(readings) = readings {
-                result.insert(label.to_owned(), readings);
+            if let Some(channel) = self.data.get(label) {
+                result.insert(label.to_string(), channel.hash_map());
             }
         }
         result
@@ -137,51 +142,52 @@ where
 
     #[cfg(feature = "waterfall")]
     pub fn save_files(&self) {
-        unsafe {
-            for label in &*self.labels.get() {
-                let readings = self
-                    .data_read
-                    .get_and(label, |channel| (*channel)[0].save_files());
+        let labels = self.labels.lock().unwrap();
+        for label in &*labels {
+            if let Some(channel) = self.data.get(label) {
+                channel.save_files();
             }
         }
     }
 
-    pub fn add_output(&self, name: String, output: Output) {
-        self.read
-            .get_and(&name, |channel| (*channel)[0].add_output(output));
+    pub fn register_output(&self, statistic: &dyn Statistic, output: Output) {
+        if let Some(channel) = self.data.get(statistic.name()) {
+            channel.add_output(output);
+        }
     }
 
-    pub fn delete_output(&self, name: String, output: Output) {
-        self.read
-            .get_and(&name, |channel| (*channel)[0].delete_output(output));
+    pub fn deregister_output(&self, statistic: &dyn Statistic, output: Output) {
+        if let Some(channel) = self.data.get(statistic.name()) {
+            channel.delete_output(output);
+        }
     }
 
     pub fn latch(&self) {
         let labels = self.labels.lock().unwrap();
         for label in &*labels {
-            self.read.get_and(label, |channel| (*channel)[0].latch());
+            if let Some(channel) = self.data.get(label) {
+                channel.latch();
+            }
         }
     }
 
     pub fn zero(&self) {
         let labels = self.labels.lock().unwrap();
         for label in &*labels {
-            self.read.get_and(label, |channel| (*channel)[0].zero());
+            if let Some(channel) = self.data.get(label) {
+                channel.zero();
+            }
         }
     }
 
     pub fn clear(&self) {
         let mut labels = self.labels.lock().unwrap();
-        let mut write = self.write.lock().unwrap();
         labels.clear();
-        write.purge();
-        write.refresh();
+        self.data.clear();
     }
 
     pub fn shrink_to_fit(&self) {
-        let mut write = self.write.lock().unwrap();
-        write.fit_all();
-        write.refresh();
+        self.data.shrink_to_fit();
     }
 }
 

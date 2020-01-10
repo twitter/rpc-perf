@@ -1,9 +1,10 @@
-// Copyright 2019 Twitter, Inc.
+// Copyright 2019-2020 Twitter, Inc.
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
 use crate::codec::*;
 use crate::config::Action;
+use crate::stats::Stat;
 
 use bytes::BytesMut;
 use logger::*;
@@ -49,7 +50,7 @@ impl Codec for ThriftCache {
                 let pkey = command.key().unwrap();
                 let fields = command.fields().unwrap();
                 if let Some(recorder) = self.common.recorder() {
-                    recorder.increment("commands/get");
+                    recorder.increment(&Stat::CommandsGet);
                     // recorder.distribution("keys/size", pkey.len() as u64);
                 }
                 self.codec.get(buf, 0, b"0", pkey, &fields, None);
@@ -59,7 +60,7 @@ impl Codec for ThriftCache {
                 let fields = command.fields().unwrap();
                 let values = command.values().unwrap();
                 if let Some(recorder) = self.common.recorder() {
-                    recorder.increment("commands/set");
+                    recorder.increment(&Stat::CommandsSet);
                     // recorder.distribution("keys/size", key.len() as u64);
                     // recorder.distribution("values/size", values.len() as u64);
                 }
@@ -79,7 +80,7 @@ impl Codec for ThriftCache {
                 let key = command.key().unwrap();
                 let fields = command.fields().unwrap();
                 if let Some(recorder) = self.common.recorder() {
-                    recorder.increment("commands/delete");
+                    recorder.increment(&Stat::CommandsDelete);
                     // recorder.distribution("keys/size", key.len() as u64);
                     // recorder.distribution("values/size", values.len() as u64);
                 }
@@ -89,8 +90,8 @@ impl Codec for ThriftCache {
             Action::Lrange => {
                 let key = command.key().unwrap();
                 if let Some(recorder) = self.common.recorder() {
-                    recorder.increment("commands/range");
-                    recorder.distribution("keys/size", key.len() as u64);
+                    recorder.increment(&Stat::CommandsRange);
+                    recorder.distribution(&Stat::KeySize, key.len() as u64);
                 }
                 self.codec
                     .range(buf, 0, b"0", key, Some(0), command.count.map(|x| x as i32));
@@ -99,8 +100,8 @@ impl Codec for ThriftCache {
                 let key = command.key().unwrap();
                 let count = command.count().unwrap() as i32;
                 if let Some(recorder) = self.common.recorder() {
-                    recorder.increment("commands/trim");
-                    recorder.distribution("keys/size", key.len() as u64);
+                    recorder.increment(&Stat::CommandsTrim);
+                    recorder.distribution(&Stat::KeySize, key.len() as u64);
                 }
                 // TODO: proper handling of start and stop
                 self.codec.trim(buf, 0, b"0", key, count, true, None);
@@ -109,8 +110,8 @@ impl Codec for ThriftCache {
                 let key = command.key().unwrap();
                 let values = command.values().unwrap();
                 if let Some(recorder) = self.common.recorder() {
-                    recorder.increment("commands/push");
-                    recorder.distribution("keys/size", key.len() as u64);
+                    recorder.increment(&Stat::CommandsPush);
+                    recorder.distribution(&Stat::KeySize, key.len() as u64);
                 }
                 self.codec.append(buf, 0, b"0", key, &values);
             }
@@ -118,8 +119,8 @@ impl Codec for ThriftCache {
                 let key = command.key().unwrap();
                 let values = command.values().unwrap();
                 if let Some(recorder) = self.common.recorder() {
-                    recorder.increment("commands/push");
-                    recorder.distribution("keys/size", key.len() as u64);
+                    recorder.increment(&Stat::CommandsPush);
+                    recorder.distribution(&Stat::KeySize, key.len() as u64);
                 }
                 self.codec.appendx(buf, 0, b"0", key, &values);
             }
