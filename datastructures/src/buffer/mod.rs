@@ -8,15 +8,15 @@ use atomics::*;
 
 /// A basic circular buffer holding `AtomicPrimitives`
 pub struct Buffer<T> {
-    data: Vec<T>,
-    read: AtomicUsize,
-    write: AtomicUsize,
-    len: AtomicUsize,
+    data: Vec<Atomic<T>>,
+    read: Atomic<usize>,
+    write: Atomic<usize>,
+    len: Atomic<usize>,
 }
 
 impl<T> Buffer<T>
 where
-    T: AtomicPrimitive + Default,
+    Atomic<T>: AtomicPrimitive<T> + Default,
 {
     /// Creates a new buffer which can hold `capacity` elements
     ///
@@ -25,21 +25,21 @@ where
     /// ```
     /// use datastructures::*;
     ///
-    /// let x = Buffer::<AtomicU8>::new(4096);
+    /// let x = Buffer::<u8>::new(4096);
     ///
-    /// let y = Buffer::<AtomicUsize>::new(16);
+    /// let y = Buffer::<usize>::new(16);
     /// ```
     pub fn new(capacity: usize) -> Buffer<T> {
         let mut data = Vec::with_capacity(capacity);
         for _ in 0..capacity {
-            data.push(T::default())
+            data.push(Atomic::<T>::default())
         }
         data.shrink_to_fit();
         Buffer {
             data,
-            read: AtomicUsize::new(0),
-            write: AtomicUsize::new(0),
-            len: AtomicUsize::new(0),
+            read: Default::default(),
+            write: Default::default(),
+            len: Default::default(),
         }
     }
 
@@ -50,7 +50,7 @@ where
     /// ```
     /// use datastructures::*;
     ///
-    /// let x = Buffer::<AtomicU8>::new(4096);
+    /// let x = Buffer::<usize>::new(4096);
     /// x.push(1);
     /// assert_eq!(x.len(), 1);
     /// x.clear();
@@ -69,7 +69,7 @@ where
     /// ```
     /// use datastructures::*;
     ///
-    /// let x = Buffer::<AtomicU8>::new(4096);
+    /// let x = Buffer::<usize>::new(4096);
     /// x.push(1);
     /// assert_eq!(x.len(), 1);
     /// ```
@@ -84,7 +84,7 @@ where
     /// ```
     /// use datastructures::*;
     ///
-    /// let x = Buffer::<AtomicU8>::new(4096);
+    /// let x = Buffer::<usize>::new(4096);
     /// assert!(x.is_empty())
     /// ```
     pub fn is_empty(&self) -> bool {
@@ -101,13 +101,13 @@ where
     /// ```
     /// use datastructures::*;
     ///
-    /// let x = Buffer::<AtomicU8>::new(1);
+    /// let x = Buffer::<usize>::new(1);
     /// assert_eq!(x.try_pop(), Ok(None));
     /// x.push(1);
     /// assert_eq!(x.try_pop(), Ok(Some(1_u8)));
     /// assert_eq!(x.len(), 0);
     /// ```
-    pub fn try_pop(&self) -> Result<Option<<T as AtomicPrimitive>::Primitive>, ()> {
+    pub fn try_pop(&self) -> Result<Option<T>, ()> {
         if self.len.load(Ordering::SeqCst) == 0 {
             Ok(None)
         } else {
@@ -118,7 +118,7 @@ where
                 current + 1
             };
             if current == self.read.compare_and_swap(current, new, Ordering::SeqCst) {
-                self.len.saturating_sub(1);
+                self.len.saturating_sub(1, Ordering::SeqCst);
                 Ok(Some(self.data[current].load(Ordering::SeqCst)))
             } else {
                 Err(())
@@ -133,12 +133,12 @@ where
     /// ```
     /// use datastructures::*;
     ///
-    /// let x = Buffer::<AtomicU8>::new(1);
+    /// let x = Buffer::<usize>::new(1);
     /// x.push(1);
     /// assert_eq!(x.pop(), Some(1_u8));
     /// assert_eq!(x.len(), 0);
     /// ```
-    pub fn pop(&self) -> Option<<T as AtomicPrimitive>::Primitive> {
+    pub fn pop(&self) -> Option<T> {
         loop {
             if let Ok(result) = self.try_pop() {
                 return result;
@@ -155,15 +155,15 @@ where
     /// ```
     /// use datastructures::*;
     ///
-    /// let x = Buffer::<AtomicU8>::new(1);
+    /// let x = Buffer::<usize>::new(1);
     /// assert!(x.try_push(1).is_ok());
     /// assert!(x.try_push(2).is_ok());
     /// assert_eq!(x.len(), 1);
     /// ```
     pub fn try_push(
         &self,
-        value: <T as AtomicPrimitive>::Primitive,
-    ) -> Result<(), <T as AtomicPrimitive>::Primitive> {
+        value: T,
+    ) -> Result<(), T> {
         while self.len.load(Ordering::SeqCst) >= self.data.len() {
             if self.try_pop().is_err() {
                 return Err(value);
@@ -197,12 +197,12 @@ where
     /// ```
     /// use datastructures::*;
     ///
-    /// let x = Buffer::<AtomicU8>::new(1);
+    /// let x = Buffer::<usize>::new(1);
     /// x.push(1);
     /// x.push(2);
     /// assert_eq!(x.len(), 1);
     /// ```
-    pub fn push(&self, value: <T as AtomicPrimitive>::Primitive) {
+    pub fn push(&self, value: T) {
         let mut result = self.try_push(value);
         loop {
             if let Err(value) = result {
@@ -220,14 +220,14 @@ where
     /// ```
     /// use datastructures::*;
     ///
-    /// let x = Buffer::<AtomicU8>::new(8);
+    /// let x = Buffer::<usize>::new(8);
     /// x.push(1);
     /// x.push(2);
     /// x.push(3);
     /// assert_eq!(x.as_vec(), vec![1, 2, 3]);
     /// assert_eq!(x.len(), 3);
     /// ```
-    pub fn as_vec(&self) -> Vec<<T as AtomicPrimitive>::Primitive> {
+    pub fn as_vec(&self) -> Vec<T> {
         let mut data = Vec::with_capacity(self.len.get());
         let mut read = self.read.get();
         for _ in 0..self.len.get() {
@@ -247,7 +247,7 @@ mod tests {
 
     #[test]
     fn basic() {
-        let buffer = Buffer::<AtomicUsize>::new(4);
+        let buffer = Buffer::<usize>::new(4);
         for i in 1..=4 {
             assert!(buffer.try_push(i).is_ok());
         }
@@ -259,7 +259,7 @@ mod tests {
 
     #[test]
     fn blocking() {
-        let buffer = Buffer::<AtomicUsize>::new(4);
+        let buffer = Buffer::<usize>::new(4);
         for i in 1..=4 {
             buffer.push(i);
         }
@@ -271,7 +271,7 @@ mod tests {
 
     #[test]
     fn wrapping() {
-        let buffer = Buffer::<AtomicUsize>::new(4);
+        let buffer = Buffer::<usize>::new(4);
         for i in 1..=7 {
             assert!(buffer.try_push(i).is_ok());
         }
@@ -283,7 +283,7 @@ mod tests {
 
     #[test]
     fn chasing() {
-        let buffer = Buffer::<AtomicUsize>::new(4);
+        let buffer = Buffer::<usize>::new(4);
         for i in 1..=100 {
             assert!(buffer.try_push(i).is_ok());
             assert_eq!(buffer.try_pop(), Ok(Some(i)));

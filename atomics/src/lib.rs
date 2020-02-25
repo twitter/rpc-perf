@@ -1,31 +1,53 @@
-// Copyright 2019 Twitter, Inc.
-// Licensed under the Apache License, Version 2.0
-// http://www.apache.org/licenses/LICENSE-2.0
-
-//! A collection of atomic types which are unified through traits to allow for
-//! use as generic types in other datastructures. Also provides non standard
-//! atomic types such as an atomic `Option` type.
-
-#![deny(clippy::all)]
-
-mod atomic_counter;
-mod atomic_option;
-mod atomic_primitive;
-
-pub use crate::atomic_counter::*;
-pub use crate::atomic_option::*;
-pub use crate::atomic_primitive::*;
+use core::cell::UnsafeCell;
 pub use core::sync::atomic::Ordering;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+mod traits;
+pub use traits::*;
 
-    #[test]
-    fn usize() {
-        let x = AtomicUsize::new(0);
-        assert_eq!(x.load(Ordering::SeqCst), 0_usize);
-        x.store(42, Ordering::SeqCst);
-        assert_eq!(x.load(Ordering::SeqCst), 42_usize);
+mod bool;
+pub use crate::bool::*;
+
+mod i8;
+pub use crate::i8::*;
+
+mod i16;
+pub use crate::i16::*;
+
+mod i32;
+pub use crate::i32::*;
+
+mod i64;
+pub use crate::i64::*;
+
+mod isize;
+pub use crate::isize::*;
+
+mod ptr;
+pub use crate::ptr::*;
+
+mod u8;
+pub use crate::u8::*;
+
+mod u16;
+pub use crate::u16::*;
+
+mod u32;
+pub use crate::u32::*;
+
+mod u64;
+pub use crate::u64::*;
+
+mod usize;
+pub use crate::usize::*;
+
+pub struct Atomic<T> {
+    inner: UnsafeCell<T>,
+}
+
+impl<T> Atomic<T> {
+    fn new(value: T) -> Self {
+        Self {
+            inner: UnsafeCell::new(value),
+        }
     }
 }

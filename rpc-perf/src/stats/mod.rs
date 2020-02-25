@@ -289,8 +289,8 @@ fn delta_percent<T: ToString>(
 
 #[derive(Clone)]
 pub struct Metrics {
-    inner: metrics::Metrics<metrics::AtomicU64>,
-    heatmap: Option<Arc<Heatmap<metrics::AtomicU64>>>,
+    inner: metrics::Metrics<u64>,
+    heatmap: Option<Arc<Heatmap<u64>>>,
 }
 
 impl Metrics {

@@ -15,9 +15,9 @@ use std::sync::{Arc, Mutex};
 /// outputs, record measurements, and produce readings
 pub struct Metrics<T: 'static>
 where
-    T: Counter + Unsigned,
-    <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating + From<u8>,
-    u64: From<<T as AtomicPrimitive>::Primitive>,
+    Atomic<T>: Default + Unsigned + AtomicPrimitive<T> + AtomicSaturatingAdd<T> + AtomicSaturatingSub<T>,
+    u64: From<T>,
+    T: Copy + Default + From<u8>,
 {
     labels: Arc<Mutex<HashSet<String>>>,
     read_factory: ReadHandleFactory<String, Arc<Channel<T>>>,
@@ -27,9 +27,9 @@ where
 
 impl<T> Clone for Metrics<T>
 where
-    T: Counter + Unsigned,
-    <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating + From<u8>,
-    u64: From<<T as AtomicPrimitive>::Primitive>,
+    Atomic<T>: Default + Unsigned + AtomicPrimitive<T> + AtomicSaturatingAdd<T> + AtomicSaturatingSub<T>,
+    u64: From<T>,
+    T: Copy + Default + From<u8>,
 {
     fn clone(&self) -> Self {
         Self {
@@ -43,9 +43,9 @@ where
 
 impl<T> Metrics<T>
 where
-    T: Counter + Unsigned,
-    <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating + From<u8>,
-    u64: From<<T as AtomicPrimitive>::Primitive>,
+    Atomic<T>: Default + Unsigned + AtomicPrimitive<T> + AtomicSaturatingAdd<T> + AtomicSaturatingSub<T>,
+    u64: From<T>,
+    T: Copy + Default + From<u8>,
 {
     pub fn new() -> Self {
         let (read, write) = evmap::new();
@@ -60,7 +60,7 @@ where
     pub fn record(
         &self,
         channel: String,
-        measurement: Measurement<<T as AtomicPrimitive>::Primitive>,
+        measurement: Measurement<T>,
     ) {
         self.read
             .get_and(&channel, |channel| (*channel)[0].record(measurement));
@@ -187,9 +187,9 @@ where
 
 impl<T> Default for Metrics<T>
 where
-    T: Counter + Unsigned,
-    <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating + From<u8>,
-    u64: From<<T as AtomicPrimitive>::Primitive>,
+    Atomic<T>: Default + Unsigned + AtomicPrimitive<T> + AtomicSaturatingAdd<T> + AtomicSaturatingSub<T>,
+    u64: From<T>,
+    T: Copy + Default + From<u8>,
 {
     fn default() -> Self {
         Self::new()

@@ -14,6 +14,10 @@ matrix:
         - cargo build --release --verbose
         - cargo test --release --verbose
         - cargo run --release -- --version
+        - sudo apt-get install memcache
+        - sudo systemctl enable memcache
+        - sudo systemctl start memcache
+        - cargo run --release -- --config rpc-perf/configs/default.toml --endpoint localhost:11211
     - os: linux
       rust: stable
       env: TYPE=tls RUST_BACKTRACE=1

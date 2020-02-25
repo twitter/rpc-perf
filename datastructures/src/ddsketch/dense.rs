@@ -29,7 +29,10 @@ pub struct DenseDDSketch<T = u64> {
 }
 
 // Utility functions that don't require knowing anything about T
-impl<T> DenseDDSketch<T> {
+impl<T> DenseDDSketch<T>
+where
+    T: Copy,
+{
     /// Get the bucket-index of a value.
     fn index_of(&self, value: u64) -> usize {
         match value {

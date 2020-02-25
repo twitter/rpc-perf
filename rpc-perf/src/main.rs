@@ -18,7 +18,7 @@ use crate::config::Config;
 use crate::config::Protocol;
 use crate::stats::*;
 
-use atomics::{AtomicBool, AtomicPrimitive, Ordering};
+use atomics::*;
 use metrics::Reading;
 use rand::thread_rng;
 use ratelimiter::Ratelimiter;
@@ -59,7 +59,7 @@ pub fn main() {
 
     do_warmup(&config, &metrics);
 
-    let control = Arc::new(AtomicBool::new(true));
+    let control = Arc::new(Atomic::<bool>::new(true));
     launch_clients(&config, &metrics, control.clone());
 
     loop {
@@ -87,7 +87,7 @@ fn do_warmup(config: &Config, metrics: &Metrics) {
     if let Some(target) = config.warmup_hitrate() {
         info!("-----");
         info!("Warming the cache...");
-        let control = Arc::new(AtomicBool::new(true));
+        let control = Arc::new(Atomic::<bool>::new(true));
         launch_clients(&config, &metrics, control.clone());
 
         let mut warm = 0;
@@ -143,7 +143,7 @@ fn make_client(id: usize, codec: Box<dyn Codec>, _config: &Config) -> Box<dyn Cl
     Box::new(PlainClient::new(id, codec))
 }
 
-fn launch_clients(config: &Config, metrics: &stats::Metrics, control: Arc<AtomicBool>) {
+fn launch_clients(config: &Config, metrics: &stats::Metrics, control: Arc<Atomic<bool>>) {
     let request_ratelimiter = if let Some(limit) = config.request_ratelimit() {
         let ratelimiter = Ratelimiter::new(config.clients() as u64, 1, limit as u64);
         ratelimiter.strategy(config.request_distribution());

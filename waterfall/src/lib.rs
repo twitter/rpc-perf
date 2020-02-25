@@ -46,9 +46,9 @@ pub fn save_waterfall<S: ::std::hash::BuildHasher, T: 'static>(
     labels: HashMap<u64, String, S>,
     interval: u64,
 ) where
-    T: Counter + Unsigned,
-    <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating,
-    u64: From<<T as AtomicPrimitive>::Primitive>,
+    Atomic<T>: Default + Unsigned + AtomicPrimitive<T> + AtomicSaturatingAdd<T> + AtomicSaturatingSub<T>,
+    u64: From<T>,
+    T: Copy + Default,
 {
     debug!("saving waterfall");
     let height = heatmap.slices();
@@ -57,7 +57,7 @@ pub fn save_waterfall<S: ::std::hash::BuildHasher, T: 'static>(
     // create image buffer
     let mut buffer = ImageBuffer::<ColorRgb>::new(width, height);
 
-    let histogram = Histogram::<AtomicU64>::new(heatmap.highest_count(), 3, None, None);
+    let histogram = Histogram::<u64>::new(heatmap.highest_count(), 3, None, None);
     for slice in heatmap {
         for b in slice.histogram().into_iter() {
             if (u64::from(b.count()) / b.width()) > 0 {

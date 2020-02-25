@@ -13,12 +13,12 @@ use rand_distr::{Distribution, Normal, Uniform};
 
 /// A token bucket ratelimiter
 pub struct Ratelimiter {
-    available: AtomicU64,
-    capacity: AtomicU64,
-    quantum: AtomicU64,
-    strategy: AtomicUsize,
-    tick: AtomicU64,
-    next: AtomicU64,
+    available: Atomic<u64>,
+    capacity: Atomic<u64>,
+    quantum: Atomic<u64>,
+    strategy: Atomic<usize>,
+    tick: Atomic<u64>,
+    next: Atomic<u64>,
     normal: Normal<f64>,
     uniform: Uniform<f64>,
 }
@@ -77,12 +77,12 @@ impl Ratelimiter {
     pub fn new(capacity: u64, quantum: u64, rate: u64) -> Self {
         let tick = SECOND / (rate / quantum);
         Self {
-            available: AtomicU64::default(),
-            capacity: AtomicU64::new(capacity),
-            quantum: AtomicU64::new(quantum),
-            strategy: AtomicUsize::new(Refill::Smooth as usize),
-            tick: AtomicU64::new(tick),
-            next: AtomicU64::new(time::precise_time_ns()),
+            available: Default::default(),
+            capacity: Atomic::<u64>::new(capacity),
+            quantum: Atomic::<u64>::new(quantum),
+            strategy: Atomic::<usize>::new(Refill::Smooth as usize),
+            tick: Atomic::<u64>::new(tick),
+            next: Atomic::<u64>::new(time::precise_time_ns()),
             normal: Normal::new(tick as f64, 2.0 * tick as f64).unwrap(),
             uniform: Uniform::new_inclusive(tick as f64 * 0.5, tick as f64 * 1.5),
         }
@@ -91,30 +91,30 @@ impl Ratelimiter {
     /// Changes the rate of the `Ratelimiter`. The new rate will be in effect on
     /// the next tick.
     pub fn rate(&self, rate: u64) {
-        self.tick.set(SECOND / (rate / self.quantum.get()));
+        self.tick.store(SECOND / (rate / self.quantum.load(Ordering::Relaxed)), Ordering::Relaxed);
     }
 
     /// Changes the refill strategy
     pub fn strategy(&self, strategy: Refill) {
-        self.strategy.set(strategy as usize)
+        self.strategy.store(strategy as usize, Ordering::Relaxed)
     }
 
     // internal function to move the time forward
     fn tick(&self) {
         let now = time::precise_time_ns();
-        let next = self.next.get();
+        let next = self.next.load(Ordering::Relaxed);
         if now >= next {
-            let strategy = Refill::try_from(self.strategy.get());
+            let strategy = Refill::try_from(self.strategy.load(Ordering::Relaxed));
             let tick = match strategy {
-                Ok(Refill::Smooth) => self.tick.get(),
+                Ok(Refill::Smooth) => self.tick.load(Ordering::Relaxed),
                 Ok(Refill::Uniform) => self.uniform.sample(&mut rand::thread_rng()) as u64,
                 Ok(Refill::Normal) => self.normal.sample(&mut rand::thread_rng()) as u64,
-                Err(_) => self.tick.get(),
+                Err(_) => self.tick.load(Ordering::Relaxed),
             };
-            self.next.add(tick);
-            self.available.add(self.quantum.get());
-            if self.available.get() > self.capacity.get() {
-                self.available.set(self.capacity.get());
+            self.next.fetch_add(tick, Ordering::Relaxed);
+            self.available.fetch_add(self.quantum.load(Ordering::Relaxed), Ordering::Relaxed);
+            if self.available.load(Ordering::Relaxed) > self.capacity.load(Ordering::Relaxed) {
+                self.available.store(self.capacity.load(Ordering::Relaxed), Ordering::Relaxed);
             }
         }
     }
@@ -137,8 +137,8 @@ impl Ratelimiter {
     /// ```
     pub fn try_wait(&self) -> Result<(), ()> {
         self.tick();
-        if self.available.get() > 0 {
-            self.available.saturating_sub(1);
+        if self.available.load(Ordering::Relaxed) > 0 {
+            self.available.saturating_sub(1, Ordering::Relaxed);
             Ok(())
         } else {
             Err(())

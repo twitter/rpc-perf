@@ -3,17 +3,18 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 use super::{DDSketchError, DDSketchErrorKind};
-use crate::counter::{Counter, Saturating, Unsigned};
+use crate::histogram::{Unsigned};
 
-use atomics::{AtomicPrimitive, AtomicU64, Ordering};
+use atomics::*;
 
 /// An atomic DDSketch.
-pub struct AtomicDDSketch<T = AtomicU64>
+pub struct AtomicDDSketch<T = u64>
 where
-    T: Counter + Unsigned,
-    <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating + Into<u64>,
+    Atomic<T>: Default + Unsigned + AtomicPrimitive<T> + AtomicSaturatingAdd<T> + AtomicSaturatingSub<T>,
+    T: Default + Copy,
+    u64: From<T>,
 {
-    buckets: Vec<T>,
+    buckets: Vec<Atomic<T>>,
 
     gamma: f64,
     /// Number of linear-sized buckets before we switch to log sized buckets.
@@ -22,16 +23,17 @@ where
     /// width of less than 1 which is useless since we are storign integers.
     cutoff: usize,
 
-    count: AtomicU64,
+    count: Atomic<u64>,
     limit: u64,
-    min: AtomicU64,
-    max: AtomicU64,
+    min: Atomic<u64>,
+    max: Atomic<u64>,
 }
 
 impl<T> AtomicDDSketch<T>
 where
-    T: Counter + Unsigned,
-    <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating + Into<u64>,
+    Atomic<T>: Default + Unsigned + AtomicPrimitive<T> + AtomicSaturatingAdd<T> + AtomicSaturatingSub<T>,
+    T: Default + Copy,
+    u64: From<T>,
 {
     /// Create a sketch that can store values up to `limit` with
     /// a relative precision of `alpha`.
@@ -109,10 +111,10 @@ where
             gamma,
             cutoff: cutoff as usize + 1,
 
-            count: AtomicU64::new(0),
+            count: Default::default(),
             limit,
-            min: AtomicU64::new(std::u64::MAX),
-            max: AtomicU64::new(std::u64::MIN),
+            min: Atomic::<u64>::new(std::u64::MAX),
+            max: Default::default(),
         })
     }
 
@@ -141,12 +143,12 @@ where
     }
 
     /// Increment the bucket holding `value` by `count`.
-    pub fn increment(&self, value: u64, count: <T as AtomicPrimitive>::Primitive) {
+    pub fn increment(&self, value: u64, count: T) {
         self.max.store_max(value, Ordering::Relaxed);
         self.min.store_min(value, Ordering::Relaxed);
-        self.count.saturating_add(count.into());
+        self.count.saturating_add(count.into(), Ordering::Relaxed);
 
-        self.buckets[self.index_of(value)].saturating_add(count);
+        self.buckets[self.index_of(value)].saturating_add(count, Ordering::Relaxed);
     }
 
     /// Clear all buckets within the sketch.
@@ -160,7 +162,7 @@ where
         self.count.store(0, Ordering::Relaxed);
 
         for bucket in self.buckets.iter() {
-            bucket.set(Default::default());
+            bucket.store(Default::default(), Ordering::Relaxed);
         }
     }
 
@@ -176,7 +178,7 @@ where
             return 0;
         }
 
-        self.buckets.last().unwrap().get().into()
+        self.buckets.last().unwrap().load(Ordering::Relaxed).into()
     }
 
     /// Returns the approximate value of the quantile specified from
@@ -213,7 +215,7 @@ where
             .buckets
             .iter()
             .scan(0u64, |total, count| {
-                *total += count.load(Ordering::Relaxed).into();
+                *total += u64::from(count.load(Ordering::Relaxed));
                 Some(*total)
             })
             .enumerate()
@@ -251,10 +253,10 @@ where
             .iter()
             .zip(other.buckets.iter())
             .for_each(|(x, y)| {
-                x.saturating_add(y.load(Ordering::Relaxed));
+                x.saturating_add(y.load(Ordering::Relaxed), Ordering::Relaxed);
             });
 
-        self.count.saturating_add(other.count());
+        self.count.saturating_add(other.count(), Ordering::Relaxed);
         self.min
             .store_min(other.min.load(Ordering::Relaxed), Ordering::Relaxed);
         self.max
@@ -277,7 +279,7 @@ where
 
         self.buckets[..index]
             .iter()
-            .map(|x| x.load(Ordering::Relaxed).into())
+            .map(|x| u64::from(x.load(Ordering::Relaxed)))
             .sum()
     }
 }
