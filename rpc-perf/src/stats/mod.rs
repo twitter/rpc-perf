@@ -25,11 +25,6 @@ pub fn register_stats(metrics: &Metrics) {
         Stat::CommandsGet,
         Stat::CommandsRange,
         Stat::CommandsSet,
-        Stat::KeySize,
-        Stat::ValueSize,
-        Stat::Window,
-        Stat::RequestsEnqueued,
-        Stat::RequestsDequeued,
         Stat::ConnectionsTotal,
         Stat::ConnectionsOpened,
         Stat::ConnectionsClosed,
@@ -37,11 +32,17 @@ pub fn register_stats(metrics: &Metrics) {
         Stat::ConnectionsClientClosed,
         Stat::ConnectionsServerClosed,
         Stat::ConnectionsTimeout,
+        Stat::KeySize,
+        Stat::RequestsEnqueued,
+        Stat::RequestsDequeued,
+        Stat::RequestsTimeout,
         Stat::ResponsesTotal,
         Stat::ResponsesOk,
         Stat::ResponsesError,
         Stat::ResponsesHit,
         Stat::ResponsesMiss,
+        Stat::ValueSize,
+        Stat::Window,
     ] {
         metrics.register(statistic);
     }
@@ -105,6 +106,9 @@ impl StandardOut {
     }
 
     pub fn print(&mut self) {
+        if let Some(ref heatmap) = *self.metrics.heatmap {
+            heatmap.latch();
+        }
         let current = self.metrics.hash_map();
         let window = self.metrics.counter(&Stat::Window);
         info!("-----");
@@ -243,19 +247,19 @@ fn delta_percent(
 #[derive(Clone)]
 pub struct Metrics {
     inner: Arc<metrics::Metrics<metrics::AtomicU64>>,
-    heatmap: Arc<Option<Arc<Heatmap<metrics::AtomicU64>>>>,
+    heatmap: Arc<Option<Heatmap<metrics::AtomicU64>>>,
 }
 
 impl Metrics {
     pub fn new(config: &Config) -> Self {
         let heatmap = if config.waterfall().is_some() {
             if let Some(windows) = config.windows() {
-                Some(Arc::new(Heatmap::new(
+                Some(Heatmap::new(
                     SECOND as u64,
                     3,
                     SECOND as u64,
                     (windows * config.interval() * SECOND) as u64,
-                )))
+                ))
             } else {
                 warn!("Unable to initialize waterfall output without fixed duration");
                 None
