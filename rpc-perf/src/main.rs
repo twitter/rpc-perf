@@ -76,7 +76,6 @@ pub fn main() {
         let current = metrics.readings();
         let mut readings = readings.lock().unwrap();
         *readings = current;
-        metrics.latch();
     }
     if let Some(waterfall) = config.waterfall() {
         metrics.save_waterfall(waterfall);
