@@ -14,6 +14,8 @@ use std::fs::File;
 use std::io::BufWriter;
 use std::path::Path;
 
+const MULTIPLIER: u64 = 1_000;
+
 /// Render and save a waterfall from a `Heatmap` to a file. You can specify
 /// `labels` for the value axis. And spacing of labels on the time axis is
 /// specified by the `interval` in nanoseconds.
@@ -57,20 +59,22 @@ pub fn save_waterfall<S: ::std::hash::BuildHasher, T: 'static>(
     // create image buffer
     let mut buffer = ImageBuffer::<ColorRgb>::new(width, height);
 
-    let histogram = Histogram::<AtomicU64>::new(heatmap.highest_count(), 3, None, None);
+    let histogram =
+        Histogram::<AtomicU64>::new(heatmap.highest_count() * MULTIPLIER, 6, None, None);
     for slice in heatmap {
         for b in slice.histogram().into_iter() {
-            if (u64::from(b.count()) / b.width()) > 0 {
-                histogram.increment(u64::from(b.count()) / b.width(), 1);
+            let weight = MULTIPLIER * u64::from(b.count()) / b.width();
+            if (weight) > 0 {
+                histogram.increment(weight, 1);
             }
         }
     }
 
     if let Some(min) = histogram.percentile(0.0) {
-        let low = histogram.percentile(0.01).unwrap();
         let mid = histogram.percentile(0.50).unwrap();
         let high = histogram.percentile(0.99).unwrap();
         let max = histogram.percentile(1.0).unwrap();
+        let low = 0;
 
         debug!(
             "min: {} low: {} mid: {} high: {} max: {}",
@@ -81,9 +85,9 @@ pub fn save_waterfall<S: ::std::hash::BuildHasher, T: 'static>(
         values.sort();
         let mut l = 0;
         for (y, slice) in heatmap.into_iter().enumerate() {
-            for (x, bucket) in slice.histogram().into_iter().enumerate() {
-                let value =
-                    color_from_value(u64::from(bucket.count()) / bucket.width(), low, mid, high);
+            for (x, b) in slice.histogram().into_iter().enumerate() {
+                let weight = MULTIPLIER * u64::from(b.count()) / b.width();
+                let value = color_from_value(weight, low, mid, high);
                 buffer.set_pixel(x, y, value);
             }
         }
@@ -219,7 +223,7 @@ fn color_from_value(value: u64, low: u64, mid: u64, high: u64) -> ColorRgb {
         }
     } else if value < high {
         HSL {
-            h: 250.0 - (250.0 * (value - mid) as f64 / high as f64),
+            h: 250.0 - (250.0 * (value - mid) as f64 / (high - mid) as f64),
             s: 1.0,
             l: 0.5,
         }
