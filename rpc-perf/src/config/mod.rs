@@ -447,7 +447,7 @@ impl Config {
                     .long("admin")
                     .value_name("IP:PORT")
                     .help("Optional listen address for admin port")
-                    .takes_value(true)
+                    .takes_value(true),
             )
             .arg(
                 Arg::with_name("verbose")
