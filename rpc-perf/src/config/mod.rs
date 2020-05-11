@@ -443,6 +443,13 @@ impl Config {
                     .takes_value(true),
             )
             .arg(
+                Arg::with_name("admin")
+                    .long("admin")
+                    .value_name("IP:PORT")
+                    .help("Optional listen address for admin port")
+                    .takes_value(true)
+            )
+            .arg(
                 Arg::with_name("verbose")
                     .short("v")
                     .long("verbose")
@@ -605,6 +612,14 @@ impl Config {
             config.general.set_listen(Some(listen.to_string()));
         }
 
+        if let Some(admin) = matches.value_of("admin") {
+            let _ = admin.parse::<SocketAddr>().unwrap_or_else(|_| {
+                println!("ERROR: admin address is malformed");
+                std::process::exit(1);
+            });
+            config.general.set_admin(Some(admin.to_string()));
+        }
+
         if let Some(clients) = parse_numeric_arg(&matches, "clients") {
             config.general.set_clients(clients);
         }
@@ -754,6 +769,13 @@ impl Config {
     pub fn listen(&self) -> Option<SocketAddr> {
         self.general
             .listen()
+            .map(|v| v.to_socket_addrs().unwrap().next().unwrap())
+    }
+
+    /// get admin address
+    pub fn admin(&self) -> Option<SocketAddr> {
+        self.general
+            .admin()
             .map(|v| v.to_socket_addrs().unwrap().next().unwrap())
     }
 

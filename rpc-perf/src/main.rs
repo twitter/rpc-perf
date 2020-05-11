@@ -4,6 +4,7 @@
 
 #![deny(clippy::all)]
 
+mod admin;
 mod client;
 mod codec;
 mod config;
@@ -60,7 +61,54 @@ pub fn main() {
     do_warmup(&config, &metrics);
 
     let control = Arc::new(AtomicBool::new(true));
-    launch_clients(&config, &metrics, control.clone());
+
+    let request_ratelimiter = if let Some(limit) = config.request_ratelimit() {
+        let ratelimiter = Ratelimiter::new(config.clients() as u64, 1, limit as u64);
+        ratelimiter.strategy(config.request_distribution());
+        Some(Arc::new(ratelimiter))
+    } else {
+        None
+    };
+
+    let connect_ratelimiter = if let Some(limit) = config.connect_ratelimit() {
+        Some(Arc::new(Ratelimiter::new(
+            config.clients() as u64,
+            1,
+            limit as u64,
+        )))
+    } else {
+        None
+    };
+
+    let close_rate = if let Some(rate) = config.close_rate() {
+        Some(Arc::new(Ratelimiter::new(
+            config.clients() as u64,
+            1,
+            rate as u64,
+        )))
+    } else {
+        None
+    };
+
+    let client_config = ClientConfig {
+        config: config.clone(),
+        metrics: metrics.clone(),
+        control: control.clone(),
+        request_ratelimiter: request_ratelimiter.clone(),
+        connect_ratelimiter: connect_ratelimiter.clone(),
+        close_rate: close_rate.clone(),
+    };
+
+    launch_clients(client_config.clone());
+
+    if let Some(listen) = config.admin() {
+        let mut admin_http = admin::Http::new(listen, client_config.clone());
+        let _ = thread::Builder::new()
+            .name("admin".to_string())
+            .spawn(move || loop {
+                admin_http.run();
+            });
+    }
 
     loop {
         std::thread::sleep(std::time::Duration::new(config.interval() as u64, 0));
@@ -88,7 +136,17 @@ fn do_warmup(config: &Config, metrics: &Metrics) {
         info!("-----");
         info!("Warming the cache...");
         let control = Arc::new(AtomicBool::new(true));
-        launch_clients(&config, &metrics, control.clone());
+
+        let client_config = ClientConfig {
+            config: config.clone(),
+            metrics: metrics.clone(),
+            control: control.clone(),
+            request_ratelimiter: None,
+            connect_ratelimiter: None,
+            close_rate: None,
+        };
+
+        launch_clients(client_config);
 
         let mut warm = 0;
         loop {
@@ -143,34 +201,23 @@ fn make_client(id: usize, codec: Box<dyn Codec>, _config: &Config) -> Box<dyn Cl
     Box::new(PlainClient::new(id, codec))
 }
 
-fn launch_clients(config: &Config, metrics: &stats::Metrics, control: Arc<AtomicBool>) {
-    let request_ratelimiter = if let Some(limit) = config.request_ratelimit() {
-        let ratelimiter = Ratelimiter::new(config.clients() as u64, 1, limit as u64);
-        ratelimiter.strategy(config.request_distribution());
-        Some(Arc::new(ratelimiter))
-    } else {
-        None
-    };
+#[derive(Clone)]
+pub(crate) struct ClientConfig {
+    config: Config,
+    metrics: Metrics,
+    control: Arc<AtomicBool>,
+    request_ratelimiter: Option<Arc<Ratelimiter>>,
+    connect_ratelimiter: Option<Arc<Ratelimiter>>,
+    close_rate: Option<Arc<Ratelimiter>>,
+}
 
-    let connect_ratelimiter = if let Some(limit) = config.connect_ratelimit() {
-        Some(Arc::new(Ratelimiter::new(
-            config.clients() as u64,
-            1,
-            limit as u64,
-        )))
-    } else {
-        None
-    };
-
-    let close_rate = if let Some(rate) = config.close_rate() {
-        Some(Arc::new(Ratelimiter::new(
-            config.clients() as u64,
-            1,
-            rate as u64,
-        )))
-    } else {
-        None
-    };
+fn launch_clients(config: ClientConfig) {
+    let request_ratelimiter = config.request_ratelimiter.clone();
+    let connect_ratelimiter = config.connect_ratelimiter.clone();
+    let close_rate = config.close_rate.clone();
+    let control = config.control.clone();
+    let metrics = config.metrics.clone();
+    let config = config.config.clone();
 
     for i in 0..config.clients() {
         let mut codec: Box<dyn Codec> = match config.protocol() {
@@ -191,7 +238,7 @@ fn launch_clients(config: &Config, metrics: &stats::Metrics, control: Arc<Atomic
         codec.set_generator(config.generator());
         codec.set_metrics(metrics.clone());
 
-        let mut client = make_client(i, codec, config);
+        let mut client = make_client(i, codec, &config);
         client.set_poolsize(config.poolsize());
         client.set_tcp_nodelay(config.tcp_nodelay());
         client.set_close_rate(close_rate.clone());

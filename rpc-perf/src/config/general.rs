@@ -20,6 +20,7 @@ pub struct General {
     #[serde(default = "default_poolsize")]
     poolsize: usize,
     listen: Option<String>,
+    admin: Option<String>,
     #[serde(with = "LevelDef")]
     #[serde(default = "default_logging_level")]
     logging: Level,
@@ -52,6 +53,14 @@ impl General {
 
     pub fn set_listen(&mut self, listen: Option<String>) {
         self.listen = listen;
+    }
+
+    pub fn admin(&self) -> Option<String> {
+        self.admin.clone()
+    }
+
+    pub fn set_admin(&mut self, admin: Option<String>) {
+        self.admin = admin;
     }
 
     pub fn clients(&self) -> usize {
@@ -226,6 +235,7 @@ impl Default for General {
             poolsize: default_poolsize(),
             endpoints: None, // no reasonable default endpoints
             listen: None,
+            admin: None,
             logging: Level::Info,
             protocol: Default::default(),
             request_ratelimit: None,
