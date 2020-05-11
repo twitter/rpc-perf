@@ -421,6 +421,7 @@ impl Value {
     }
 }
 
+#[allow(clippy::cognitive_complexity)]
 impl Config {
     /// parse command line options and return `Config`
     pub fn new() -> Config {

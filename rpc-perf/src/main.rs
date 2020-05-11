@@ -94,15 +94,15 @@ pub fn main() {
         config: config.clone(),
         metrics: metrics.clone(),
         control: control.clone(),
-        request_ratelimiter: request_ratelimiter.clone(),
-        connect_ratelimiter: connect_ratelimiter.clone(),
-        close_rate: close_rate.clone(),
+        request_ratelimiter,
+        connect_ratelimiter,
+        close_rate,
     };
 
     launch_clients(client_config.clone());
 
     if let Some(listen) = config.admin() {
-        let mut admin_http = admin::Http::new(listen, client_config.clone());
+        let mut admin_http = admin::Http::new(listen, client_config);
         let _ = thread::Builder::new()
             .name("admin".to_string())
             .spawn(move || loop {
@@ -217,7 +217,7 @@ fn launch_clients(config: ClientConfig) {
     let close_rate = config.close_rate.clone();
     let control = config.control.clone();
     let metrics = config.metrics.clone();
-    let config = config.config.clone();
+    let config = config.config;
 
     for i in 0..config.clients() {
         let mut codec: Box<dyn Codec> = match config.protocol() {
