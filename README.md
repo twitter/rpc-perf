@@ -74,6 +74,23 @@ rpc-perf --config some_config.toml --endpoint 127.0.0.1:6379 --protocol redis
 rpc-perf --config some_config.toml --endpoint 127.0.0.1:11211 --interval 60 --windows 5 --waterfall waterfall.png
 ```
 
+## Stats Port
+
+Use the `--listen` or `listen` option in the `general` section of your TOML
+config to enable HTTP based stats exposition. This will allow for scraping the
+metrics provided by rpc-perf into Prometheus or other compatible observability
+stack. A typical use case would be for long-running tests where you wish to
+correlate client metrics with system or service metrics.
+
+## Admin Port
+
+Use the `--admin` or `admin` option in the `general` section of your TOML config
+to enable a HTTP admin endpoint. You can use this endpoint to change the request
+ratelimit using `PUT` requests. For example, if configured with port `40404` as
+the admin port: ```curl -X PUT -d 100 127.0.0.1:40404/ratelimit/request``` would
+update the current rate to 100 requests per second. To use this, you must set a
+request ratelimit when launching rpc-perf.
+
 ## Practices
 
 * Start with a short test before moving on to tests spanning larger periods of time
