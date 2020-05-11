@@ -90,8 +90,12 @@ impl Ratelimiter {
 
     /// Changes the rate of the `Ratelimiter`. The new rate will be in effect on
     /// the next tick.
-    pub fn rate(&self, rate: u64) {
+    pub fn set_rate(&self, rate: u64) {
         self.tick.set(SECOND / (rate / self.quantum.get()));
+    }
+
+    pub fn rate(&self) -> u64 {
+        SECOND * self.quantum.get() / self.tick.get()
     }
 
     /// Changes the refill strategy

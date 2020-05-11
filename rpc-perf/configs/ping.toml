@@ -1,0 +1,17 @@
+[general]
+protocol = "ping"
+interval = 60 # seconds
+windows = 5 # run for 5 intervals
+clients = 1 # use a single client thread
+poolsize = 1 # each client has 1 connection per endpoint
+tcp_nodelay = false # do not enable tcp_nodelay
+request_timeout = 200_000 # microseconds
+connect_timeout = 200_000 # microseconds
+
+[[keyspace]]
+weight = 1
+length = 1
+commands = [
+    {action = "get", weight = 1},
+]
+values = []
