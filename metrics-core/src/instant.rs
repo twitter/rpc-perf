@@ -4,8 +4,6 @@
 
 use std::ops::Sub;
 
-use time;
-
 /// High-resolution timestamp.
 ///
 /// This timestamp behaves in most respects like

@@ -29,13 +29,19 @@ pub struct ScopedMetric<'m, M: MetricCommon> {
 
 impl<'m, M: Counter> ScopedMetric<'m, M> {
     /// Create a scoped counter from an existing counter reference.
+    ///
+    /// # Safety
+    /// For this type to be safe you must ensure that its drop implementation is
+    /// run. If this doesn't happen then values recorded to this metric will use a
+    /// dangling reference.
+    ///
     pub unsafe fn counter(
         name: impl Into<Cow<'static, str>>,
         metric: &'m M,
         metadata: impl Into<Option<Metadata>>,
     ) -> Result<Self, RegisterError> {
         let static_metric: &'static dyn Counter = mem::transmute(metric as &dyn Counter);
-        let metadata = metadata.into().unwrap_or(Metadata::empty());
+        let metadata = metadata.into().unwrap_or_else(Metadata::empty);
         let name = name.into();
 
         register_counter(name.clone(), static_metric, metadata)?;
@@ -49,13 +55,19 @@ impl<'m, M: Counter> ScopedMetric<'m, M> {
 
 impl<'m, M: Gauge> ScopedMetric<'m, M> {
     /// Create a scoped gauge from an existing gauge reference.
+    ///
+    /// # Safety
+    /// For this type to be safe you must ensure that its drop implementation is
+    /// run. If this doesn't happen then values recorded to this metric will use a
+    /// dangling reference.
+    ///
     pub unsafe fn gauge(
         name: impl Into<Cow<'static, str>>,
         metric: &'m M,
         metadata: impl Into<Option<Metadata>>,
     ) -> Result<Self, RegisterError> {
         let static_metric: &'static dyn Gauge = mem::transmute(metric as &dyn Gauge);
-        let metadata = metadata.into().unwrap_or(Metadata::empty());
+        let metadata = metadata.into().unwrap_or_else(Metadata::empty);
         let name = name.into();
 
         register_gauge(name.clone(), static_metric, metadata)?;
@@ -69,13 +81,19 @@ impl<'m, M: Gauge> ScopedMetric<'m, M> {
 
 impl<'m, M: Summary> ScopedMetric<'m, M> {
     /// Create a scoped summary from an existing summary reference.
+    ///
+    /// # Safety
+    /// For this type to be safe you must ensure that its drop implementation is
+    /// run. If this doesn't happen then values recorded to this metric will use a
+    /// dangling reference.
+    ///
     pub unsafe fn summary(
         name: impl Into<Cow<'static, str>>,
         metric: &'m M,
         metadata: impl Into<Option<Metadata>>,
     ) -> Result<Self, RegisterError> {
         let static_metric: &'static dyn Summary = mem::transmute(metric as &dyn Summary);
-        let metadata = metadata.into().unwrap_or(Metadata::empty());
+        let metadata = metadata.into().unwrap_or_else(Metadata::empty);
         let name = name.into();
 
         register_summary(name.clone(), static_metric, metadata)?;

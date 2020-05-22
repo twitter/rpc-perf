@@ -16,7 +16,7 @@ impl AtomicPrimitive for AtomicF32 {
     type Primitive = f32;
 
     fn new(value: Self::Primitive) -> Self {
-        let value = unsafe { std::mem::transmute(value) };
+        let value = value.to_bits();
         Self {
             inner: core::sync::atomic::AtomicU32::new(value),
         }
