@@ -3,7 +3,7 @@
 set -e
 
 # try to install or use existing sccache
-if sccache --version > /dev/null; then
+if sccache --version > /dev/null 2>&1; then
 	echo "Using existing sccache"
 	export RUSTC_WRAPPER="sccache"
 	sccache --version
