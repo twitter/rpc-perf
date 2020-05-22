@@ -6,28 +6,37 @@ cache: cargo
 matrix:
   fast_finish: true
   include:
-    - os: linux
+    - name: "default"
+      os: linux
       rust: stable
       env: TYPE=default
       script:
         - bash build/ci.sh
-    - os: linux
+    - name: "tls"
+      os: linux
       rust: stable
       env: FEATURES=tls PACKAGE=rpc-perf
       script:
         - bash build/ci.sh
-    - os: linux
+    - name: "rustfmt"
+      os: linux
       rust: stable
       env: TYPE=rustfmt RUST_BACKTRACE=1
       script:
-        - rustup component add rustfmt --toolchain stable
-        - cargo +stable fmt -- --check
-    - os: linux
-      rust: nightly
+        - rustup component add rustfmt --toolchain ${TRAVIS_RUST_VERSION}
+        - cargo +${TRAVIS_RUST_VERSION} fmt -- --check
+    - name: "clippy"
+      os: linux
+      rust: nightly-2020-05-01
       env: TYPE=clippy RUST_BACKTRACE=1
       script:
-        - rustup toolchain install nightly-2020-05-01
-        - rustup component add clippy --toolchain nightly-2020-05-01
-        - cargo +nightly-2020-05-01 clippy
+        - rustup component add clippy --toolchain ${TRAVIS_RUST_VERSION}
+        - cargo +${TRAVIS_RUST_VERSION} clippy
         - cd rpc-perf
-        - cargo +nightly-2020-05-01 clippy --features tls
+        - cargo +${TRAVIS_RUST_VERSION} clippy --features tls
+    - name: "shellcheck"
+      os: linux
+      dist: bionic
+      rust: stable
+      script:
+        - shellcheck build/*.sh
