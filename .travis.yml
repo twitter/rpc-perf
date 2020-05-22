@@ -7,7 +7,7 @@ matrix:
   include:
     - os: linux
       rust: stable
-      env: TYPE=default RUST_BACKTRACE=1
+      env: TYPE=default RUST_BACKTRACE=1 RUSTC_WRAPPER=sccache
       script:
         - cargo build --verbose
         - cargo test --verbose
@@ -16,7 +16,7 @@ matrix:
         - cargo run --release -- --version
     - os: linux
       rust: stable
-      env: TYPE=tls RUST_BACKTRACE=1
+      env: TYPE=tls RUST_BACKTRACE=1 RUSTC_WRAPPER=sccache
       script:
         - cd rpc-perf
         - cargo build --features tls
@@ -26,14 +26,14 @@ matrix:
         - cargo run --release --features tls -- --version
     - os: linux
       rust: stable
-      env: TYPE=rustfmt RUST_BACKTRACE=1
+      env: TYPE=rustfmt RUST_BACKTRACE=1 RUSTC_WRAPPER=sccache
       script:
         - rustup component add rustfmt --toolchain stable
         - cargo +stable fmt -- --check
     - os: linux
       rust: nightly
-      env: TYPE=clippy RUST_BACKTRACE=1
+      env: TYPE=clippy RUST_BACKTRACE=1 RUSTC_WRAPPER=sccache
       script:
-        - rustup toolchain install nightly-2019-10-04
-        - rustup component add clippy --toolchain nightly-2019-10-04
-        - cargo +nightly-2019-10-04 clippy --features tls
+        - rustup toolchain install nightly-2020-05-01
+        - rustup component add clippy --toolchain nightly-2020-05-01
+        - cargo +nightly-2020-05-01 clippy --features tls
