@@ -19,6 +19,7 @@ matrix:
     - os: linux
       rust: stable
       env: TYPE=rustfmt RUST_BACKTRACE=1
+      script:
         - rustup component add rustfmt --toolchain stable
         - cargo +stable fmt -- --check
     - os: linux
