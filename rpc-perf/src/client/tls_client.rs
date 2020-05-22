@@ -6,7 +6,6 @@ use crate::client::*;
 use crate::session::{Session, TLSSession};
 
 use mio::Token;
-use rustls;
 use rustls::ClientConfig;
 use slab::Slab;
 
