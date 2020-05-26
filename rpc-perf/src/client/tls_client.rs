@@ -6,7 +6,6 @@ use crate::client::*;
 use crate::session::{Session, TLSSession};
 
 use mio::Token;
-use rustls;
 use rustls::ClientConfig;
 use slab::Slab;
 
@@ -55,7 +54,7 @@ impl TLSClient {
         let mut tls_config = self
             .tls_config
             .take()
-            .unwrap_or_else(|| rustls::ClientConfig::new());
+            .unwrap_or_else(rustls::ClientConfig::new);
         tls_config
             .dangerous()
             .set_certificate_verifier(Arc::new(NoCertificateVerification {}));

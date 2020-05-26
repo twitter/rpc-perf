@@ -8,7 +8,6 @@ use std::sync::{
     Arc, Mutex,
 };
 
-use evmap;
 use once_cell::sync::Lazy;
 use thread_local::CachedThreadLocal;
 
@@ -111,7 +110,7 @@ impl State {
 
         writer.refresh();
 
-        return Ok(());
+        Ok(())
     }
 
     /// Unregister an existing metric, if the metric doesn't exist then this

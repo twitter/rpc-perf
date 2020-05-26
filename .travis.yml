@@ -2,38 +2,41 @@ language: rust
 os: linux
 dist: trusty
 sudo: required
+cache: cargo
 matrix:
   fast_finish: true
   include:
-    - os: linux
+    - name: "default"
+      os: linux
       rust: stable
-      env: TYPE=default RUST_BACKTRACE=1
+      env: TYPE=default
       script:
-        - cargo build --verbose
-        - cargo test --verbose
-        - cargo build --release --verbose
-        - cargo test --release --verbose
-        - cargo run --release -- --version
-    - os: linux
+        - bash build/ci.sh
+    - name: "tls"
+      os: linux
       rust: stable
-      env: TYPE=tls RUST_BACKTRACE=1
+      env: FEATURES=tls PACKAGE=rpc-perf
       script:
-        - cd rpc-perf
-        - cargo build --features tls
-        - cargo test --features tls
-        - cargo build --release --features tls
-        - cargo test --release --features tls
-        - cargo run --release --features tls -- --version
-    - os: linux
+        - bash build/ci.sh
+    - name: "rustfmt"
+      os: linux
       rust: stable
       env: TYPE=rustfmt RUST_BACKTRACE=1
       script:
-        - rustup component add rustfmt --toolchain stable
-        - cargo +stable fmt -- --check
-    - os: linux
-      rust: nightly
+        - rustup component add rustfmt --toolchain ${TRAVIS_RUST_VERSION}
+        - cargo +${TRAVIS_RUST_VERSION} fmt -- --check
+    - name: "clippy"
+      os: linux
+      rust: nightly-2020-05-01
       env: TYPE=clippy RUST_BACKTRACE=1
       script:
-        - rustup toolchain install nightly-2019-10-04
-        - rustup component add clippy --toolchain nightly-2019-10-04
-        - cargo +nightly-2019-10-04 clippy --features tls
+        - rustup component add clippy --toolchain ${TRAVIS_RUST_VERSION}
+        - cargo +${TRAVIS_RUST_VERSION} clippy
+        - cd rpc-perf
+        - cargo +${TRAVIS_RUST_VERSION} clippy --features tls
+    - name: "shellcheck"
+      os: linux
+      dist: bionic
+      rust: stable
+      script:
+        - shellcheck build/*.sh
