@@ -673,18 +673,18 @@ mod tests {
     fn latched_incr_decr() {
         let h = Histogram::<AtomicU64>::new(100, 3, None, None);
         assert_eq!(h.total_count(), 0);
-        h.increment(1,1);
+        h.increment(1, 1);
         assert_eq!(h.total_count(), 1);
-        h.increment(2,1);
+        h.increment(2, 1);
         assert_eq!(h.total_count(), 2);
-        h.decrement(2,1);
+        h.decrement(2, 1);
         assert_eq!(h.total_count(), 1);
-        h.decrement(1,1);
+        h.decrement(1, 1);
         assert_eq!(h.total_count(), 0);
 
-        h.increment(1_000_000,1);
+        h.increment(1_000_000, 1);
         assert_eq!(h.total_count(), 1);
-        h.decrement(1_000_000,1);
+        h.decrement(1_000_000, 1);
         assert_eq!(h.total_count(), 0);
     }
 
