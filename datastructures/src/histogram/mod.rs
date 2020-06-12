@@ -371,11 +371,9 @@ where
     fn trim(&self, time: Instant) {
         if let Some(samples) = &self.samples {
             if let Some(window) = &self.window {
-                println!("have a window");
                 let window = *window.lock();
                 let mut samples = samples.lock();
                 while let Some(sample) = samples.pop_front() {
-                    println!("trim sample");
                     let age = time - sample.time;
                     if age > window {
                         match self.get_index(sample.value) {
