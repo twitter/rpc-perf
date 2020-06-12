@@ -288,21 +288,21 @@ where
             Ok(index) => {
                 self.buckets[index].saturating_add(count);
                 self.index[index / 100].saturating_add(u64::from(count));
-                if let Some(samples) = &self.samples {
-                    let time = Instant::now();
-                    self.trim(time);
-                    let mut samples = samples.lock();
-                    samples.push_back(Sample {
-                        value,
-                        count,
-                        time,
-                        direction: Direction::Increment,
-                    });
-                }
             }
             Err(_) => {
                 self.too_high.saturating_add(u64::from(count));
             }
+        }
+        if let Some(samples) = &self.samples {
+            let time = Instant::now();
+            self.trim(time);
+            let mut samples = samples.lock();
+            samples.push_back(Sample {
+                value,
+                count,
+                time,
+                direction: Direction::Increment,
+            });
         }
     }
 
@@ -322,21 +322,21 @@ where
             Ok(index) => {
                 self.buckets[index].saturating_sub(count);
                 self.index[index / 100].saturating_sub(u64::from(count));
-                if let Some(samples) = &self.samples {
-                    let time = Instant::now();
-                    self.trim(time);
-                    let mut samples = samples.lock();
-                    samples.push_back(Sample {
-                        value,
-                        count,
-                        time,
-                        direction: Direction::Decrement,
-                    });
-                }
             }
             Err(_) => {
                 self.too_high.saturating_sub(u64::from(count));
             }
+        }
+        if let Some(samples) = &self.samples {
+            let time = Instant::now();
+            self.trim(time);
+            let mut samples = samples.lock();
+            samples.push_back(Sample {
+                value,
+                count,
+                time,
+                direction: Direction::Decrement,
+            });
         }
     }
 
@@ -371,9 +371,11 @@ where
     fn trim(&self, time: Instant) {
         if let Some(samples) = &self.samples {
             if let Some(window) = &self.window {
+                println!("have a window");
                 let window = *window.lock();
                 let mut samples = samples.lock();
                 while let Some(sample) = samples.pop_front() {
+                    println!("trim sample");
                     let age = time - sample.time;
                     if age > window {
                         match self.get_index(sample.value) {
@@ -656,6 +658,37 @@ mod tests {
     }
 
     #[test]
+    fn bounds_latched() {
+        let h = Histogram::<AtomicU64>::new(100, 3, None, None);
+        assert_eq!(h.total_count(), 0);
+        for i in 1..=100 {
+            let _ = h.increment(1_000_000, 1);
+            assert_eq!(h.total_count(), i);
+        }
+        h.clear();
+        assert_eq!(h.total_count(), 0);
+    }
+
+    #[test]
+    fn latched_incr_decr() {
+        let h = Histogram::<AtomicU64>::new(100, 3, None, None);
+        assert_eq!(h.total_count(), 0);
+        h.increment(1, 1);
+        assert_eq!(h.total_count(), 1);
+        h.increment(2, 1);
+        assert_eq!(h.total_count(), 2);
+        h.decrement(2, 1);
+        assert_eq!(h.total_count(), 1);
+        h.decrement(1, 1);
+        assert_eq!(h.total_count(), 0);
+
+        h.increment(1_000_000, 1);
+        assert_eq!(h.total_count(), 1);
+        h.decrement(1_000_000, 1);
+        assert_eq!(h.total_count(), 0);
+    }
+
+    #[test]
     fn size() {
         let h = Histogram::<AtomicU8>::new(1_000_000_000, 3, None, None);
         assert_eq!(h.size() / 1024, 6); // ~6KB
@@ -701,6 +734,22 @@ mod tests {
     }
 
     #[test]
+    fn bounds_moving() {
+        let h = Histogram::<AtomicU64>::new(100, 3, Some(<Duration>::from_millis(1)), None);
+        assert_eq!(h.total_count(), 0);
+        for _ in 1..100 {
+            let _ = h.increment(1_000_000, 1);
+            assert_eq!(h.total_count(), 1);
+            assert_eq!(h.percentile(0.0), Some(100));
+            assert_eq!(h.percentile(1.0), Some(100));
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        assert_eq!(h.percentile(0.0), None);
+        assert_eq!(h.percentile(1.0), None);
+        assert_eq!(h.total_count(), 0);
+    }
+
+    #[test]
     fn basic_capacity() {
         let h = Histogram::<AtomicU64>::new(100, 3, None, Some(1));
         assert_eq!(h.total_count(), 0);
@@ -726,6 +775,22 @@ mod tests {
         }
         assert_eq!(h.total_count(), 1);
         std::thread::sleep(Duration::from_millis(1));
+        assert_eq!(h.total_count(), 0);
+    }
+
+    #[test]
+    fn bounds_moving_capacity() {
+        let h = Histogram::<AtomicU64>::new(100, 3, Some(<Duration>::from_millis(1)), Some(1));
+        assert_eq!(h.total_count(), 0);
+        for _ in 1..100 {
+            let _ = h.increment(1_000_000, 1);
+            assert_eq!(h.total_count(), 1);
+            assert_eq!(h.percentile(0.0), Some(100));
+            assert_eq!(h.percentile(1.0), Some(100));
+        }
+        std::thread::sleep(Duration::from_millis(2));
+        assert_eq!(h.percentile(0.0), None);
+        assert_eq!(h.percentile(1.0), None);
         assert_eq!(h.total_count(), 0);
     }
 }
