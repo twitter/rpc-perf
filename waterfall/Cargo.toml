@@ -10,11 +10,11 @@ repository = "https://github.com/twitter/rpc-perf"
 publish = false
 
 [dependencies]
-atomics = { path = "../atomics" }
-datastructures = { path = "../datastructures" }
+rustcommon-atomics = { git = "https://github.com/twitter/rustcommon", branch = "master" }
+rustcommon-datastructures = { git = "https://github.com/twitter/rustcommon", branch = "master" }
 dejavu = "2.37.0"
 hsl = "0.1.1"
-logger = { path = "../logger" }
+log = "0.4.8"
 png = "0.15.0"
 rusttype = "0.8.1"
 time = "0.1.42"
@@ -22,3 +22,4 @@ time = "0.1.42"
 [dev-dependencies]
 rand = "0.7.2"
 rand_distr = "0.2.2"
+rustcommon-logger = { git = "https://github.com/twitter/rustcommon", branch = "master" }

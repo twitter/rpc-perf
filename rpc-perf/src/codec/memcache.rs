@@ -7,7 +7,6 @@ use crate::config::Action;
 use crate::stats::Stat;
 
 use bytes::BytesMut;
-use logger::*;
 
 pub struct Memcache {
     codec: codec::Memcache,

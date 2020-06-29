@@ -4,8 +4,7 @@
 
 use crate::stats::Metrics;
 
-use logger::*;
-use metrics::{Output, Percentile, Reading};
+use rustcommon_metrics::{Output, Percentile, Reading};
 use tiny_http::{Method, Response, Server};
 
 use std::net::SocketAddr;

@@ -11,7 +11,8 @@ mod config;
 mod session;
 mod stats;
 
-pub(crate) use logger::*;
+#[macro_use]
+extern crate rustcommon_logger;
 
 use crate::client::*;
 use crate::codec::Codec;
@@ -19,10 +20,11 @@ use crate::config::Config;
 use crate::config::Protocol;
 use crate::stats::*;
 
-use atomics::{AtomicBool, AtomicPrimitive, Ordering};
-use metrics::Reading;
+use rustcommon_atomics::{Atomic, AtomicBool, Ordering};
+use rustcommon_metrics::Reading;
 use rand::thread_rng;
-use ratelimiter::Ratelimiter;
+use rustcommon_ratelimiter::Ratelimiter;
+use rustcommon_logger::Logger;
 
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -64,7 +66,7 @@ pub fn main() {
 
     let request_ratelimiter = if let Some(limit) = config.request_ratelimit() {
         let ratelimiter = Ratelimiter::new(config.clients() as u64, 1, limit as u64);
-        ratelimiter.strategy(config.request_distribution());
+        ratelimiter.set_strategy(config.request_distribution());
         Some(Arc::new(ratelimiter))
     } else {
         None

@@ -4,7 +4,7 @@
 
 #![allow(unused_imports)]
 use datastructures::*;
-use logger::*;
+use rustcommon_logger::*;
 use rand::{thread_rng, Rng};
 use rand_distr::*;
 

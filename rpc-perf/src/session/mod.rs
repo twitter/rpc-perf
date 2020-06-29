@@ -12,7 +12,6 @@ pub use crate::session::stream::Stream;
 #[cfg(feature = "tls")]
 pub use crate::session::tls_session::TLSSession;
 
-use crate::*;
 use bytes::BytesMut;
 use mio::{Poll, PollOpt, Ready, Token};
 

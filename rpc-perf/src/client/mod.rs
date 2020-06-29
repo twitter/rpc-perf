@@ -19,7 +19,7 @@ use crate::*;
 use mio::unix::UnixReady;
 use mio::{Event, Events, Poll, PollOpt, Ready, Token};
 use rand::rngs::ThreadRng;
-use ratelimiter::Ratelimiter;
+use rustcommon_ratelimiter::Ratelimiter;
 
 use std::net::SocketAddr;
 use std::time::Duration;

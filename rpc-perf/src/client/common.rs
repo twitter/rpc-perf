@@ -7,13 +7,12 @@ use crate::codec::Codec;
 use crate::stats::{Metrics, Stat};
 
 use bytes::BytesMut;
-use logger::*;
 use mio::{Events, Poll, Token};
 use rand::rngs::ThreadRng;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-use ratelimiter::Ratelimiter;
-use timer::Wheel;
+use rustcommon_ratelimiter::Ratelimiter;
+use rustcommon_timer::Wheel;
 
 use std::collections::VecDeque;
 use std::sync::Arc;

@@ -14,7 +14,8 @@ use rand::distributions::{Alphanumeric, Distribution, Uniform};
 use rand::rngs::ThreadRng;
 use rand::seq::SliceRandom;
 use rand::Rng;
-use ratelimiter::Refill;
+use rustcommon_ratelimiter::Refill;
+use rustcommon_logger::Level;
 use serde_derive::*;
 
 use std::io::Read;

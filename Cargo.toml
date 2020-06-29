@@ -1,15 +1,8 @@
 [workspace]
 members = [
-    "atomics",
     "buffer",
     "codec",
-    "datastructures",
-    "logger",
-    "metrics",
-    "metrics-core",
-    "ratelimiter",
     "rpc-perf",
-    "timer",
     "waterfall",
 ]
 
