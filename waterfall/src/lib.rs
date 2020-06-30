@@ -7,9 +7,9 @@
 #[macro_use]
 extern crate log;
 
+use hsl::HSL;
 use rustcommon_atomics::*;
 use rustcommon_datastructures::*;
-use hsl::HSL;
 use rusttype::{point, FontCollection, PositionedGlyph, Scale};
 
 use std::collections::HashMap;

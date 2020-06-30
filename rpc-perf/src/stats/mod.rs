@@ -276,8 +276,7 @@ impl Metrics {
             _ => None,
         };
         self.inner.register(statistic, summary);
-        self.inner
-            .add_output(statistic, Output::Reading);
+        self.inner.add_output(statistic, Output::Reading);
         if summary.is_some() {
             for percentile in &[
                 Percentile::p50,

@@ -20,11 +20,11 @@ use crate::config::Config;
 use crate::config::Protocol;
 use crate::stats::*;
 
-use rustcommon_atomics::{Atomic, AtomicBool, Ordering};
-use rustcommon_metrics::Reading;
 use rand::thread_rng;
-use rustcommon_ratelimiter::Ratelimiter;
+use rustcommon_atomics::{Atomic, AtomicBool, Ordering};
 use rustcommon_logger::Logger;
+use rustcommon_metrics::Reading;
+use rustcommon_ratelimiter::Ratelimiter;
 
 use std::sync::{Arc, Mutex};
 use std::thread;
