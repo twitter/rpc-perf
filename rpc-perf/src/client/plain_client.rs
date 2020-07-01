@@ -7,7 +7,6 @@ use crate::client::Client;
 use crate::codec::Codec;
 use crate::session::{PlainSession, Session};
 
-use logger::*;
 use mio::Token;
 use rand::rngs::ThreadRng;
 use slab::Slab;

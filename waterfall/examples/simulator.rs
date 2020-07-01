@@ -3,10 +3,10 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 #![allow(unused_imports)]
-use datastructures::*;
-use logger::*;
 use rand::{thread_rng, Rng};
 use rand_distr::*;
+use rustcommon_datastructures::*;
+use rustcommon_logger::*;
 
 use std::collections::HashMap;
 

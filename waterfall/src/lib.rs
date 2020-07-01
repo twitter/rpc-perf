@@ -4,9 +4,12 @@
 
 //! This crate is used to render a waterfall style plot of a heatmap
 
-use datastructures::*;
+#[macro_use]
+extern crate log;
+
 use hsl::HSL;
-use logger::*;
+use rustcommon_atomics::*;
+use rustcommon_datastructures::*;
 use rusttype::{point, FontCollection, PositionedGlyph, Scale};
 
 use std::collections::HashMap;
@@ -23,7 +26,7 @@ const MULTIPLIER: u64 = 1_000;
 /// # Examples
 ///
 /// ```
-/// use datastructures::*;
+/// use rustcommon_datastructures::*;
 /// use waterfall;
 ///
 /// use std::collections::HashMap;
@@ -48,9 +51,9 @@ pub fn save_waterfall<S: ::std::hash::BuildHasher, T: 'static>(
     labels: HashMap<u64, String, S>,
     interval: u64,
 ) where
-    T: Counter + Unsigned,
-    <T as AtomicPrimitive>::Primitive: Default + PartialEq + Copy + Saturating,
-    u64: From<<T as AtomicPrimitive>::Primitive>,
+    T: Atomic + Unsigned + SaturatingArithmetic + Default,
+    <T as Atomic>::Primitive: Default + PartialEq + Copy,
+    u64: From<<T as Atomic>::Primitive>,
 {
     debug!("saving waterfall");
     let height = heatmap.slices();

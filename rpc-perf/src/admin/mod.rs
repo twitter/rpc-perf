@@ -4,7 +4,6 @@
 
 use crate::ClientConfig;
 
-use logger::*;
 use tiny_http::{Method, Response, Server};
 
 use std::net::SocketAddr;

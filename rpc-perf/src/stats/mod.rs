@@ -5,6 +5,7 @@
 pub mod http;
 mod stat;
 
+use rustcommon_atomics::AtomicU64;
 pub use stat::Stat;
 
 pub use crate::stats::http::Http;
@@ -12,9 +13,8 @@ pub use crate::stats::http::Http;
 use crate::client::SECOND;
 use crate::config::Config;
 
-use datastructures::Heatmap;
-use logger::*;
-use metrics::{self, Output, Percentile, Reading, Source, Statistic, Summary};
+use rustcommon_datastructures::Heatmap;
+use rustcommon_metrics::{self, Output, Percentile, Reading, Source, Statistic, Summary};
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -48,7 +48,7 @@ pub fn register_stats(metrics: &Metrics) {
 }
 
 pub struct StandardOut {
-    previous: HashMap<String, HashMap<metrics::Output, u64>>,
+    previous: HashMap<String, HashMap<Output, u64>>,
     metrics: Metrics,
     interval: u64,
 }
@@ -196,11 +196,11 @@ impl StandardOut {
 }
 
 fn delta_count(
-    a: &HashMap<String, HashMap<metrics::Output, u64>>,
-    b: &HashMap<String, HashMap<metrics::Output, u64>>,
+    a: &HashMap<String, HashMap<Output, u64>>,
+    b: &HashMap<String, HashMap<Output, u64>>,
     label: &dyn Statistic,
 ) -> Option<u64> {
-    let output = metrics::Output::Reading;
+    let output = Output::Reading;
     let label = label.name();
     if let Some(a_outputs) = a.get(label) {
         let a_value = a_outputs.get(&output).unwrap_or(&0);
@@ -217,8 +217,8 @@ fn delta_count(
 }
 
 fn delta_percent(
-    a: &HashMap<String, HashMap<metrics::Output, u64>>,
-    b: &HashMap<String, HashMap<metrics::Output, u64>>,
+    a: &HashMap<String, HashMap<Output, u64>>,
+    b: &HashMap<String, HashMap<Output, u64>>,
     label_a: &dyn Statistic,
     label_b: &dyn Statistic,
 ) -> Option<f64> {
@@ -242,8 +242,8 @@ fn delta_percent(
 
 #[derive(Clone)]
 pub struct Metrics {
-    inner: Arc<metrics::Metrics<metrics::AtomicU64>>,
-    heatmap: Arc<Option<Arc<Heatmap<metrics::AtomicU64>>>>,
+    inner: Arc<rustcommon_metrics::Metrics<AtomicU64>>,
+    heatmap: Arc<Option<Arc<Heatmap<AtomicU64>>>>,
 }
 
 impl Metrics {
@@ -264,7 +264,7 @@ impl Metrics {
             None
         };
         Self {
-            inner: Arc::new(metrics::Metrics::new()),
+            inner: Arc::new(rustcommon_metrics::Metrics::new()),
             heatmap: Arc::new(heatmap),
         }
     }
@@ -276,8 +276,7 @@ impl Metrics {
             _ => None,
         };
         self.inner.register(statistic, summary);
-        self.inner
-            .register_output(statistic, metrics::Output::Reading);
+        self.inner.add_output(statistic, Output::Reading);
         if summary.is_some() {
             for percentile in &[
                 Percentile::p50,
@@ -288,7 +287,7 @@ impl Metrics {
                 Percentile::p9999,
             ] {
                 self.inner
-                    .register_output(statistic, metrics::Output::Percentile(*percentile));
+                    .add_output(statistic, Output::Percentile(*percentile));
             }
         }
     }

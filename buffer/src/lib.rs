@@ -4,8 +4,10 @@
 
 #![deny(clippy::all)]
 
+#[macro_use]
+extern crate log;
+
 use bytes::{Buf, BufMut, BytesMut};
-use logger::*;
 
 use std::borrow::Borrow;
 use std::io::{self, Cursor, Error, Read, Write};
