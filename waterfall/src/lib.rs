@@ -26,7 +26,7 @@ const MULTIPLIER: u64 = 1_000;
 /// # Examples
 ///
 /// ```
-/// use datastructures::*;
+/// use rustcommon_datastructures::*;
 /// use waterfall;
 ///
 /// use std::collections::HashMap;
