@@ -109,9 +109,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.0.56"
+version = "1.0.57"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77c1f1d60091c1b73e2b1f4560ab419204b178e625fa945ded7b660becd2bd46"
+checksum = "0fde55d2a2bfaa4c9668bbc63f531fbdeee3ffe188f4662511ce2c22b3eedebe"
 
 [[package]]
 name = "cfg-if"
@@ -121,9 +121,9 @@ checksum = "4785bdd1c96b2a846b2bd7cc02e86b6b3dbf14e7e53446c4f54c92a361040822"
 
 [[package]]
 name = "chrono"
-version = "0.4.11"
+version = "0.4.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80094f509cf8b5ae86a4966a39b3ff66cd7e2a3e594accec3743ff3fabeab5b2"
+checksum = "c74d84029116787153e02106bf53e66828452a4b325cc8652b788b5967c0a0b6"
 dependencies = [
  "num-integer",
  "num-traits",
@@ -201,9 +201,9 @@ dependencies = [
 
 [[package]]
 name = "dashmap"
-version = "3.11.4"
+version = "3.11.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8cfcd41ae02d60edded204341d2798ba519c336c51a37330aa4b98a1128def32"
+checksum = "e2f7a3766904c6f4734f2bbf8a037b6f84753d19fe65f54b0f4d97d8f62187bb"
 dependencies = [
  "ahash",
  "cfg-if",
@@ -255,9 +255,9 @@ dependencies = [
 
 [[package]]
 name = "hermit-abi"
-version = "0.1.14"
+version = "0.1.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9586eedd4ce6b3c498bc3b4dd92fc9f11166aa908a914071953768066c67909"
+checksum = "3deed196b6e7f9e44a2ae8d94225d80302d81208b1bb673fd21fe634645c85a9"
 dependencies = [
  "libc",
 ]
@@ -574,7 +574,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-atomics"
 version = "1.0.0"
-source = "git+https://github.com/twitter/rustcommon#4c526394c7810795e12696708c36145b7c17daf3"
+source = "git+https://github.com/twitter/rustcommon#c0e7956edd72d42920574bc307e9daff38d182f7"
 dependencies = [
  "serde",
 ]
@@ -582,7 +582,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-datastructures"
 version = "1.0.0"
-source = "git+https://github.com/twitter/rustcommon#4c526394c7810795e12696708c36145b7c17daf3"
+source = "git+https://github.com/twitter/rustcommon#c0e7956edd72d42920574bc307e9daff38d182f7"
 dependencies = [
  "log",
  "rustcommon-atomics",
@@ -592,7 +592,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-logger"
 version = "1.0.0"
-source = "git+https://github.com/twitter/rustcommon#4c526394c7810795e12696708c36145b7c17daf3"
+source = "git+https://github.com/twitter/rustcommon#c0e7956edd72d42920574bc307e9daff38d182f7"
 dependencies = [
  "log",
  "time",
@@ -601,7 +601,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-metrics"
 version = "1.0.0"
-source = "git+https://github.com/twitter/rustcommon#4c526394c7810795e12696708c36145b7c17daf3"
+source = "git+https://github.com/twitter/rustcommon#c0e7956edd72d42920574bc307e9daff38d182f7"
 dependencies = [
  "dashmap",
  "rustcommon-datastructures",
@@ -613,7 +613,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-ratelimiter"
 version = "1.0.0"
-source = "git+https://github.com/twitter/rustcommon#4c526394c7810795e12696708c36145b7c17daf3"
+source = "git+https://github.com/twitter/rustcommon#c0e7956edd72d42920574bc307e9daff38d182f7"
 dependencies = [
  "rand",
  "rand_distr",
@@ -624,7 +624,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-timer"
 version = "1.0.0"
-source = "git+https://github.com/twitter/rustcommon#4c526394c7810795e12696708c36145b7c17daf3"
+source = "git+https://github.com/twitter/rustcommon#c0e7956edd72d42920574bc307e9daff38d182f7"
 dependencies = [
  "log",
 ]
