@@ -85,7 +85,7 @@ impl Command {
         values: Vec<String>,
         ttl: Option<usize>,
     ) -> Command {
-        let mut command = Command::new(Action::Hget);
+        let mut command = Command::new(Action::Hset);
         command.key = Some(key);
         command.fields = Some(fields);
         command.values = Some(values);
@@ -135,7 +135,7 @@ impl Command {
     }
 
     pub fn ltrim(key: String, index: usize, count: usize) -> Command {
-        let mut command = Command::new(Action::Lrange);
+        let mut command = Command::new(Action::Ltrim);
         command.key = Some(key);
         command.count = Some(count as u64);
         command.index = Some(index as u64);
