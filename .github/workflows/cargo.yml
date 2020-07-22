@@ -9,113 +9,54 @@ env:
 
 jobs:
   linux:
+    name: ubuntu
     runs-on: ubuntu-18.04
     steps:
     - uses: actions/checkout@v2
-    - uses: actions/cache@v2
-      env:
-        cache-name: linux
-      with:
-        path: |
-          ~/.cargo/registry
-          ~/.cargo/git
-          target
-        key: ${{ runner.os }}-cargo-${{ env.cache-name }}-${{ hashFiles('**/Cargo.lock') }}
-    - name: check
-      run: cargo check
-    - name: build
-      run: cargo build --release
-    - name: test
-      run: cargo test --release
+    - name: Run
+      run: bash build/ci.sh
   linux-tls:
+    name: ubuntu w/ tls
     runs-on: ubuntu-18.04
+    env:
+      FEATURES: tls
     steps:
     - uses: actions/checkout@v2
-    - uses: actions/cache@v2
-      env:
-        cache-name: linux-tls
-      with:
-        path: |
-          ~/.cargo/registry
-          ~/.cargo/git
-          target
-        key: ${{ runner.os }}-cargo-${{ env.cache-name }}-${{ hashFiles('**/Cargo.lock') }}
-    - name: check
-      run: cd rpc-perf && cargo check --features tls
-    - name: build
-      run: cd rpc-perf && cargo build --release --features tls
-    - name: test
-      run: cd rpc-perf && cargo test --release --features tls
+    - name: Run
+      run: bash build/ci.sh
   macos:
+    name: macos
     runs-on: macos-10.15
     steps:
     - uses: actions/checkout@v2
-    - uses: actions/cache@v2
-      env:
-        cache-name: macos
-      with:
-        path: |
-          ~/.cargo/registry
-          ~/.cargo/git
-          target
-        key: ${{ runner.os }}-cargo-${{ env.cache-name }}-${{ hashFiles('**/Cargo.lock') }}
-    - name: check
-      run: cargo check
-    - name: build
-      run: cargo build --release
-    - name: test
-      run: cargo test --release
+    - name: Run
+      run: bash build/ci.sh
   macos-tls:
+    name: macos w/ tls
     runs-on: macos-10.15
+    env:
+      FEATURES: tls
     steps:
     - uses: actions/checkout@v2
-    - uses: actions/cache@v2
-      env:
-        cache-name: macos-tls
-      with:
-        path: |
-          ~/.cargo/registry
-          ~/.cargo/git
-          target
-        key: ${{ runner.os }}-cargo-${{ env.cache-name }}-${{ hashFiles('**/Cargo.lock') }}
-    - name: check
-      run: cd rpc-perf && cargo check --features tls
-    - name: build
-      run: cd rpc-perf && cargo build --release --features tls
-    - name: test
-      run: cd rpc-perf && cargo test --release --features tls
+    - name: Run
+      run: bash build/ci.sh
   rustfmt:
+    name: rustfmt
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - uses: actions/cache@v2
-      env:
-        cache-name: rustfmt
-      with:
-        path: |
-          ~/.cargo/registry
-          ~/.cargo/git
-          target
-        key: ${{ runner.os }}-cargo-${{ env.cache-name }}-${{ hashFiles('**/Cargo.lock') }}
     - name: rustfmt
       run: cargo fmt -- --check
   clippy:
+    name: clippy
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - uses: actions/cache@v2
-      env:
-        cache-name: clippy
-      with:
-        path: |
-          ~/.cargo/registry
-          ~/.cargo/git
-          target
-        key: ${{ runner.os }}-cargo-${{ env.cache-name }}-${{ hashFiles('**/Cargo.lock') }}
     - name: clippy
       run: cargo clippy
-  memcache:
-    runs-on: ubuntu-latest
+  memcache-smoketest:
+    name: memcache smoketest
+    runs-on: ubuntu-18.04
     services:
       memcached:
         image: memcached
@@ -123,16 +64,7 @@ jobs:
           - 11211:11211        
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/cache@v2
-        env:
-          cache-name: memcache
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ env.cache-name }}-${{ hashFiles('**/Cargo.lock') }}
-      - name: build
-        run: cargo build --release
-      - name: run
+      - name: Run
+        run: bash build/ci.sh
+      - name: Smoketest
         run: target/release/rpc-perf --config rpc-perf/configs/default.toml --endpoint localhost:11211
