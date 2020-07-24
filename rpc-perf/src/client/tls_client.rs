@@ -58,7 +58,9 @@ impl TLSClient {
         tls_config
             .dangerous()
             .set_certificate_verifier(Arc::new(NoCertificateVerification {}));
-        tls_config.set_single_client_cert(certs, privkey);
+        if tls_config.set_single_client_cert(certs, privkey).is_err() {
+            fatal!("Unable to set client certificate!");
+        }
         self.tls_config = Some(tls_config);
     }
 
