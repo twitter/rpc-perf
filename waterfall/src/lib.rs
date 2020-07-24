@@ -10,7 +10,7 @@ extern crate log;
 use hsl::HSL;
 use rustcommon_atomics::*;
 use rustcommon_datastructures::*;
-use rusttype::{point, FontCollection, PositionedGlyph, Scale};
+use rusttype::{point, Font, PositionedGlyph, Scale};
 
 use std::collections::HashMap;
 use std::fs::File;
@@ -159,9 +159,7 @@ struct ImageBuffer<T> {
 
 fn string_buffer(string: &str, size: f32) -> ImageBuffer<ColorRgb> {
     // load font
-    let font_data = dejavu::sans_mono::regular();
-    let collection = FontCollection::from_bytes(font_data as &[u8]).unwrap();
-    let font = collection.into_font().unwrap();
+    let font = Font::try_from_bytes(dejavu::sans_mono::regular() as &[u8]).unwrap();
 
     // size and scaling
     let height: f32 = size;
