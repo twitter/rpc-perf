@@ -54,6 +54,15 @@ jobs:
     - uses: actions/checkout@v2
     - name: clippy
       run: cargo clippy
+  audit:
+    name: audit
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: install
+      run: cargo install cargo-audit
+    - name: audit
+      run: cargo audit
   memcache-smoketest:
     name: memcache smoketest
     runs-on: ubuntu-18.04
