@@ -39,7 +39,7 @@ impl Http {
                     "/ratelimit/request" => {
                         if self.client_config.request_ratelimiter.is_some() {
                             let _ = request.respond(Response::from_string(format!(
-                                "{}",
+                                "{}\n",
                                 self.client_config
                                     .request_ratelimiter
                                     .as_ref()
@@ -47,7 +47,7 @@ impl Http {
                                     .rate()
                             )));
                         } else {
-                            let _ = request.respond(Response::from_string("None".to_string()));
+                            let _ = request.respond(Response::from_string("None\n".to_string()));
                         }
                     }
                     url => {
