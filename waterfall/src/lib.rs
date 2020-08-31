@@ -73,7 +73,7 @@ pub fn save_waterfall<S: ::std::hash::BuildHasher, T: 'static>(
         }
     }
 
-    if let Some(min) = histogram.percentile(0.0) {
+    if let Ok(min) = histogram.percentile(0.0) {
         let mid = histogram.percentile(0.50).unwrap();
         let high = histogram.percentile(0.99).unwrap();
         let max = histogram.percentile(1.0).unwrap();

@@ -67,37 +67,37 @@ impl StandardOut {
             .metrics
             .percentile(&stat, 0.25)
             .map(|v| format!("{}", v / divisor))
-            .unwrap_or_else(|| "none".to_string());
+            .unwrap_or_else(|_| "none".to_string());
         let p50 = self
             .metrics
             .percentile(&stat, 0.50)
             .map(|v| format!("{}", v / divisor))
-            .unwrap_or_else(|| "none".to_string());
+            .unwrap_or_else(|_| "none".to_string());
         let p75 = self
             .metrics
             .percentile(&stat, 0.75)
             .map(|v| format!("{}", v / divisor))
-            .unwrap_or_else(|| "none".to_string());
+            .unwrap_or_else(|_| "none".to_string());
         let p90 = self
             .metrics
             .percentile(&stat, 0.90)
             .map(|v| format!("{}", v / divisor))
-            .unwrap_or_else(|| "none".to_string());
+            .unwrap_or_else(|_| "none".to_string());
         let p99 = self
             .metrics
             .percentile(&stat, 0.99)
             .map(|v| format!("{}", v / divisor))
-            .unwrap_or_else(|| "none".to_string());
+            .unwrap_or_else(|_| "none".to_string());
         let p999 = self
             .metrics
             .percentile(&stat, 0.999)
             .map(|v| format!("{}", v / divisor))
-            .unwrap_or_else(|| "none".to_string());
+            .unwrap_or_else(|_| "none".to_string());
         let p9999 = self
             .metrics
             .percentile(&stat, 0.9999)
             .map(|v| format!("{}", v / divisor))
-            .unwrap_or_else(|| "none".to_string());
+            .unwrap_or_else(|_| "none".to_string());
         info!(
             "{} ({}): p25: {} p50: {} p75: {} p90: {} p99: {} p999: {} p9999: {}",
             label, unit, p25, p50, p75, p90, p99, p999, p9999
@@ -316,7 +316,11 @@ impl Metrics {
             .record_distribution(statistic, time::precise_time_ns(), value, 1);
     }
 
-    pub fn percentile(&self, statistic: &dyn Statistic, percentile: f64) -> Option<u64> {
+    pub fn percentile(
+        &self,
+        statistic: &dyn Statistic,
+        percentile: f64,
+    ) -> Result<u64, rustcommon_metrics::MetricsError> {
         self.inner.percentile(statistic, percentile)
     }
 
