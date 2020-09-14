@@ -316,7 +316,7 @@ impl Common {
         self.metrics = Some(metrics);
     }
 
-    pub fn recorder(&self) -> &Option<Metrics> {
+    pub fn metrics(&self) -> &Option<Metrics> {
         &self.metrics
     }
 }

@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
+use std::time::Instant;
 use crate::client::{MICROSECOND, MILLISECOND, SECOND};
 use crate::codec::Codec;
 use crate::stats::{Metrics, Stat};
@@ -171,13 +172,13 @@ impl Common {
         }
     }
 
-    pub fn stat_interval(&self, label: Stat, start: u64, stop: u64) {
+    pub fn stat_interval(&self, label: Stat, start: Instant, stop: Instant) {
         if let Some(ref stats) = self.stats {
             stats.time_interval(&label, start, stop);
         }
     }
 
-    pub fn heatmap_increment(&self, start: u64, stop: u64) {
+    pub fn heatmap_increment(&self, start: Instant, stop: Instant) {
         if let Some(ref stats) = self.stats {
             stats.heatmap_increment(start, stop);
         }

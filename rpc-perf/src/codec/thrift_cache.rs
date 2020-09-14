@@ -48,9 +48,9 @@ impl Codec for ThriftCache {
             Action::Hget => {
                 let pkey = command.key().unwrap();
                 let fields = command.fields().unwrap();
-                if let Some(recorder) = self.common.recorder() {
-                    recorder.increment(&Stat::CommandsGet);
-                    // recorder.distribution("keys/size", pkey.len() as u64);
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsGet);
+                    // metrics.distribution("keys/size", pkey.len() as u64);
                 }
                 self.codec.get(buf, 0, b"0", pkey, &fields, None);
             }
@@ -58,10 +58,10 @@ impl Codec for ThriftCache {
                 let key = command.key().unwrap();
                 let fields = command.fields().unwrap();
                 let values = command.values().unwrap();
-                if let Some(recorder) = self.common.recorder() {
-                    recorder.increment(&Stat::CommandsSet);
-                    // recorder.distribution("keys/size", key.len() as u64);
-                    // recorder.distribution("values/size", values.len() as u64);
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsSet);
+                    // metrics.distribution("keys/size", key.len() as u64);
+                    // metrics.distribution("values/size", values.len() as u64);
                 }
                 self.codec.put(
                     buf,
@@ -78,19 +78,19 @@ impl Codec for ThriftCache {
             Action::Hdel => {
                 let key = command.key().unwrap();
                 let fields = command.fields().unwrap();
-                if let Some(recorder) = self.common.recorder() {
-                    recorder.increment(&Stat::CommandsDelete);
-                    // recorder.distribution("keys/size", key.len() as u64);
-                    // recorder.distribution("values/size", values.len() as u64);
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsDelete);
+                    // metrics.distribution("keys/size", key.len() as u64);
+                    // metrics.distribution("values/size", values.len() as u64);
                 }
                 self.codec
                     .remove(buf, 0, b"0", key, &fields, None, None, None);
             }
             Action::Lrange => {
                 let key = command.key().unwrap();
-                if let Some(recorder) = self.common.recorder() {
-                    recorder.increment(&Stat::CommandsRange);
-                    recorder.distribution(&Stat::KeySize, key.len() as u64);
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsRange);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
                 }
                 self.codec
                     .range(buf, 0, b"0", key, Some(0), command.count.map(|x| x as i32));
@@ -98,9 +98,9 @@ impl Codec for ThriftCache {
             Action::Ltrim => {
                 let key = command.key().unwrap();
                 let count = command.count().unwrap() as i32;
-                if let Some(recorder) = self.common.recorder() {
-                    recorder.increment(&Stat::CommandsTrim);
-                    recorder.distribution(&Stat::KeySize, key.len() as u64);
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsTrim);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
                 }
                 // TODO: proper handling of start and stop
                 self.codec.trim(buf, 0, b"0", key, count, true, None);
@@ -108,18 +108,18 @@ impl Codec for ThriftCache {
             Action::Rpush => {
                 let key = command.key().unwrap();
                 let values = command.values().unwrap();
-                if let Some(recorder) = self.common.recorder() {
-                    recorder.increment(&Stat::CommandsPush);
-                    recorder.distribution(&Stat::KeySize, key.len() as u64);
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsPush);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
                 }
                 self.codec.append(buf, 0, b"0", key, &values);
             }
             Action::Rpushx => {
                 let key = command.key().unwrap();
                 let values = command.values().unwrap();
-                if let Some(recorder) = self.common.recorder() {
-                    recorder.increment(&Stat::CommandsPush);
-                    recorder.distribution(&Stat::KeySize, key.len() as u64);
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsPush);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
                 }
                 self.codec.appendx(buf, 0, b"0", key, &values);
             }

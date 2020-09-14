@@ -104,7 +104,7 @@ impl Write for PlainSession {
 
     fn flush(&mut self) -> Result<(), Error> {
         trace!("flush the connection");
-        self.set_timestamp(Some(time::precise_time_ns()));
+        self.set_timestamp(Some(Instant::now()));
 
         match self.buffer.write_to(&mut self.stream) {
             Ok(Some(bytes)) => {

@@ -2,84 +2,91 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use rustcommon_metrics::{Source, Statistic};
+use rustcommon_metrics::{AtomicU32, AtomicU64, Source, Statistic};
+use strum_macros::{EnumIter, EnumString, IntoStaticStr};
 
-#[derive(Copy, Clone)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    EnumIter,
+    EnumString,
+    Eq,
+    IntoStaticStr,
+    PartialEq,
+    Hash,
+)]
 pub enum Stat {
+    #[strum(serialize = "window")]
     Window,
+    #[strum(serialize = "requests/enqueued")]
     RequestsEnqueued,
+    #[strum(serialize = "requests/dequeued")]
     RequestsDequeued,
+    #[strum(serialize = "requests/error")]
     RequestsError,
+    #[strum(serialize = "requests/timeout")]
     RequestsTimeout,
+    #[strum(serialize = "connections/total")]
     ConnectionsTotal,
+    #[strum(serialize = "connections/opened")]
     ConnectionsOpened,
+    #[strum(serialize = "connections/closed")]
     ConnectionsClosed,
+    #[strum(serialize = "connections/error")]
     ConnectionsError,
+    #[strum(serialize = "connections/closed/client")]
     ConnectionsClientClosed,
+    #[strum(serialize = "connections/closed/server")]
     ConnectionsServerClosed,
+    #[strum(serialize = "connections/timeout")]
     ConnectionsTimeout,
+    #[strum(serialize = "responses/total")]
     ResponsesTotal,
+    #[strum(serialize = "responses/ok")]
     ResponsesOk,
+    #[strum(serialize = "responses/error")]
     ResponsesError,
+    #[strum(serialize = "responses/hit")]
     ResponsesHit,
+    #[strum(serialize = "responses/miss")]
     ResponsesMiss,
+    #[strum(serialize = "commands/create")]
     CommandsCreate,
+    #[strum(serialize = "commands/delete")]
     CommandsDelete,
+    #[strum(serialize = "commands/find")]
     CommandsFind,
+    #[strum(serialize = "commands/get")]
     CommandsGet,
+    #[strum(serialize = "commands/len")]
     CommandsLen,
+    #[strum(serialize = "commands/push")]
     CommandsPush,
+    #[strum(serialize = "commands/range")]
     CommandsRange,
+    #[strum(serialize = "commands/remove")]
     CommandsRemove,
+    #[strum(serialize = "commands/set")]
     CommandsSet,
+    #[strum(serialize = "commands/trim")]
     CommandsTrim,
+    #[strum(serialize = "commands/truncate")]
     CommandsTruncate,
+    #[strum(serialize = "key/size")]
     KeySize,
+    #[strum(serialize = "value/size")]
     ValueSize,
 }
 
-impl Statistic for Stat {
+impl Statistic<AtomicU64, AtomicU32> for Stat {
     fn name(&self) -> &str {
-        match self {
-            Self::CommandsCreate => "commands/create",
-            Self::CommandsDelete => "commands/delete",
-            Self::CommandsFind => "commands/find",
-            Self::CommandsGet => "commands/get",
-            Self::CommandsLen => "commands/len",
-            Self::CommandsPush => "commands/push",
-            Self::CommandsRange => "commands/range",
-            Self::CommandsRemove => "commands/remove",
-            Self::CommandsSet => "commands/set",
-            Self::CommandsTrim => "commands/trim",
-            Self::CommandsTruncate => "commands/truncate",
-            Self::KeySize => "keys/size",
-            Self::ValueSize => "values/size",
-            Self::Window => "window",
-            Self::RequestsEnqueued => "requests/enqueued",
-            Self::RequestsDequeued => "requests/dequeued",
-            Self::RequestsError => "requests/error",
-            Self::RequestsTimeout => "requests/timeout",
-            Self::ConnectionsTotal => "connections/total",
-            Self::ConnectionsOpened => "connections/opened",
-            Self::ConnectionsClosed => "connections/closed/total",
-            Self::ConnectionsError => "connections/error",
-            Self::ConnectionsClientClosed => "connections/closed/client",
-            Self::ConnectionsServerClosed => "connections/closed/server",
-            Self::ConnectionsTimeout => "connections/timeout",
-            Self::ResponsesTotal => "responses/total",
-            Self::ResponsesOk => "responses/ok",
-            Self::ResponsesError => "responses/error",
-            Self::ResponsesHit => "responses/hit",
-            Self::ResponsesMiss => "responses/miss",
-        }
+        (*self).into()
     }
 
     fn source(&self) -> Source {
         match self {
-            Self::KeySize => Source::Distribution,
-            Self::ValueSize => Source::Distribution,
-            Self::ConnectionsOpened => Source::TimeInterval,
-            Self::ResponsesTotal => Source::TimeInterval,
+            Self::KeySize | Self::ValueSize | Self::ConnectionsOpened | Self::ResponsesTotal => Source::Distribution,
             _ => Source::Counter,
         }
     }

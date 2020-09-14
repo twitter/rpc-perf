@@ -2,8 +2,6 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-#![deny(clippy::all)]
-
 mod admin;
 mod client;
 mod codec;
@@ -14,20 +12,22 @@ mod stats;
 #[macro_use]
 extern crate rustcommon_logger;
 
+use crate::stats::{Metrics, Stat};
 use crate::client::*;
 use crate::codec::Codec;
 use crate::config::Config;
 use crate::config::Protocol;
-use crate::stats::*;
 
 use rand::thread_rng;
 use rustcommon_atomics::{Atomic, AtomicBool, Ordering};
 use rustcommon_logger::Logger;
-use rustcommon_metrics::Reading;
 use rustcommon_ratelimiter::Ratelimiter;
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::thread;
+use std::time::Instant;
+use std::convert::TryInto;
+use std::time::Duration;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -40,15 +40,14 @@ pub fn main() {
         .init()
         .expect("Failed to initialize logger");
 
-    let metrics = Metrics::new(&config);
+    let config = Arc::new(config);
 
-    stats::register_stats(&metrics);
+    let metrics = Metrics::new(config.clone());
 
-    let mut stats_stdout = stats::StandardOut::new(metrics.clone(), config.interval() as u64);
+    let mut stats_stdout = stats::StandardOut::new(metrics.clone(), Duration::new(config.interval().try_into().unwrap(), 0));
 
-    let readings = Arc::new(Mutex::new(Vec::<Reading>::new()));
     if let Some(stats_listen) = config.listen() {
-        let mut stats_http = stats::Http::new(stats_listen, metrics.clone());
+        let mut stats_http = stats::Http::new(stats_listen, metrics.inner(), None);
         let _ = thread::Builder::new()
             .name("http".to_string())
             .spawn(move || loop {
@@ -60,7 +59,7 @@ pub fn main() {
 
     config.print();
 
-    do_warmup(&config, &metrics);
+    do_warmup(config.clone(), &metrics);
 
     let control = Arc::new(AtomicBool::new(true));
 
@@ -112,28 +111,28 @@ pub fn main() {
             });
     }
 
+    let mut next = Instant::now() + Duration::new(config.interval() as u64, 0);
+
     loop {
-        std::thread::sleep(std::time::Duration::new(config.interval() as u64, 0));
+        std::thread::sleep(next - Instant::now());
         metrics.increment(&Stat::Window);
         stats_stdout.print();
 
         if let Some(max_window) = config.windows() {
-            if metrics.counter(&Stat::Window) >= max_window as u64 {
+            if metrics.reading(&Stat::Window).unwrap() >= max_window as u64 {
                 control.store(false, Ordering::SeqCst);
                 break;
             }
         }
-        let current = metrics.readings();
-        let mut readings = readings.lock().unwrap();
-        *readings = current;
-        metrics.latch();
+
+        next += Duration::new(config.interval() as u64, 0);
     }
     if let Some(waterfall) = config.waterfall() {
         metrics.save_waterfall(waterfall);
     }
 }
 
-fn do_warmup(config: &Config, metrics: &Metrics) {
+fn do_warmup(config: Arc<Config>, metrics: &Metrics) {
     if let Some(target) = config.warmup_hitrate() {
         info!("-----");
         info!("Warming the cache...");
@@ -155,8 +154,8 @@ fn do_warmup(config: &Config, metrics: &Metrics) {
             std::thread::sleep(std::time::Duration::new(config.interval() as u64, 0));
             metrics.increment(&Stat::Window);
 
-            let hit = metrics.counter(&Stat::ResponsesHit) as f64;
-            let miss = metrics.counter(&Stat::ResponsesMiss) as f64;
+            let hit = metrics.reading(&Stat::ResponsesHit).unwrap_or(0) as f64;
+            let miss = metrics.reading(&Stat::ResponsesMiss).unwrap_or(0) as f64;
             let hitrate = hit / (hit + miss);
 
             debug!("Hit-rate: {:.2}%", hitrate * 100.0);
@@ -205,7 +204,7 @@ fn make_client(id: usize, codec: Box<dyn Codec>, _config: &Config) -> Box<dyn Cl
 
 #[derive(Clone)]
 pub(crate) struct ClientConfig {
-    config: Config,
+    config: Arc<Config>,
     metrics: Metrics,
     control: Arc<AtomicBool>,
     request_ratelimiter: Option<Arc<Ratelimiter>>,

@@ -40,28 +40,28 @@ impl Codec for PelikanRds {
         match command.action() {
             Action::Get => {
                 let key = command.key().unwrap();
-                if let Some(recorder) = self.common.recorder() {
-                    recorder.increment(&Stat::CommandsGet);
-                    recorder.distribution(&Stat::KeySize, key.len() as u64);
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsGet);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
                 }
                 self.codec.get(buf, key);
             }
             Action::Set => {
                 let key = command.key().unwrap();
                 let value = command.value().unwrap();
-                if let Some(recorder) = self.common.recorder() {
-                    recorder.increment(&Stat::CommandsSet);
-                    recorder.distribution(&Stat::KeySize, key.len() as u64);
-                    recorder.distribution(&Stat::ValueSize, value.len() as u64);
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsSet);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
+                    metrics.distribution(&Stat::ValueSize, value.len() as u64);
                 }
                 self.codec.set(buf, key, value, command.ttl());
             }
             Action::SarrayCreate => {
                 let key = command.key().unwrap();
                 let esize = command.esize().unwrap();
-                if let Some(recorder) = self.common.recorder() {
-                    recorder.increment(&Stat::CommandsDelete);
-                    recorder.distribution(&Stat::KeySize, key.len() as u64);
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsDelete);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
                 }
                 self.codec.sarray_create(
                     buf,
@@ -73,27 +73,27 @@ impl Codec for PelikanRds {
             }
             Action::SarrayDelete => {
                 let key = command.key().unwrap();
-                if let Some(recorder) = self.common.recorder() {
-                    recorder.increment(&Stat::CommandsDelete);
-                    recorder.distribution(&Stat::KeySize, key.len() as u64);
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsDelete);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
                 }
                 self.codec.sarray_delete(buf, key);
             }
             Action::SarrayFind => {
                 let key = command.key().unwrap();
                 let value = command.value().unwrap();
-                if let Some(recorder) = self.common.recorder() {
-                    recorder.increment(&Stat::CommandsFind);
-                    recorder.distribution(&Stat::KeySize, key.len() as u64);
-                    recorder.distribution(&Stat::ValueSize, value.len() as u64);
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsFind);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
+                    metrics.distribution(&Stat::ValueSize, value.len() as u64);
                 }
                 self.codec.sarray_find(buf, key, value);
             }
             Action::SarrayGet => {
                 let key = command.key().unwrap();
-                if let Some(recorder) = self.common.recorder() {
-                    recorder.increment(&Stat::CommandsGet);
-                    recorder.distribution(&Stat::KeySize, key.len() as u64);
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsGet);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
                 }
                 // TODO: implement index and count
                 self.codec.sarray_get(buf, key, None, None);
@@ -101,38 +101,38 @@ impl Codec for PelikanRds {
             Action::SarrayInsert => {
                 let key = command.key().unwrap();
                 let values = command.values().unwrap();
-                if let Some(recorder) = self.common.recorder() {
-                    recorder.increment(&Stat::CommandsSet);
-                    recorder.distribution(&Stat::KeySize, key.len() as u64);
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsSet);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
                     let len: usize = values.iter().map(|v| v.len()).sum();
-                    recorder.distribution(&Stat::ValueSize, len as u64);
+                    metrics.distribution(&Stat::ValueSize, len as u64);
                 }
                 self.codec.sarray_insert(buf, key, &values);
             }
             Action::SarrayLen => {
                 let key = command.key().unwrap();
-                if let Some(recorder) = self.common.recorder() {
-                    recorder.increment(&Stat::CommandsLen);
-                    recorder.distribution(&Stat::KeySize, key.len() as u64);
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsLen);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
                 }
                 self.codec.sarray_len(buf, key);
             }
             Action::SarrayRemove => {
                 let key = command.key().unwrap();
                 let values = command.values().unwrap();
-                if let Some(recorder) = self.common.recorder() {
-                    recorder.increment(&Stat::CommandsRemove);
-                    recorder.distribution(&Stat::KeySize, key.len() as u64);
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsRemove);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
                     let len: usize = values.iter().map(|v| v.len()).sum();
-                    recorder.distribution(&Stat::ValueSize, len as u64);
+                    metrics.distribution(&Stat::ValueSize, len as u64);
                 }
                 self.codec.sarray_remove(buf, key, &values);
             }
             Action::SarrayTruncate => {
                 let key = command.key().unwrap();
-                if let Some(recorder) = self.common.recorder() {
-                    recorder.increment(&Stat::CommandsTruncate);
-                    recorder.distribution(&Stat::KeySize, key.len() as u64);
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsTruncate);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
                 }
                 self.codec
                     .sarray_truncate(buf, key, command.count.unwrap_or(0))
