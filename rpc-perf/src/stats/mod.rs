@@ -6,18 +6,18 @@ mod http;
 mod snapshot;
 mod stat;
 
-use rustcommon_waterfall::WaterfallBuilder;
-use std::time::Instant;
-use crate::SECOND;
 use crate::Config;
-use rustcommon_heatmap::AtomicHeatmap;
-use std::collections::HashMap;
-use std::time::Duration;
-use std::sync::Arc;
+use crate::SECOND;
 pub use http::Http;
+use rustcommon_heatmap::AtomicHeatmap;
+use rustcommon_metrics::*;
+use rustcommon_waterfall::WaterfallBuilder;
 pub use snapshot::MetricsSnapshot;
 pub use stat::Stat;
-use rustcommon_metrics::*;
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::Duration;
+use std::time::Instant;
 use strum::IntoEnumIterator;
 
 pub struct StandardOut {
@@ -54,7 +54,9 @@ impl StandardOut {
             Stat::ResponsesHit,
             Stat::ResponsesMiss,
             Stat::ResponsesTotal,
-        ].iter() {
+        ]
+        .iter()
+        {
             current.insert(*stat, self.metrics.reading(stat).unwrap_or(0));
         }
 
@@ -66,7 +68,9 @@ impl StandardOut {
             self.delta_count(&Stat::ConnectionsOpened, &current),
             self.delta_count(&Stat::ConnectionsError, &current),
             self.delta_count(&Stat::ConnectionsTimeout, &current),
-            self.metrics.reading(&Stat::ConnectionsOpened).unwrap_or(0)
+            self.metrics
+                .reading(&Stat::ConnectionsOpened)
+                .unwrap_or(0)
                 .saturating_sub(self.metrics.reading(&Stat::ConnectionsClosed).unwrap_or(0)),
         );
         info!(
@@ -81,7 +85,9 @@ impl StandardOut {
             self.delta_count(&Stat::RequestsDequeued, &current),
             self.delta_count(&Stat::RequestsTimeout, &current),
             self.delta_count(&Stat::RequestsEnqueued, &current),
-            self.metrics.reading(&Stat::RequestsEnqueued).unwrap_or(0)
+            self.metrics
+                .reading(&Stat::RequestsEnqueued)
+                .unwrap_or(0)
                 .saturating_sub(self.metrics.reading(&Stat::RequestsDequeued).unwrap_or(0)),
         );
         info!(
@@ -99,23 +105,14 @@ impl StandardOut {
         );
         info!(
             "Success: Request: {:.2}% Response: {:.2}% Connect: {:.2}%",
-            self.delta_percent(
-                &Stat::ResponsesTotal,
-                &Stat::RequestsDequeued,
-                &current,
-            ),
-            self.delta_percent(
-                &Stat::ResponsesOk,
-                &Stat::ResponsesTotal,
-                &current,
-            ),
-            self.delta_percent(
-                &Stat::ConnectionsOpened,
-                &Stat::ConnectionsTotal,
-                &current,
-            ),
+            self.delta_percent(&Stat::ResponsesTotal, &Stat::RequestsDequeued, &current,),
+            self.delta_percent(&Stat::ResponsesOk, &Stat::ResponsesTotal, &current,),
+            self.delta_percent(&Stat::ConnectionsOpened, &Stat::ConnectionsTotal, &current,),
         );
-        info!("Hit-rate: {:.2}%", self.hitrate(&Stat::ResponsesHit, &Stat::ResponsesMiss, &current));
+        info!(
+            "Hit-rate: {:.2}%",
+            self.hitrate(&Stat::ResponsesHit, &Stat::ResponsesMiss, &current)
+        );
         self.display_percentiles(Stat::ConnectionsOpened, "Connect Latency", 1000, "us");
         self.display_percentiles(Stat::ResponsesTotal, "Request Latency", 1000, "us");
         self.previous = current;
@@ -123,12 +120,16 @@ impl StandardOut {
 
     fn rate(&self, stat: &Stat, current: &HashMap<Stat, u64>) -> f64 {
         let dv = self.delta_count(stat, current) as f64;
-        let dt = self.interval.as_secs() as f64 + self.interval.subsec_nanos() as f64 / 1000000000.0;
+        let dt =
+            self.interval.as_secs() as f64 + self.interval.subsec_nanos() as f64 / 1000000000.0;
         dv / dt
     }
 
     fn delta_count(&self, stat: &Stat, current: &HashMap<Stat, u64>) -> u64 {
-        current.get(stat).unwrap_or(&0).saturating_sub(*self.previous.get(stat).unwrap_or(&0))
+        current
+            .get(stat)
+            .unwrap_or(&0)
+            .saturating_sub(*self.previous.get(stat).unwrap_or(&0))
     }
 
     fn delta_percent(&self, a: &Stat, b: &Stat, current: &HashMap<Stat, u64>) -> f64 {
@@ -192,7 +193,6 @@ impl StandardOut {
             label, unit, p25, p50, p75, p90, p99, p999, p9999
         );
     }
-
 }
 
 #[derive(Clone)]
@@ -203,7 +203,6 @@ pub struct Metrics {
 }
 
 impl Metrics {
-
     pub fn inner(&self) -> Arc<rustcommon_metrics::Metrics<AtomicU64, AtomicU32>> {
         self.inner.clone()
     }
@@ -247,12 +246,21 @@ impl Metrics {
             match stat {
                 Stat::ResponsesTotal | Stat::KeySize | Stat::ValueSize => {
                     // use heatmaps with 10 slices, each at 1/10th the interval
-                    self.inner.add_summary(&stat, Summary::heatmap(1_000_000_000, 3, 10, Duration::from_millis(self.config.interval() as u64 * 100)));
-                },
+                    self.inner.add_summary(
+                        &stat,
+                        Summary::heatmap(
+                            1_000_000_000,
+                            3,
+                            10,
+                            Duration::from_millis(self.config.interval() as u64 * 100),
+                        ),
+                    );
+                }
                 _ => {}
             }
             for percentile in &[50.0, 75.0, 90.0, 99.0, 99.9, 99.99] {
-                self.inner.add_output(&stat, Output::Percentile(*percentile))
+                self.inner
+                    .add_output(&stat, Output::Percentile(*percentile))
             }
         }
     }
@@ -261,14 +269,21 @@ impl Metrics {
         let _ = self.inner.increment_counter(statistic, 1);
     }
 
-    pub fn time_interval(&self, statistic: &dyn Statistic<AtomicU64, AtomicU32>, start: Instant, stop: Instant) {
+    pub fn time_interval(
+        &self,
+        statistic: &dyn Statistic<AtomicU64, AtomicU32>,
+        start: Instant,
+        stop: Instant,
+    ) {
         let duration = stop - start;
         let value = duration.as_secs() * SECOND as u64 + duration.subsec_nanos() as u64;
         let _ = self.inner.record_bucket(statistic, start, value, 1);
     }
 
     pub fn distribution(&self, statistic: &dyn Statistic<AtomicU64, AtomicU32>, value: u64) {
-        let _ = self.inner.record_bucket(statistic, Instant::now(), value, 1);
+        let _ = self
+            .inner
+            .record_bucket(statistic, Instant::now(), value, 1);
     }
 
     pub fn zero(&self) {
@@ -311,5 +326,4 @@ impl Metrics {
                 .build(&heatmap.load());
         }
     }
-
 }

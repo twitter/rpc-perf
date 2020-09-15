@@ -2,10 +2,10 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use std::time::Instant;
 use crate::client::{MICROSECOND, MILLISECOND, SECOND};
 use crate::codec::Codec;
 use crate::stats::{Metrics, Stat};
+use std::time::Instant;
 
 use bytes::BytesMut;
 use mio::{Events, Poll, Token};

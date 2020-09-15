@@ -7,11 +7,11 @@ mod stream;
 #[cfg(feature = "tls")]
 mod tls_session;
 
-use std::time::Instant;
 pub use crate::session::plain_session::PlainSession;
 pub use crate::session::stream::Stream;
 #[cfg(feature = "tls")]
 pub use crate::session::tls_session::TLSSession;
+use std::time::Instant;
 
 use bytes::BytesMut;
 use mio::{Poll, PollOpt, Ready, Token};

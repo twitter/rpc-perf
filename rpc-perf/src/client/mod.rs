@@ -7,13 +7,13 @@ mod plain_client;
 #[cfg(feature = "tls")]
 mod tls_client;
 
-use std::time::Instant;
 pub use crate::client::common::Common;
 pub use crate::client::plain_client::PlainClient;
 #[cfg(feature = "tls")]
 pub use crate::client::tls_client::TLSClient;
 use crate::codec::*;
 use crate::session::*;
+use std::time::Instant;
 // use crate::stats::{Metrics, Stat};
 use crate::*;
 
@@ -254,8 +254,7 @@ pub trait Client: Send {
         self.stat_increment(Stat::ConnectionsTotal);
         if self.session_mut(token).connect().is_ok() {
             trace!("socket opened: client {} {:?}", self.id(), token);
-            self.session_mut(token)
-                .set_timestamp(Some(Instant::now()));
+            self.session_mut(token).set_timestamp(Some(Instant::now()));
             self.set_session_state(token, State::Connecting);
             // TODO: use a configurable timeout value w/ policy here
             self.set_timeout(token, self.common().connect_timeout());

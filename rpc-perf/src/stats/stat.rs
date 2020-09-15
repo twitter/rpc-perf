@@ -5,17 +5,7 @@
 use rustcommon_metrics::{AtomicU32, AtomicU64, Source, Statistic};
 use strum_macros::{EnumIter, EnumString, IntoStaticStr};
 
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    EnumIter,
-    EnumString,
-    Eq,
-    IntoStaticStr,
-    PartialEq,
-    Hash,
-)]
+#[derive(Clone, Copy, Debug, EnumIter, EnumString, Eq, IntoStaticStr, PartialEq, Hash)]
 pub enum Stat {
     #[strum(serialize = "window")]
     Window,
@@ -86,7 +76,9 @@ impl Statistic<AtomicU64, AtomicU32> for Stat {
 
     fn source(&self) -> Source {
         match self {
-            Self::KeySize | Self::ValueSize | Self::ConnectionsOpened | Self::ResponsesTotal => Source::Distribution,
+            Self::KeySize | Self::ValueSize | Self::ConnectionsOpened | Self::ResponsesTotal => {
+                Source::Distribution
+            }
             _ => Source::Counter,
         }
     }

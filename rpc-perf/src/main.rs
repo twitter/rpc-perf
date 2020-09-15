@@ -12,22 +12,22 @@ mod stats;
 #[macro_use]
 extern crate rustcommon_logger;
 
-use crate::stats::{Metrics, Stat};
 use crate::client::*;
 use crate::codec::Codec;
 use crate::config::Config;
 use crate::config::Protocol;
+use crate::stats::{Metrics, Stat};
 
 use rand::thread_rng;
 use rustcommon_atomics::{Atomic, AtomicBool, Ordering};
 use rustcommon_logger::Logger;
 use rustcommon_ratelimiter::Ratelimiter;
 
+use std::convert::TryInto;
 use std::sync::Arc;
 use std::thread;
-use std::time::Instant;
-use std::convert::TryInto;
 use std::time::Duration;
+use std::time::Instant;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -44,7 +44,10 @@ pub fn main() {
 
     let metrics = Metrics::new(config.clone());
 
-    let mut stats_stdout = stats::StandardOut::new(metrics.clone(), Duration::new(config.interval().try_into().unwrap(), 0));
+    let mut stats_stdout = stats::StandardOut::new(
+        metrics.clone(),
+        Duration::new(config.interval().try_into().unwrap(), 0),
+    );
 
     if let Some(stats_listen) = config.listen() {
         let mut stats_http = stats::Http::new(stats_listen, metrics.inner(), None);
