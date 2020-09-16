@@ -16,6 +16,7 @@ use bytes::BytesMut;
 use mio::{Poll, PollOpt, Ready, Token};
 
 use std::io::{Error, Read, Write};
+use std::time::Instant;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 /// All possible states for a `Session`
@@ -31,7 +32,7 @@ pub enum State {
 /// Holds common `Session` related information
 pub struct Common {
     state: State,
-    timestamp: Option<u64>,
+    timestamp: Option<Instant>,
 }
 
 impl Common {
@@ -44,12 +45,12 @@ impl Common {
     }
 
     /// Returns the last set timestamp
-    pub fn timestamp(&self) -> Option<u64> {
+    pub fn timestamp(&self) -> Option<Instant> {
         self.timestamp
     }
 
     /// Sets the timestamp to some value
-    pub fn set_timestamp(&mut self, timestamp: Option<u64>) {
+    pub fn set_timestamp(&mut self, timestamp: Option<Instant>) {
         self.timestamp = timestamp;
     }
 
@@ -121,12 +122,12 @@ pub trait Session: Read + Write {
     // timestamps
 
     /// Returns the time the Session was last Written to
-    fn timestamp(&self) -> Option<u64> {
+    fn timestamp(&self) -> Option<Instant> {
         self.common().timestamp()
     }
 
     /// Sets the timestamp to some value
-    fn set_timestamp(&mut self, timestamp: Option<u64>) {
+    fn set_timestamp(&mut self, timestamp: Option<Instant>) {
         self.common_mut().set_timestamp(timestamp);
     }
 

@@ -20,19 +20,21 @@ crc = "1.8.1"
 mio = "0.6.22"
 rand = "0.7.3"
 rustcommon-atomics = { git = "https://github.com/twitter/rustcommon", branch = "master" }
-rustcommon-datastructures = { git = "https://github.com/twitter/rustcommon", branch = "master" }
+rustcommon-heatmap = { git = "https://github.com/twitter/rustcommon", branch = "master" }
 rustcommon-logger = { git = "https://github.com/twitter/rustcommon", branch = "master" }
 rustcommon-metrics = { git = "https://github.com/twitter/rustcommon", branch = "master" }
 rustcommon-ratelimiter = { git = "https://github.com/twitter/rustcommon", branch = "master" }
 rustcommon-timer = { git = "https://github.com/twitter/rustcommon", branch = "master" }
+rustcommon-waterfall = { git = "https://github.com/twitter/rustcommon", branch = "master" }
 rustls = { version = "0.18.0", optional = true }
 serde = "1.0.111"
 serde_derive = "1.0.111"
 slab = "0.4.2"
+strum = "0.17.1"
+strum_macros = "0.17.1"
 time = "0.1.42"
 tiny_http = "0.6.2"
 toml = "0.5.6"
-waterfall = { path = "../waterfall" }
 webpki = { version = "0.21.3", optional = true }
 
 [features]

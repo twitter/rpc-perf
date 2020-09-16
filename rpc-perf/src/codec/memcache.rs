@@ -46,19 +46,19 @@ impl Codec for Memcache {
         match command.action() {
             Action::Get => {
                 let key = command.key().unwrap();
-                if let Some(recorder) = self.common.recorder() {
-                    recorder.increment(&Stat::CommandsGet);
-                    recorder.distribution(&Stat::KeySize, key.len() as u64);
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsGet);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
                 }
                 self.codec.get(buf, key);
             }
             Action::Set => {
                 let key = command.key().unwrap();
                 let value = command.value().unwrap();
-                if let Some(recorder) = self.common.recorder() {
-                    recorder.increment(&Stat::CommandsSet);
-                    recorder.distribution(&Stat::KeySize, key.len() as u64);
-                    recorder.distribution(&Stat::ValueSize, value.len() as u64);
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsSet);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
+                    metrics.distribution(&Stat::ValueSize, value.len() as u64);
                 }
                 self.codec
                     .set(buf, key, value, command.ttl().map(|ttl| ttl as u32), None);

@@ -8,9 +8,11 @@ use buffer::Buffer;
 use rustls::Session as OtherSession;
 use rustls::{ClientConfig, ClientSession};
 
-use std::{
-    fmt::Display, io::Error, io::ErrorKind, io::Read, io::Write, net::ToSocketAddrs, sync::Arc,
-};
+use std::fmt::Display;
+use std::io::{Error, ErrorKind, Read, Write};
+use std::net::ToSocketAddrs;
+use std::sync::Arc;
+use std::time::Instant;
 
 pub struct TLSSession {
     common: Common,
@@ -171,7 +173,7 @@ impl Write for TLSSession {
 
     fn flush(&mut self) -> Result<(), Error> {
         trace!("flush the connection");
-        self.set_timestamp(Some(time::precise_time_ns()));
+        self.set_timestamp(Some(Instant::now()));
 
         let result = match self.buffer.write_to(&mut self.session) {
             Ok(Some(bytes)) => {

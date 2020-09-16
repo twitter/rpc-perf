@@ -16,6 +16,7 @@ use rustcommon_timer::Wheel;
 
 use std::collections::VecDeque;
 use std::sync::Arc;
+use std::time::Instant;
 
 pub struct Common {
     id: usize,
@@ -171,13 +172,13 @@ impl Common {
         }
     }
 
-    pub fn stat_interval(&self, label: Stat, start: u64, stop: u64) {
+    pub fn stat_interval(&self, label: Stat, start: Instant, stop: Instant) {
         if let Some(ref stats) = self.stats {
             stats.time_interval(&label, start, stop);
         }
     }
 
-    pub fn heatmap_increment(&self, start: u64, stop: u64) {
+    pub fn heatmap_increment(&self, start: Instant, stop: Instant) {
         if let Some(ref stats) = self.stats {
             stats.heatmap_increment(start, stop);
         }

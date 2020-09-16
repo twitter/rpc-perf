@@ -13,7 +13,6 @@ pub use crate::client::plain_client::PlainClient;
 pub use crate::client::tls_client::TLSClient;
 use crate::codec::*;
 use crate::session::*;
-use crate::stats::{Metrics, Stat};
 use crate::*;
 
 use mio::unix::UnixReady;
@@ -22,7 +21,7 @@ use rand::rngs::ThreadRng;
 use rustcommon_ratelimiter::Ratelimiter;
 
 use std::net::SocketAddr;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 pub const SECOND: usize = 1_000_000_000;
 pub const MILLISECOND: usize = 1_000_000;
@@ -96,11 +95,11 @@ pub trait Client: Send {
         self.common().stat_increment(label);
     }
 
-    fn stat_interval(&self, label: Stat, start: u64, stop: u64) {
+    fn stat_interval(&self, label: Stat, start: Instant, stop: Instant) {
         self.common().stat_interval(label, start, stop);
     }
 
-    fn heatmap_increment(&self, start: u64, stop: u64) {
+    fn heatmap_increment(&self, start: Instant, stop: Instant) {
         self.common().heatmap_increment(start, stop);
     }
 
@@ -253,8 +252,7 @@ pub trait Client: Send {
         self.stat_increment(Stat::ConnectionsTotal);
         if self.session_mut(token).connect().is_ok() {
             trace!("socket opened: client {} {:?}", self.id(), token);
-            self.session_mut(token)
-                .set_timestamp(Some(time::precise_time_ns()));
+            self.session_mut(token).set_timestamp(Some(Instant::now()));
             self.set_session_state(token, State::Connecting);
             // TODO: use a configurable timeout value w/ policy here
             self.set_timeout(token, self.common().connect_timeout());
@@ -310,7 +308,7 @@ pub trait Client: Send {
                 State::Established => {
                     trace!("connection established {:?}", token);
                     if let Some(t0) = self.session(token).timestamp() {
-                        self.stat_interval(Stat::ConnectionsOpened, t0, time::precise_time_ns());
+                        self.stat_interval(Stat::ConnectionsOpened, t0, Instant::now());
                     }
                     self.do_established(token);
                 }
@@ -349,7 +347,7 @@ pub trait Client: Send {
                 State::Established => {
                     debug!("session established");
                     if let Some(t0) = self.session(token).timestamp() {
-                        self.stat_interval(Stat::ConnectionsOpened, t0, time::precise_time_ns());
+                        self.stat_interval(Stat::ConnectionsOpened, t0, Instant::now());
                     }
                     self.do_established(token);
                 }
@@ -479,7 +477,7 @@ pub trait Client: Send {
                 }
                 n => {
                     trace!("Got a response: {} bytes", n);
-                    let t1 = time::precise_time_ns();
+                    let t1 = Instant::now();
                     let parsed = self.decode(buf);
                     match parsed {
                         Ok(Response::Ok) => {

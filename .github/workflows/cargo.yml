@@ -62,7 +62,7 @@ jobs:
     - name: install
       run: cargo install cargo-audit
     - name: audit
-      run: cargo audit
+      run: cargo audit --ignore RUSTSEC-2020-0031
   memcache-smoketest:
     name: memcache smoketest
     runs-on: ubuntu-18.04

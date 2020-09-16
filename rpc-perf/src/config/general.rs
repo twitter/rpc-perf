@@ -2,11 +2,10 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use rustcommon_ratelimiter::Refill;
-
 use crate::config::*;
 
 use rustcommon_logger::Level;
+use rustcommon_ratelimiter::Refill;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
