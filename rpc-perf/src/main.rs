@@ -26,8 +26,7 @@ use rustcommon_ratelimiter::Ratelimiter;
 use std::convert::TryInto;
 use std::sync::Arc;
 use std::thread;
-use std::time::Duration;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 

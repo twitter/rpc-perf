@@ -7,7 +7,9 @@ use crate::session::*;
 use buffer::Buffer;
 use bytes::BytesMut;
 
-use std::{fmt::Display, io::Error, io::ErrorKind, io::Read, io::Write, net::ToSocketAddrs};
+use std::fmt::Display;
+use std::io::{Error, ErrorKind, Read, Write};
+use std::net::ToSocketAddrs;
 
 /// Represents a plain `Session` over a `Stream`
 pub struct PlainSession {

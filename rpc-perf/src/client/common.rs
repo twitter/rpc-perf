@@ -5,7 +5,6 @@
 use crate::client::{MICROSECOND, MILLISECOND, SECOND};
 use crate::codec::Codec;
 use crate::stats::{Metrics, Stat};
-use std::time::Instant;
 
 use bytes::BytesMut;
 use mio::{Events, Poll, Token};
@@ -17,6 +16,7 @@ use rustcommon_timer::Wheel;
 
 use std::collections::VecDeque;
 use std::sync::Arc;
+use std::time::Instant;
 
 pub struct Common {
     id: usize,

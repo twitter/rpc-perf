@@ -8,17 +8,19 @@ mod stat;
 
 use crate::Config;
 use crate::SECOND;
+
 pub use http::Http;
 use rustcommon_heatmap::AtomicHeatmap;
 use rustcommon_metrics::*;
 use rustcommon_waterfall::WaterfallBuilder;
 pub use snapshot::MetricsSnapshot;
 pub use stat::Stat;
+use strum::IntoEnumIterator;
+
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
-use strum::IntoEnumIterator;
 
 pub struct StandardOut {
     previous: HashMap<Stat, u64>,

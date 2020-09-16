@@ -2,13 +2,12 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-pub use codec::RedisMode;
-
 use crate::codec::*;
 use crate::config::Action;
 use crate::stats::Stat;
 
 use bytes::BytesMut;
+pub use codec::RedisMode;
 
 pub struct Redis {
     codec: codec::Redis,

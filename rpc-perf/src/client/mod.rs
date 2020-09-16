@@ -13,8 +13,6 @@ pub use crate::client::plain_client::PlainClient;
 pub use crate::client::tls_client::TLSClient;
 use crate::codec::*;
 use crate::session::*;
-use std::time::Instant;
-// use crate::stats::{Metrics, Stat};
 use crate::*;
 
 use mio::unix::UnixReady;
@@ -23,7 +21,7 @@ use rand::rngs::ThreadRng;
 use rustcommon_ratelimiter::Ratelimiter;
 
 use std::net::SocketAddr;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 pub const SECOND: usize = 1_000_000_000;
 pub const MILLISECOND: usize = 1_000_000;

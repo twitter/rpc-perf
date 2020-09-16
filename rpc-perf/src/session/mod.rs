@@ -11,12 +11,12 @@ pub use crate::session::plain_session::PlainSession;
 pub use crate::session::stream::Stream;
 #[cfg(feature = "tls")]
 pub use crate::session::tls_session::TLSSession;
-use std::time::Instant;
 
 use bytes::BytesMut;
 use mio::{Poll, PollOpt, Ready, Token};
 
 use std::io::{Error, Read, Write};
+use std::time::Instant;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 /// All possible states for a `Session`

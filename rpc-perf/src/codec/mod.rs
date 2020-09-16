@@ -15,13 +15,11 @@ pub use crate::codec::pelikan_rds::PelikanRds;
 pub use crate::codec::ping::Ping;
 pub use crate::codec::redis::{Redis, RedisMode};
 pub use crate::codec::thrift_cache::ThriftCache;
-
-pub use codec::{Decoder, Error, Response};
-
 use crate::config::{Action, Config, Generator};
 use crate::stats::Metrics;
 
 use bytes::BytesMut;
+pub use codec::{Decoder, Error, Response};
 use rand::rngs::ThreadRng;
 
 pub struct Command {
