@@ -33,7 +33,7 @@ pub struct Common {
     request_timeout: usize,
     stats: Option<Metrics>,
     timers: Wheel<Token>,
-    last_timeouts: u64,
+    last_timeouts: Instant,
     tcp_nodelay: bool,
     soft_timeout: bool,
 }
@@ -55,7 +55,7 @@ impl Common {
             request_timeout: 200 * MILLISECOND / MICROSECOND,
             stats: None,
             timers: Wheel::<Token>::new(SECOND / MICROSECOND),
-            last_timeouts: time::precise_time_ns(),
+            last_timeouts: Instant::now(),
             tcp_nodelay: false,
             soft_timeout: false,
         }
@@ -230,9 +230,11 @@ impl Common {
     }
 
     pub fn get_timers(&mut self) -> Vec<Token> {
-        let now = time::precise_time_ns();
+        let now = Instant::now();
         let last = self.last_timeouts;
-        let ticks = (now - last) as usize / MICROSECOND;
+        let ticks = ((now - last).as_secs() as usize * 1_000_000_000
+            + (now - last).subsec_nanos() as usize)
+            / MICROSECOND;
         self.last_timeouts = now;
         self.timers.tick(ticks)
     }
