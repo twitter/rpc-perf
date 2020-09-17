@@ -2,9 +2,9 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use std::time::Instant;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Instant;
 
 use rustcommon_metrics::*;
 
