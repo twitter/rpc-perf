@@ -12,7 +12,7 @@ use crate::SECOND;
 pub use http::Http;
 use rustcommon_heatmap::AtomicHeatmap;
 use rustcommon_metrics::*;
-use rustcommon_waterfall::WaterfallBuilder;
+use rustcommon_waterfall::{Palette, WaterfallBuilder};
 pub use snapshot::MetricsSnapshot;
 pub use stat::Stat;
 use strum::IntoEnumIterator;
@@ -157,37 +157,37 @@ impl StandardOut {
     fn display_percentiles(&self, stat: Stat, label: &str, divisor: u64, unit: &str) {
         let p25 = self
             .metrics
-            .percentile(&stat, 0.25)
+            .percentile(&stat, 25.0)
             .map(|v| format!("{}", v / divisor))
             .unwrap_or_else(|_| "none".to_string());
         let p50 = self
             .metrics
-            .percentile(&stat, 0.50)
+            .percentile(&stat, 50.0)
             .map(|v| format!("{}", v / divisor))
             .unwrap_or_else(|_| "none".to_string());
         let p75 = self
             .metrics
-            .percentile(&stat, 0.75)
+            .percentile(&stat, 75.0)
             .map(|v| format!("{}", v / divisor))
             .unwrap_or_else(|_| "none".to_string());
         let p90 = self
             .metrics
-            .percentile(&stat, 0.90)
+            .percentile(&stat, 90.0)
             .map(|v| format!("{}", v / divisor))
             .unwrap_or_else(|_| "none".to_string());
         let p99 = self
             .metrics
-            .percentile(&stat, 0.99)
+            .percentile(&stat, 99.0)
             .map(|v| format!("{}", v / divisor))
             .unwrap_or_else(|_| "none".to_string());
         let p999 = self
             .metrics
-            .percentile(&stat, 0.999)
+            .percentile(&stat, 99.9)
             .map(|v| format!("{}", v / divisor))
             .unwrap_or_else(|_| "none".to_string());
         let p9999 = self
             .metrics
-            .percentile(&stat, 0.9999)
+            .percentile(&stat, 99.99)
             .map(|v| format!("{}", v / divisor))
             .unwrap_or_else(|_| "none".to_string());
         info!(
@@ -209,11 +209,11 @@ impl Metrics {
         self.inner.clone()
     }
 
-    pub fn reading(&self, stat: &Stat) -> Result<u64, ()> {
+    pub fn reading(&self, stat: &Stat) -> Result<u64, MetricsError> {
         self.inner.reading(stat)
     }
 
-    pub fn percentile(&self, stat: &Stat, percentile: f64) -> Result<u64, ()> {
+    pub fn percentile(&self, stat: &Stat, percentile: f64) -> Result<u64, MetricsError> {
         self.inner.percentile(stat, percentile)
     }
 
@@ -304,6 +304,7 @@ impl Metrics {
     pub fn save_waterfall(&self, file: String) {
         if let Some(ref heatmap) = *self.heatmap {
             WaterfallBuilder::new(&file)
+                .palette(Palette::Ironbow)
                 .label(100, "100ns")
                 .label(200, "200ns")
                 .label(400, "400ns")
