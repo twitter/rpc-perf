@@ -31,6 +31,10 @@ pub enum Stat {
     ConnectionsServerClosed,
     #[strum(serialize = "connections/timeout")]
     ConnectionsTimeout,
+    #[strum(serialize = "connections/latency")]
+    ConnectionsLatency,
+    #[strum(serialize = "responses/latency")]
+    ResponsesLatency,
     #[strum(serialize = "responses/total")]
     ResponsesTotal,
     #[strum(serialize = "responses/ok")]
@@ -76,7 +80,7 @@ impl Statistic<AtomicU64, AtomicU32> for Stat {
 
     fn source(&self) -> Source {
         match self {
-            Self::KeySize | Self::ValueSize | Self::ConnectionsOpened | Self::ResponsesTotal => {
+            Self::KeySize | Self::ValueSize | Self::ConnectionsLatency | Self::ResponsesLatency => {
                 Source::Distribution
             }
             _ => Source::Counter,

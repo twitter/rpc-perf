@@ -115,8 +115,8 @@ impl StandardOut {
             "Hit-rate: {:.2}%",
             self.hitrate(&Stat::ResponsesHit, &Stat::ResponsesMiss, &current)
         );
-        self.display_percentiles(Stat::ConnectionsOpened, "Connect Latency", 1000, "us");
-        self.display_percentiles(Stat::ResponsesTotal, "Request Latency", 1000, "us");
+        self.display_percentiles(Stat::ConnectionsLatency, "Connect Latency", 1000, "us");
+        self.display_percentiles(Stat::ResponsesLatency, "Request Latency", 1000, "us");
         self.previous = current;
     }
 
@@ -246,7 +246,10 @@ impl Metrics {
         for stat in Stat::iter() {
             self.inner.register(&stat);
             match stat {
-                Stat::ResponsesTotal | Stat::KeySize | Stat::ValueSize => {
+                Stat::ConnectionsLatency
+                | Stat::ResponsesLatency
+                | Stat::KeySize
+                | Stat::ValueSize => {
                     // use heatmaps with 10 slices, each at 1/10th the interval
                     self.inner.add_summary(
                         &stat,
@@ -260,6 +263,7 @@ impl Metrics {
                 }
                 _ => {}
             }
+            self.inner.add_output(&stat, Output::Reading);
             for percentile in &[50.0, 75.0, 90.0, 99.0, 99.9, 99.99] {
                 self.inner
                     .add_output(&stat, Output::Percentile(*percentile))

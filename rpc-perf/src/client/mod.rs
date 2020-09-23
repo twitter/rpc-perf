@@ -308,7 +308,7 @@ pub trait Client: Send {
                 State::Established => {
                     trace!("connection established {:?}", token);
                     if let Some(t0) = self.session(token).timestamp() {
-                        self.stat_interval(Stat::ConnectionsOpened, t0, Instant::now());
+                        self.stat_interval(Stat::ConnectionsLatency, t0, Instant::now());
                     }
                     self.do_established(token);
                 }
@@ -506,7 +506,7 @@ pub trait Client: Send {
 
                     if parsed != Err(Error::Incomplete) {
                         if let Some(t0) = self.session(token).timestamp() {
-                            self.stat_interval(Stat::ResponsesTotal, t0, t1);
+                            self.stat_interval(Stat::ResponsesLatency, t0, t1);
                             self.heatmap_increment(t0, t1);
                         }
                         trace!("switch to established");
