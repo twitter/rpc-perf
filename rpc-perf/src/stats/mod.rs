@@ -246,7 +246,10 @@ impl Metrics {
         for stat in Stat::iter() {
             self.inner.register(&stat);
             match stat {
-                Stat::ConnectionsLatency | Stat::ResponsesLatency | Stat::KeySize | Stat::ValueSize => {
+                Stat::ConnectionsLatency
+                | Stat::ResponsesLatency
+                | Stat::KeySize
+                | Stat::ValueSize => {
                     // use heatmaps with 10 slices, each at 1/10th the interval
                     self.inner.add_summary(
                         &stat,
