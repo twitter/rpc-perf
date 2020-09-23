@@ -97,7 +97,7 @@ impl MetricsSnapshot {
                     }
                 }
                 Output::Percentile(percentile) => {
-                    data.push(format!("{}/p{:02}: {}", label, percentile, value));
+                    data.push(format!("\"{}/p{:02}\": {}", label, percentile, value));
                 }
             }
         }

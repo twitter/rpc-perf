@@ -77,3 +77,19 @@ jobs:
         run: bash build/ci.sh
       - name: Smoketest
         run: target/release/rpc-perf --config rpc-perf/configs/default.toml --endpoint localhost:11211
+  exposition-smoketest:
+    name: exposition smoketest
+    runs-on: ubuntu-18.04
+    services:
+      memcached:
+        image: memcached
+        ports:
+          - 11211:11211
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build
+        run: bash build/ci.sh
+      - name: Run
+        run: target/release/rpc-perf --config rpc-perf/configs/default.toml --endpoint localhost:11211 --listen 127.0.0.1:9090 &
+      - name: Validate
+        run: sleep 60 && curl -s http://localhost:8080/vars.json | jq '.' > /dev/null
