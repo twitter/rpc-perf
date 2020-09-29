@@ -124,13 +124,15 @@ checksum = "4785bdd1c96b2a846b2bd7cc02e86b6b3dbf14e7e53446c4f54c92a361040822"
 
 [[package]]
 name = "chrono"
-version = "0.4.15"
+version = "0.4.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "942f72db697d8767c22d46a598e01f2d3b475501ea43d0db4f16d90259182d0b"
+checksum = "d021fddb7bd3e734370acfa4a83f34095571d8570c039f1420d77540f68d5772"
 dependencies = [
+ "libc",
  "num-integer",
  "num-traits",
  "time",
+ "winapi 0.3.9",
 ]
 
 [[package]]
@@ -316,12 +318,12 @@ dependencies = [
 
 [[package]]
 name = "gif"
-version = "0.10.3"
+version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "471d90201b3b223f3451cd4ad53e34295f16a1df17b1edf3736d47761c3981af"
+checksum = "02efba560f227847cb41463a7395c514d127d4f74fff12ef0137fff1b84b96c4"
 dependencies = [
  "color_quant",
- "lzw",
+ "weezl",
 ]
 
 [[package]]
@@ -335,9 +337,9 @@ dependencies = [
 
 [[package]]
 name = "hermit-abi"
-version = "0.1.15"
+version = "0.1.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3deed196b6e7f9e44a2ae8d94225d80302d81208b1bb673fd21fe634645c85a9"
+checksum = "4c30f6d0bc6b00693347368a67d41b58f2fb851215ff1da49e90fe2c5c667151"
 dependencies = [
  "libc",
 ]
@@ -355,9 +357,9 @@ dependencies = [
 
 [[package]]
 name = "image"
-version = "0.23.9"
+version = "0.23.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "974e194911d1f7efe3cd8a8f9db3b767e43536327e899e8bc9a12ef5711b74d2"
+checksum = "985fc06b1304d19c28d5c562ed78ef5316183f2b0053b46763a0b94862373c34"
 dependencies = [
  "bytemuck",
  "byteorder",
@@ -450,9 +452,9 @@ checksum = "60302e4db3a61da70c0cb7991976248362f30319e88850c487b9b95bbf059e00"
 
 [[package]]
 name = "memoffset"
-version = "0.5.5"
+version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c198b026e1bbf08a937e94c6c60f9ec4a2267f5b0d2eec9c1b21b061ce2be55f"
+checksum = "043175f069eda7b85febe4a74abbaeff828d9f8b448515d3151a14a3542811aa"
 dependencies = [
  "autocfg",
 ]
@@ -606,9 +608,9 @@ checksum = "99c605b9a0adc77b7211c6b1f722dcb613d68d66859a44f3d485a6da332b0598"
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.21"
+version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "36e28516df94f3dd551a587da5357459d9b36d945a7c37c3557928c1c2ff2a2c"
+checksum = "51ef7cd2518ead700af67bf9d1a658d90b6037d77110fd9c0445429d0ba1c6c9"
 dependencies = [
  "unicode-xid",
 ]
@@ -686,9 +688,9 @@ dependencies = [
 
 [[package]]
 name = "rayon-core"
-version = "1.8.0"
+version = "1.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91739a34c4355b5434ce54c9086c5895604a9c278586d1f1aa95e04f66b525a0"
+checksum = "e8c4fec834fb6e6d2dd5eece3c7b432a52f0ba887cf40e595190c4107edc08bf"
 dependencies = [
  "crossbeam-channel",
  "crossbeam-deque",
@@ -745,7 +747,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-atomics"
 version = "1.0.0"
-source = "git+https://github.com/twitter/rustcommon#ea503d33633d45e8a71232748ff6081b19c2ae01"
+source = "git+https://github.com/twitter/rustcommon#8a9a4ad37ec4cbbc96d6f9a085e644fde12608ab"
 dependencies = [
  "serde",
 ]
@@ -753,7 +755,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-datastructures"
 version = "1.0.0"
-source = "git+https://github.com/twitter/rustcommon#ea503d33633d45e8a71232748ff6081b19c2ae01"
+source = "git+https://github.com/twitter/rustcommon#8a9a4ad37ec4cbbc96d6f9a085e644fde12608ab"
 dependencies = [
  "log",
  "rustcommon-atomics",
@@ -764,7 +766,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-heatmap"
 version = "0.1.0"
-source = "git+https://github.com/twitter/rustcommon#ea503d33633d45e8a71232748ff6081b19c2ae01"
+source = "git+https://github.com/twitter/rustcommon#8a9a4ad37ec4cbbc96d6f9a085e644fde12608ab"
 dependencies = [
  "rustcommon-atomics",
  "rustcommon-histogram",
@@ -774,7 +776,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-histogram"
 version = "1.0.0"
-source = "git+https://github.com/twitter/rustcommon#ea503d33633d45e8a71232748ff6081b19c2ae01"
+source = "git+https://github.com/twitter/rustcommon#8a9a4ad37ec4cbbc96d6f9a085e644fde12608ab"
 dependencies = [
  "rustcommon-atomics",
  "thiserror",
@@ -783,7 +785,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-logger"
 version = "1.0.0"
-source = "git+https://github.com/twitter/rustcommon#ea503d33633d45e8a71232748ff6081b19c2ae01"
+source = "git+https://github.com/twitter/rustcommon#8a9a4ad37ec4cbbc96d6f9a085e644fde12608ab"
 dependencies = [
  "log",
  "time",
@@ -792,7 +794,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-metrics"
 version = "2.0.0-alpha.0"
-source = "git+https://github.com/twitter/rustcommon#ea503d33633d45e8a71232748ff6081b19c2ae01"
+source = "git+https://github.com/twitter/rustcommon#8a9a4ad37ec4cbbc96d6f9a085e644fde12608ab"
 dependencies = [
  "dashmap",
  "rustcommon-atomics",
@@ -804,7 +806,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-ratelimiter"
 version = "1.0.0"
-source = "git+https://github.com/twitter/rustcommon#ea503d33633d45e8a71232748ff6081b19c2ae01"
+source = "git+https://github.com/twitter/rustcommon#8a9a4ad37ec4cbbc96d6f9a085e644fde12608ab"
 dependencies = [
  "rand",
  "rand_distr",
@@ -815,7 +817,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-streamstats"
 version = "0.1.0"
-source = "git+https://github.com/twitter/rustcommon#ea503d33633d45e8a71232748ff6081b19c2ae01"
+source = "git+https://github.com/twitter/rustcommon#8a9a4ad37ec4cbbc96d6f9a085e644fde12608ab"
 dependencies = [
  "rustcommon-atomics",
  "thiserror",
@@ -824,7 +826,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-timer"
 version = "1.0.0"
-source = "git+https://github.com/twitter/rustcommon#ea503d33633d45e8a71232748ff6081b19c2ae01"
+source = "git+https://github.com/twitter/rustcommon#8a9a4ad37ec4cbbc96d6f9a085e644fde12608ab"
 dependencies = [
  "log",
 ]
@@ -832,7 +834,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-waterfall"
 version = "1.0.0"
-source = "git+https://github.com/twitter/rustcommon#ea503d33633d45e8a71232748ff6081b19c2ae01"
+source = "git+https://github.com/twitter/rustcommon#8a9a4ad37ec4cbbc96d6f9a085e644fde12608ab"
 dependencies = [
  "chrono",
  "dejavu",
@@ -953,9 +955,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "1.0.41"
+version = "1.0.42"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6690e3e9f692504b941dc6c3b188fd28df054f7fb8469ab40680df52fdcc842b"
+checksum = "9c51d92969d209b54a98397e1b91c8ae82d8c87a7bb87df0b29aa2ad81454228"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1185,6 +1187,12 @@ dependencies = [
  "ring",
  "untrusted",
 ]
+
+[[package]]
+name = "weezl"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a3d2f24b6c3aa92fb33279566dbebf1cbe66b03a73f09aa69cf8cf14d2f9feb9"
 
 [[package]]
 name = "winapi"
