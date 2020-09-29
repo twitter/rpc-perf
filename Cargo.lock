@@ -676,9 +676,9 @@ dependencies = [
 
 [[package]]
 name = "rayon"
-version = "1.4.0"
+version = "1.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cfd016f0c045ad38b5251be2c9c0ab806917f82da4d36b2a327e5166adad9270"
+checksum = "dcf6960dc9a5b4ee8d3e4c5787b4a112a8818e0290a42ff664ad60692fdf2032"
 dependencies = [
  "autocfg",
  "crossbeam-deque",
@@ -747,7 +747,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-atomics"
 version = "1.0.0"
-source = "git+https://github.com/twitter/rustcommon#8a9a4ad37ec4cbbc96d6f9a085e644fde12608ab"
+source = "git+https://github.com/twitter/rustcommon#baf60a443e556379f52830cb917bdc007b0eeaa3"
 dependencies = [
  "serde",
 ]
@@ -755,7 +755,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-datastructures"
 version = "1.0.0"
-source = "git+https://github.com/twitter/rustcommon#8a9a4ad37ec4cbbc96d6f9a085e644fde12608ab"
+source = "git+https://github.com/twitter/rustcommon#baf60a443e556379f52830cb917bdc007b0eeaa3"
 dependencies = [
  "log",
  "rustcommon-atomics",
@@ -766,7 +766,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-heatmap"
 version = "0.1.0"
-source = "git+https://github.com/twitter/rustcommon#8a9a4ad37ec4cbbc96d6f9a085e644fde12608ab"
+source = "git+https://github.com/twitter/rustcommon#baf60a443e556379f52830cb917bdc007b0eeaa3"
 dependencies = [
  "rustcommon-atomics",
  "rustcommon-histogram",
@@ -776,7 +776,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-histogram"
 version = "1.0.0"
-source = "git+https://github.com/twitter/rustcommon#8a9a4ad37ec4cbbc96d6f9a085e644fde12608ab"
+source = "git+https://github.com/twitter/rustcommon#baf60a443e556379f52830cb917bdc007b0eeaa3"
 dependencies = [
  "rustcommon-atomics",
  "thiserror",
@@ -785,7 +785,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-logger"
 version = "1.0.0"
-source = "git+https://github.com/twitter/rustcommon#8a9a4ad37ec4cbbc96d6f9a085e644fde12608ab"
+source = "git+https://github.com/twitter/rustcommon#baf60a443e556379f52830cb917bdc007b0eeaa3"
 dependencies = [
  "log",
  "time",
@@ -794,7 +794,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-metrics"
 version = "2.0.0-alpha.0"
-source = "git+https://github.com/twitter/rustcommon#8a9a4ad37ec4cbbc96d6f9a085e644fde12608ab"
+source = "git+https://github.com/twitter/rustcommon#baf60a443e556379f52830cb917bdc007b0eeaa3"
 dependencies = [
  "dashmap",
  "rustcommon-atomics",
@@ -806,7 +806,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-ratelimiter"
 version = "1.0.0"
-source = "git+https://github.com/twitter/rustcommon#8a9a4ad37ec4cbbc96d6f9a085e644fde12608ab"
+source = "git+https://github.com/twitter/rustcommon#baf60a443e556379f52830cb917bdc007b0eeaa3"
 dependencies = [
  "rand",
  "rand_distr",
@@ -817,7 +817,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-streamstats"
 version = "0.1.0"
-source = "git+https://github.com/twitter/rustcommon#8a9a4ad37ec4cbbc96d6f9a085e644fde12608ab"
+source = "git+https://github.com/twitter/rustcommon#baf60a443e556379f52830cb917bdc007b0eeaa3"
 dependencies = [
  "rustcommon-atomics",
  "thiserror",
@@ -826,7 +826,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-timer"
 version = "1.0.0"
-source = "git+https://github.com/twitter/rustcommon#8a9a4ad37ec4cbbc96d6f9a085e644fde12608ab"
+source = "git+https://github.com/twitter/rustcommon#baf60a443e556379f52830cb917bdc007b0eeaa3"
 dependencies = [
  "log",
 ]
@@ -834,7 +834,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-waterfall"
 version = "1.0.0"
-source = "git+https://github.com/twitter/rustcommon#8a9a4ad37ec4cbbc96d6f9a085e644fde12608ab"
+source = "git+https://github.com/twitter/rustcommon#baf60a443e556379f52830cb917bdc007b0eeaa3"
 dependencies = [
  "chrono",
  "dejavu",
