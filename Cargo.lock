@@ -124,9 +124,9 @@ checksum = "4785bdd1c96b2a846b2bd7cc02e86b6b3dbf14e7e53446c4f54c92a361040822"
 
 [[package]]
 name = "chrono"
-version = "0.4.18"
+version = "0.4.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d021fddb7bd3e734370acfa4a83f34095571d8570c039f1420d77540f68d5772"
+checksum = "670ad68c9088c2a963aaa298cb369688cf3f9465ce5e2d4ca10e6e0098a1ce73"
 dependencies = [
  "libc",
  "num-integer",
@@ -676,9 +676,9 @@ dependencies = [
 
 [[package]]
 name = "rayon"
-version = "1.4.0"
+version = "1.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cfd016f0c045ad38b5251be2c9c0ab806917f82da4d36b2a327e5166adad9270"
+checksum = "dcf6960dc9a5b4ee8d3e4c5787b4a112a8818e0290a42ff664ad60692fdf2032"
 dependencies = [
  "autocfg",
  "crossbeam-deque",
@@ -747,7 +747,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-atomics"
 version = "1.0.0"
-source = "git+https://github.com/twitter/rustcommon#8a9a4ad37ec4cbbc96d6f9a085e644fde12608ab"
+source = "git+https://github.com/twitter/rustcommon#edc363e8e4279bf29f65088f2766b3cbc1e71888"
 dependencies = [
  "serde",
 ]
@@ -755,7 +755,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-datastructures"
 version = "1.0.0"
-source = "git+https://github.com/twitter/rustcommon#8a9a4ad37ec4cbbc96d6f9a085e644fde12608ab"
+source = "git+https://github.com/twitter/rustcommon#edc363e8e4279bf29f65088f2766b3cbc1e71888"
 dependencies = [
  "log",
  "rustcommon-atomics",
@@ -766,7 +766,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-heatmap"
 version = "0.1.0"
-source = "git+https://github.com/twitter/rustcommon#8a9a4ad37ec4cbbc96d6f9a085e644fde12608ab"
+source = "git+https://github.com/twitter/rustcommon#edc363e8e4279bf29f65088f2766b3cbc1e71888"
 dependencies = [
  "rustcommon-atomics",
  "rustcommon-histogram",
@@ -776,7 +776,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-histogram"
 version = "1.0.0"
-source = "git+https://github.com/twitter/rustcommon#8a9a4ad37ec4cbbc96d6f9a085e644fde12608ab"
+source = "git+https://github.com/twitter/rustcommon#edc363e8e4279bf29f65088f2766b3cbc1e71888"
 dependencies = [
  "rustcommon-atomics",
  "thiserror",
@@ -785,7 +785,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-logger"
 version = "1.0.0"
-source = "git+https://github.com/twitter/rustcommon#8a9a4ad37ec4cbbc96d6f9a085e644fde12608ab"
+source = "git+https://github.com/twitter/rustcommon#edc363e8e4279bf29f65088f2766b3cbc1e71888"
 dependencies = [
  "log",
  "time",
@@ -794,7 +794,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-metrics"
 version = "2.0.0-alpha.0"
-source = "git+https://github.com/twitter/rustcommon#8a9a4ad37ec4cbbc96d6f9a085e644fde12608ab"
+source = "git+https://github.com/twitter/rustcommon#edc363e8e4279bf29f65088f2766b3cbc1e71888"
 dependencies = [
  "dashmap",
  "rustcommon-atomics",
@@ -806,7 +806,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-ratelimiter"
 version = "1.0.0"
-source = "git+https://github.com/twitter/rustcommon#8a9a4ad37ec4cbbc96d6f9a085e644fde12608ab"
+source = "git+https://github.com/twitter/rustcommon#edc363e8e4279bf29f65088f2766b3cbc1e71888"
 dependencies = [
  "rand",
  "rand_distr",
@@ -817,7 +817,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-streamstats"
 version = "0.1.0"
-source = "git+https://github.com/twitter/rustcommon#8a9a4ad37ec4cbbc96d6f9a085e644fde12608ab"
+source = "git+https://github.com/twitter/rustcommon#edc363e8e4279bf29f65088f2766b3cbc1e71888"
 dependencies = [
  "rustcommon-atomics",
  "thiserror",
@@ -826,7 +826,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-timer"
 version = "1.0.0"
-source = "git+https://github.com/twitter/rustcommon#8a9a4ad37ec4cbbc96d6f9a085e644fde12608ab"
+source = "git+https://github.com/twitter/rustcommon#edc363e8e4279bf29f65088f2766b3cbc1e71888"
 dependencies = [
  "log",
 ]
@@ -834,7 +834,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-waterfall"
 version = "1.0.0"
-source = "git+https://github.com/twitter/rustcommon#8a9a4ad37ec4cbbc96d6f9a085e644fde12608ab"
+source = "git+https://github.com/twitter/rustcommon#edc363e8e4279bf29f65088f2766b3cbc1e71888"
 dependencies = [
  "chrono",
  "dejavu",

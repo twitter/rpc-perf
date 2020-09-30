@@ -18,6 +18,7 @@ pub use stat::Stat;
 use strum::IntoEnumIterator;
 
 use std::collections::HashMap;
+use std::convert::TryInto;
 use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
@@ -223,7 +224,10 @@ impl Metrics {
                 Some(Arc::new(AtomicHeatmap::new(
                     SECOND as u64,
                     3,
-                    windows as usize * config.interval(),
+                    Duration::new(
+                        (windows as usize * config.interval()).try_into().unwrap(),
+                        0,
+                    ),
                     Duration::new(1, 0),
                 )))
             } else {
@@ -250,14 +254,13 @@ impl Metrics {
                 | Stat::ResponsesLatency
                 | Stat::KeySize
                 | Stat::ValueSize => {
-                    // use heatmaps with 10 slices, each at 1/10th the interval
                     self.inner.add_summary(
                         &stat,
                         Summary::heatmap(
                             1_000_000_000,
                             3,
-                            10,
-                            Duration::from_millis(self.config.interval() as u64 * 100),
+                            Duration::new(self.config.interval().try_into().unwrap(), 0),
+                            Duration::new((self.config.interval() / 10).try_into().unwrap(), 0),
                         ),
                     );
                 }
