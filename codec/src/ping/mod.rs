@@ -38,13 +38,12 @@ impl Decoder for Ping {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::BufMut;
 
     fn decode_messages(messages: Vec<&'static [u8]>, response: Result<Response, Error>) {
         for message in messages {
             let decoder = Ping::new();
             let mut buf = BytesMut::with_capacity(1024);
-            buf.put(&message);
+            buf.extend_from_slice(&message);
 
             let buf = buf.freeze();
             let result = decoder.decode(&buf);

@@ -4,7 +4,7 @@
 
 use super::*;
 
-use bytes::{Buf, BytesMut, IntoBuf};
+use bytes::{Buf, BytesMut};
 
 use std::io::{BufRead, BufReader};
 
@@ -61,11 +61,11 @@ impl Decoder for Memcache {
         }
 
         // count the number of lines
-        let reader = BufReader::new(buf.into_buf().reader());
+        let reader = BufReader::new(buf.reader());
         let num_lines = reader.lines().count();
 
         // get lines iterator
-        let reader = BufReader::new(buf.into_buf().reader());
+        let reader = BufReader::new(buf.reader());
         let mut lines = reader.lines();
 
         // single line responses
