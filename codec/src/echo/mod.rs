@@ -4,7 +4,7 @@
 
 use super::*;
 
-use bytes::{BufMut, BytesMut};
+use bytes::BytesMut;
 
 use std::mem::transmute;
 
@@ -19,7 +19,7 @@ impl Echo {
     pub fn echo(&self, buf: &mut BytesMut, value: &[u8]) {
         let crc = crc::crc32::checksum_ieee(value);
         buf.extend_from_slice(value);
-        buf.put_u32_be(crc); // TODO: this could panic
+        buf.extend_from_slice(&crc.to_be_bytes()); // TODO: this could panic
         buf.extend_from_slice(b"\r\n");
     }
 }
@@ -58,13 +58,13 @@ impl Decoder for Echo {
 #[cfg(test)]
 mod tests {
     use super::*;
-    // use bytes::*;
+    use bytes::BufMut;
 
     fn decode_messages(messages: Vec<&'static [u8]>, response: Result<Response, Error>) {
         for message in messages {
             let decoder = Echo::new();
             let mut buf = BytesMut::with_capacity(1024);
-            buf.put(&message);
+            buf.put(&*message);
 
             let buf = buf.freeze();
             let result = decoder.decode(&buf);

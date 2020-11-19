@@ -4,7 +4,7 @@
 
 use super::*;
 
-use bytes::{Buf, BytesMut, IntoBuf};
+use bytes::{Buf, BytesMut};
 
 use std::cmp::Ordering;
 use std::io::{BufRead, BufReader};
@@ -192,7 +192,7 @@ impl Decoder for Redis {
                 match str::from_utf8(&msg[..]) {
                     Ok("-1") => Ok(Response::Miss),
                     Ok(_) => {
-                        let reader = BufReader::new(buf.into_buf().reader());
+                        let reader = BufReader::new(buf.reader());
                         let mut lines = reader.lines();
                         let mut line = lines.next().unwrap().unwrap();
                         let _ = line.remove(0);
@@ -232,13 +232,12 @@ impl Decoder for Redis {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::*;
 
     fn decode_messages(messages: Vec<&'static [u8]>, response: Result<Response, Error>) {
         for message in messages {
             let decoder = Redis::new(Mode::Resp);
             let mut buf = BytesMut::with_capacity(1024);
-            buf.put(&message);
+            buf.extend_from_slice(&message);
 
             let buf = buf.freeze();
             let result = decoder.decode(&buf);
