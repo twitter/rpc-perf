@@ -570,11 +570,8 @@ impl Config {
                     .value_name("FILE")
                     .help("Render request latency PNG to file")
                     .takes_value(true),
-            );
-
-        #[cfg(feature = "tls")]
-        let app = {
-            app.arg(
+            )
+            .arg(
                 Arg::with_name("tls-key")
                     .long("tls-key")
                     .value_name("File")
@@ -594,8 +591,7 @@ impl Config {
                     .value_name("File")
                     .help("Certificate Authority for TLS authentication")
                     .takes_value(true),
-            )
-        };
+            );
 
         let matches = app.get_matches();
 
@@ -727,17 +723,14 @@ impl Config {
             });
         }
 
-        #[cfg(feature = "tls")]
-        {
-            if let Some(tls_key) = matches.value_of("tls-key") {
-                config.general.set_tls_key(Some(tls_key.to_string()));
-            }
-            if let Some(tls_ca) = matches.value_of("tls-ca") {
-                config.general.set_tls_ca(Some(tls_ca.to_string()));
-            }
-            if let Some(tls_cert) = matches.value_of("tls-cert") {
-                config.general.set_tls_cert(Some(tls_cert.to_string()));
-            }
+        if let Some(tls_key) = matches.value_of("tls-key") {
+            config.general.set_tls_key(Some(tls_key.to_string()));
+        }
+        if let Some(tls_ca) = matches.value_of("tls-ca") {
+            config.general.set_tls_ca(Some(tls_ca.to_string()));
+        }
+        if let Some(tls_cert) = matches.value_of("tls-cert") {
+            config.general.set_tls_cert(Some(tls_cert.to_string()));
         }
 
         if let Some(waterfall) = matches.value_of("waterfall") {
@@ -831,17 +824,14 @@ impl Config {
         self.general.tcp_nodelay()
     }
 
-    #[cfg(feature = "tls")]
     pub fn tls_key(&self) -> Option<String> {
         self.general.tls_key()
     }
 
-    #[cfg(feature = "tls")]
     pub fn tls_cert(&self) -> Option<String> {
         self.general.tls_cert()
     }
 
-    #[cfg(feature = "tls")]
     pub fn tls_ca(&self) -> Option<String> {
         self.general.tls_ca()
     }
@@ -884,6 +874,10 @@ impl Config {
         for endpoint in &endpoints {
             info!("Config: Endpoint: {}", endpoint,);
         }
+        info!(
+            "Config: TLS: {}",
+            self.tls_ca().is_some() && self.tls_cert().is_some() && self.tls_key().is_some()
+        );
         info!(
             "Config: Clients: {} Poolsize: {} Endpoints: {}",
             self.clients(),
