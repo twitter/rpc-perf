@@ -1,21 +1,26 @@
-// Copyright 2019 Twitter, Inc.
+// Copyright 2019-2020 Twitter, Inc.
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
-
-use super::*;
-
-use bytes::{Buf, BytesMut};
 
 use std::cmp::Ordering;
 use std::io::{BufRead, BufReader};
 use std::str;
 
-#[derive(Default)]
-pub struct PelikanRds {}
+use crate::codec::*;
+use crate::config::Action;
+use crate::stats::Stat;
+
+use bytes::{Buf, BytesMut};
+
+pub struct PelikanRds {
+    common: Common,
+}
 
 impl PelikanRds {
     pub fn new() -> Self {
-        Default::default()
+        Self {
+            common: Common::new(),
+        }
     }
 
     pub fn get(&self, buf: &mut BytesMut, key: &[u8]) {
@@ -167,7 +172,15 @@ impl PelikanRds {
     }
 }
 
-impl Decoder for PelikanRds {
+impl Codec for PelikanRds {
+    fn common(&self) -> &Common {
+        &self.common
+    }
+
+    fn common_mut(&mut self) -> &mut Common {
+        &mut self.common
+    }
+
     fn decode(&self, buf: &[u8]) -> Result<Response, Error> {
         let end = &buf[buf.len() - 2..buf.len()];
 
@@ -244,6 +257,113 @@ impl Decoder for PelikanRds {
                 }
             }
             _ => Err(Error::Unknown),
+        }
+    }
+
+    fn encode(&mut self, buf: &mut BytesMut, rng: &mut ThreadRng) {
+        let command = self.generate(rng);
+        match command.action() {
+            Action::Get => {
+                let key = command.key().unwrap();
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsGet);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
+                }
+                self.get(buf, key);
+            }
+            Action::Set => {
+                let key = command.key().unwrap();
+                let value = command.value().unwrap();
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsSet);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
+                    metrics.distribution(&Stat::ValueSize, value.len() as u64);
+                }
+                self.set(buf, key, value, command.ttl());
+            }
+            Action::SarrayCreate => {
+                let key = command.key().unwrap();
+                let esize = command.esize().unwrap();
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsDelete);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
+                }
+                self.sarray_create(
+                    buf,
+                    key,
+                    esize,
+                    command.watermark_low(),
+                    command.watermark_high(),
+                );
+            }
+            Action::SarrayDelete => {
+                let key = command.key().unwrap();
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsDelete);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
+                }
+                self.sarray_delete(buf, key);
+            }
+            Action::SarrayFind => {
+                let key = command.key().unwrap();
+                let value = command.value().unwrap();
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsFind);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
+                    metrics.distribution(&Stat::ValueSize, value.len() as u64);
+                }
+                self.sarray_find(buf, key, value);
+            }
+            Action::SarrayGet => {
+                let key = command.key().unwrap();
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsGet);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
+                }
+                // TODO: implement index and count
+                self.sarray_get(buf, key, None, None);
+            }
+            Action::SarrayInsert => {
+                let key = command.key().unwrap();
+                let values = command.values().unwrap();
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsSet);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
+                    let len: usize = values.iter().map(|v| v.len()).sum();
+                    metrics.distribution(&Stat::ValueSize, len as u64);
+                }
+                self.sarray_insert(buf, key, &values);
+            }
+            Action::SarrayLen => {
+                let key = command.key().unwrap();
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsLen);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
+                }
+                self.sarray_len(buf, key);
+            }
+            Action::SarrayRemove => {
+                let key = command.key().unwrap();
+                let values = command.values().unwrap();
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsRemove);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
+                    let len: usize = values.iter().map(|v| v.len()).sum();
+                    metrics.distribution(&Stat::ValueSize, len as u64);
+                }
+                self.sarray_remove(buf, key, &values);
+            }
+            Action::SarrayTruncate => {
+                let key = command.key().unwrap();
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsTruncate);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
+                }
+                self.sarray_truncate(buf, key, command.count.unwrap_or(0))
+            }
+            action => {
+                fatal!("Action: {:?} unsupported for pelikan_rds", action);
+            }
         }
     }
 }

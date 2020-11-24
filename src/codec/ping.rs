@@ -2,16 +2,18 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use super::*;
-
-use bytes::BytesMut;
+use crate::codec::*;
 
 #[derive(Default)]
-pub struct Ping {}
+pub struct Ping {
+    common: Common,
+}
 
 impl Ping {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new() -> Ping {
+        Self {
+            common: Common::new(),
+        }
     }
 
     pub fn ping(&self, buf: &mut BytesMut) {
@@ -19,7 +21,15 @@ impl Ping {
     }
 }
 
-impl Decoder for Ping {
+impl Codec for Ping {
+    fn common(&self) -> &Common {
+        &self.common
+    }
+
+    fn common_mut(&mut self) -> &mut Common {
+        &mut self.common
+    }
+
     fn decode(&self, buf: &[u8]) -> Result<Response, Error> {
         if buf.len() < 6 || &buf[buf.len() - 2..buf.len()] != b"\r\n" {
             // Shortest response is "PONG\r\n" at 4bytes
@@ -32,6 +42,10 @@ impl Decoder for Ping {
         } else {
             Err(Error::Unknown)
         }
+    }
+
+    fn encode(&mut self, buf: &mut BytesMut, _rng: &mut ThreadRng) {
+        self.ping(buf);
     }
 }
 

@@ -1,15 +1,10 @@
-// Copyright 2019 Twitter, Inc.
+// Copyright 2019-2020 Twitter, Inc.
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
 #![allow(dead_code)]
 
-use crate::Response;
-
-use crate::Error;
-
-mod cache;
-pub use self::cache::Cache;
+use crate::codec::{Error, Response};
 
 pub const STOP: u8 = 0;
 pub const VOID: u8 = 1;
