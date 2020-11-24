@@ -15,27 +15,9 @@ jobs:
     - uses: actions/checkout@v2
     - name: Run
       run: bash build/ci.sh
-  linux-tls:
-    name: ubuntu w/ tls
-    runs-on: ubuntu-18.04
-    env:
-      FEATURES: tls
-    steps:
-    - uses: actions/checkout@v2
-    - name: Run
-      run: bash build/ci.sh
   macos:
     name: macos
     runs-on: macos-10.15
-    steps:
-    - uses: actions/checkout@v2
-    - name: Run
-      run: bash build/ci.sh
-  macos-tls:
-    name: macos w/ tls
-    runs-on: macos-10.15
-    env:
-      FEATURES: tls
     steps:
     - uses: actions/checkout@v2
     - name: Run
