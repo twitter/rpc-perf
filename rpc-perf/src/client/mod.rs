@@ -2,31 +2,24 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use crate::codec::*;
-
-use crate::config::Protocol;
-use crate::session::Session;
-use crate::session::State;
-use crate::stats::*;
-use crate::Codec;
-use crate::Config;
-use crate::MICROSECOND;
-use crate::SECOND;
-use crate::*;
-use mio::Events;
-use mio::Poll;
-use mio::Token;
-use rand::prelude::SliceRandom;
-use rand::rngs::ThreadRng;
-use rand::thread_rng;
-use rustcommon_timer::Wheel;
-use rustls::ClientConfig;
 use std::collections::VecDeque;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Instant;
 
+use mio::{Events, Poll, Token};
+use rand::prelude::SliceRandom;
+use rand::rngs::ThreadRng;
+use rand::thread_rng;
+use rustcommon_timer::Wheel;
+use rustls::ClientConfig;
 use slab::Slab;
+
+use crate::codec::*;
+use crate::config::Protocol;
+use crate::session::{Session, State};
+use crate::stats::*;
+use crate::*;
 
 pub struct Client {
     codec: Box<dyn Codec>,
