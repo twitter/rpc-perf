@@ -5,12 +5,15 @@
 mod admin;
 mod client;
 mod codec;
+mod common;
 mod config;
 mod session;
 mod stats;
 
 #[macro_use]
 extern crate rustcommon_logger;
+
+use crate::common::*;
 
 use crate::client::*;
 use crate::codec::Codec;
@@ -40,15 +43,16 @@ pub fn main() {
         .expect("Failed to initialize logger");
 
     let config = Arc::new(config);
+    let metrics = Arc::new(Metrics::new(config.clone()));
 
-    let metrics = Metrics::new(config.clone());
-
+    trace!("launching stdout stats");
     let mut stats_stdout = stats::StandardOut::new(
         metrics.clone(),
         Duration::new(config.interval().try_into().unwrap(), 0),
     );
 
     if let Some(stats_listen) = config.listen() {
+        trace!("launching http stats");
         let mut stats_http = stats::Http::new(stats_listen, metrics.inner(), None);
         let _ = thread::Builder::new()
             .name("http".to_string())
@@ -102,6 +106,8 @@ pub fn main() {
         close_rate,
     };
 
+    let mut next = Instant::now() + Duration::new(config.interval() as u64, 0);
+
     launch_clients(client_config.clone());
 
     if let Some(listen) = config.admin() {
@@ -113,28 +119,30 @@ pub fn main() {
             });
     }
 
-    let mut next = Instant::now() + Duration::new(config.interval() as u64, 0);
-
     loop {
-        std::thread::sleep(next - Instant::now());
-        metrics.increment(&Stat::Window);
-        stats_stdout.print();
+        let now = Instant::now();
+        if next > now {
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        } else {
+            metrics.increment(&Stat::Window);
+            stats_stdout.print();
 
-        if let Some(max_window) = config.windows() {
-            if metrics.reading(&Stat::Window).unwrap() >= max_window as u64 {
-                control.store(false, Ordering::SeqCst);
-                break;
+            if let Some(max_window) = config.windows() {
+                if metrics.reading(&Stat::Window).unwrap() >= max_window as u64 {
+                    control.store(false, Ordering::SeqCst);
+                    break;
+                }
             }
-        }
 
-        next += Duration::new(config.interval() as u64, 0);
+            next += Duration::new(config.interval() as u64, 0);
+        }
     }
     if let Some(waterfall) = config.waterfall() {
         metrics.save_waterfall(waterfall);
     }
 }
 
-fn do_warmup(config: Arc<Config>, metrics: &Metrics) {
+fn do_warmup(config: Arc<Config>, metrics: &Arc<Metrics>) {
     if let Some(target) = config.warmup_hitrate() {
         info!("-----");
         info!("Warming the cache...");
@@ -180,34 +188,29 @@ fn do_warmup(config: Arc<Config>, metrics: &Metrics) {
     }
 }
 
-#[cfg(feature = "tls")]
-fn make_client(id: usize, codec: Box<dyn Codec>, config: &Config) -> Box<dyn Client> {
-    if config.tls_ca().is_some() && config.tls_key().is_some() && config.tls_cert().is_some() {
-        let mut client = TLSClient::new(id, codec);
-        if let Some(cafile) = config.tls_ca() {
-            client.load_ca(&cafile);
-        }
+// fn make_client(id: usize, codec: Box<dyn Codec>, config: &Config) -> Client {
+//     Client::new(id, codec, config)
+//     // if config.tls_ca().is_some() && config.tls_key().is_some() && config.tls_cert().is_some() {
+//     //     let mut client = TLSClient::new(id, codec);
+//     //     if let Some(cafile) = config.tls_ca() {
+//     //         client.load_ca(&cafile);
+//     //     }
 
-        if let Some(keyfile) = config.tls_key() {
-            if let Some(certfile) = config.tls_cert() {
-                client.load_key_and_cert(&keyfile, &certfile);
-            }
-        }
-        Box::new(client)
-    } else {
-        Box::new(PlainClient::new(id, codec))
-    }
-}
-
-#[cfg(not(feature = "tls"))]
-fn make_client(id: usize, codec: Box<dyn Codec>, _config: &Config) -> Box<dyn Client> {
-    Box::new(PlainClient::new(id, codec))
-}
+//     //     if let Some(keyfile) = config.tls_key() {
+//     //         if let Some(certfile) = config.tls_cert() {
+//     //             client.load_key_and_cert(&keyfile, &certfile);
+//     //         }
+//     //     }
+//     //     Box::new(client)
+//     // } else {
+//     //     Box::new(PlainClient::new(id, codec))
+//     // }
+// }
 
 #[derive(Clone)]
 pub(crate) struct ClientConfig {
     config: Arc<Config>,
-    metrics: Metrics,
+    metrics: Arc<Metrics>,
     control: Arc<AtomicBool>,
     request_ratelimiter: Option<Arc<Ratelimiter>>,
     connect_ratelimiter: Option<Arc<Ratelimiter>>,
@@ -215,14 +218,14 @@ pub(crate) struct ClientConfig {
 }
 
 fn launch_clients(config: ClientConfig) {
-    let request_ratelimiter = config.request_ratelimiter.clone();
-    let connect_ratelimiter = config.connect_ratelimiter.clone();
-    let close_rate = config.close_rate.clone();
     let control = config.control.clone();
     let metrics = config.metrics.clone();
-    let config = config.config;
 
-    for i in 0..config.clients() {
+    for i in 0..config.config.clients() {
+        let request_ratelimiter = config.request_ratelimiter.clone();
+        let connect_ratelimiter = config.connect_ratelimiter.clone();
+        let close_rate = config.close_rate.clone();
+        let config = config.config.clone();
         let mut codec: Box<dyn Codec> = match config.protocol() {
             Protocol::Echo => Box::new(crate::codec::Echo::new()),
             Protocol::Memcache => Box::new(crate::codec::Memcache::new()),
@@ -241,16 +244,18 @@ fn launch_clients(config: ClientConfig) {
         codec.set_generator(config.generator());
         codec.set_metrics(metrics.clone());
 
-        let mut client = make_client(i, codec, &config);
-        client.set_poolsize(config.poolsize());
-        client.set_tcp_nodelay(config.tcp_nodelay());
-        client.set_close_rate(close_rate.clone());
-        client.set_connect_ratelimit(connect_ratelimiter.clone());
-        client.set_request_ratelimit(request_ratelimiter.clone());
-        client.set_metrics(metrics.clone());
-        client.set_connect_timeout(config.connect_timeout());
-        client.set_request_timeout(config.request_timeout());
-        client.set_soft_timeout(config.soft_timeout());
+        let mut client = Client::new(
+            i,
+            config.clone(),
+            connect_ratelimiter,
+            request_ratelimiter,
+            close_rate,
+            metrics.clone(),
+        );
+        // client.set_metrics(metrics.clone());
+        // client.set_connect_timeout(config.connect_timeout());
+        // client.set_request_timeout(config.request_timeout());
+        // client.set_soft_timeout(config.soft_timeout());
 
         let endpoints = config.endpoints();
 

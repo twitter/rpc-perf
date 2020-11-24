@@ -25,12 +25,12 @@ use std::time::Instant;
 
 pub struct StandardOut {
     previous: HashMap<Stat, u64>,
-    metrics: Metrics,
+    metrics: Arc<Metrics>,
     interval: Duration,
 }
 
 impl StandardOut {
-    pub fn new(metrics: Metrics, interval: Duration) -> Self {
+    pub fn new(metrics: Arc<Metrics>, interval: Duration) -> Self {
         Self {
             previous: HashMap::new(),
             metrics,

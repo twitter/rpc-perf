@@ -17,6 +17,7 @@ pub use crate::codec::redis::{Redis, RedisMode};
 pub use crate::codec::thrift_cache::ThriftCache;
 use crate::config::{Action, Config, Generator};
 use crate::stats::Metrics;
+use std::sync::Arc;
 
 use bytes::BytesMut;
 pub use codec::{Decoder, Error, Response};
@@ -288,14 +289,14 @@ pub trait Codec: Send {
     fn set_generator(&mut self, generator: Generator) {
         self.common_mut().set_generator(generator);
     }
-    fn set_metrics(&mut self, metrics: Metrics) {
+    fn set_metrics(&mut self, metrics: Arc<Metrics>) {
         self.common_mut().set_metrics(metrics);
     }
 }
 
 pub struct Common {
     generator: Generator,
-    metrics: Option<Metrics>,
+    metrics: Option<Arc<Metrics>>,
 }
 
 impl Common {
@@ -310,12 +311,12 @@ impl Common {
         self.generator = generator;
     }
 
-    pub fn set_metrics(&mut self, metrics: Metrics) {
+    pub fn set_metrics(&mut self, metrics: Arc<Metrics>) {
         self.metrics = Some(metrics);
     }
 
-    pub fn metrics(&self) -> &Option<Metrics> {
-        &self.metrics
+    pub fn metrics(&self) -> Option<&Arc<Metrics>> {
+        self.metrics.as_ref()
     }
 }
 

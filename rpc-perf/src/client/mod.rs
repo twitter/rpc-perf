@@ -2,640 +2,471 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-mod common;
-mod plain_client;
-#[cfg(feature = "tls")]
-mod tls_client;
-
-pub use crate::client::common::Common;
-pub use crate::client::plain_client::PlainClient;
-#[cfg(feature = "tls")]
-pub use crate::client::tls_client::TLSClient;
 use crate::codec::*;
-use crate::session::*;
+
+use crate::config::Protocol;
+use crate::session::Session;
+use crate::session::State;
+use crate::stats::*;
+use crate::Codec;
+use crate::Config;
+use crate::MICROSECOND;
+use crate::SECOND;
 use crate::*;
-
-use mio::unix::UnixReady;
-use mio::{Event, Events, Poll, PollOpt, Ready, Token};
+use mio::Events;
+use mio::Poll;
+use mio::Token;
+use rand::prelude::SliceRandom;
 use rand::rngs::ThreadRng;
-use rustcommon_ratelimiter::Ratelimiter;
-
+use rand::thread_rng;
+use rustcommon_timer::Wheel;
+use rustls::ClientConfig;
+use std::collections::VecDeque;
 use std::net::SocketAddr;
-use std::time::{Duration, Instant};
+use std::sync::Arc;
+use std::time::Instant;
 
-pub const SECOND: usize = 1_000_000_000;
-pub const MILLISECOND: usize = 1_000_000;
-pub const MICROSECOND: usize = 1_000;
+use slab::Slab;
 
-pub trait Client: Send {
-    // configuration
-    fn add_endpoint(&mut self, server: &SocketAddr);
-    fn set_connect_ratelimit(&mut self, ratelimiter: Option<Arc<Ratelimiter>>) {
-        self.common_mut().set_connect_ratelimit(ratelimiter)
-    }
-    fn set_connect_timeout(&mut self, microseconds: usize) {
-        self.common_mut().set_connect_timeout(microseconds)
-    }
-    fn set_poolsize(&mut self, connections: usize) {
-        self.common_mut().set_poolsize(connections);
-    }
-    fn poolsize(&self) -> usize {
-        self.common().poolsize()
-    }
-    fn set_tcp_nodelay(&mut self, nodelay: bool) {
-        self.common_mut().set_tcp_nodelay(nodelay);
-    }
-    fn tcp_nodelay(&self) -> bool {
-        self.common().tcp_nodelay()
-    }
-    fn set_request_ratelimit(&mut self, ratelimiter: Option<Arc<Ratelimiter>>) {
-        self.common_mut().set_request_ratelimit(ratelimiter)
-    }
-    fn set_request_timeout(&mut self, microseconds: usize) {
-        self.common_mut().set_request_timeout(microseconds)
-    }
-    fn set_metrics(&mut self, metrics: Metrics) {
-        self.common_mut().set_metrics(metrics);
-    }
-    fn set_close_rate(&mut self, ratelimiter: Option<Arc<Ratelimiter>>) {
-        self.common_mut().set_close_rate(ratelimiter);
-    }
-    fn set_soft_timeout(&mut self, enabled: bool) {
-        self.common_mut().set_soft_timeout(enabled);
-    }
-    fn soft_timeout(&self) -> bool {
-        self.common().soft_timeout()
-    }
+pub struct Client {
+    codec: Box<dyn Codec>,
+    sessions: Slab<Session>,
+    config: Arc<Config>,
+    ready_queue: VecDeque<usize>,
+    connect_queue: VecDeque<SocketAddr>,
+    tls_config: Option<Arc<ClientConfig>>,
+    metrics: Arc<Metrics>,
+    timers: Wheel<usize>,
+    last_timeout: Instant,
+    events: Option<Events>,
+    poll: Poll,
+    id: usize,
+    connect: Option<Arc<Ratelimiter>>,
+    request: Option<Arc<Ratelimiter>>,
+    close: Option<Arc<Ratelimiter>>,
+}
 
-    // implementation specific
-    fn common(&self) -> &Common;
-    fn common_mut(&mut self) -> &mut Common;
-    fn do_timeouts(&mut self) {
-        let timers = self.common_mut().get_timers();
-        if !timers.is_empty() {
-            debug!("Processing: {} timeouts", timers.len());
+impl Client {
+    pub fn new(
+        id: usize,
+        config: Arc<Config>,
+        connect: Option<Arc<Ratelimiter>>,
+        request: Option<Arc<Ratelimiter>>,
+        close: Option<Arc<Ratelimiter>>,
+        metrics: Arc<Metrics>,
+    ) -> Self {
+        let codec: Box<dyn Codec> = match config.protocol() {
+            Protocol::Echo => Box::new(crate::codec::Echo::new()),
+            Protocol::Memcache => Box::new(crate::codec::Memcache::new()),
+            Protocol::ThriftCache => Box::new(crate::codec::ThriftCache::new()),
+            Protocol::PelikanRds => Box::new(crate::codec::PelikanRds::new()),
+            Protocol::Ping => Box::new(crate::codec::Ping::new()),
+            Protocol::RedisResp => {
+                Box::new(crate::codec::Redis::new(crate::codec::RedisMode::Resp))
+            }
+            Protocol::RedisInline => {
+                Box::new(crate::codec::Redis::new(crate::codec::RedisMode::Inline))
+            }
+        };
+
+        let tls_config = load_tls_config(&config);
+
+        Self {
+            codec,
+            sessions: Slab::new(),
+            config,
+            ready_queue: VecDeque::new(),
+            connect_queue: VecDeque::new(),
+            metrics,
+            tls_config,
+            timers: Wheel::<usize>::new(SECOND / MICROSECOND),
+            last_timeout: Instant::now(),
+            events: None,
+            poll: Poll::new().expect("failed to create mio::Poll"),
+            id,
+            connect,
+            request,
+            close,
         }
-        for token in timers {
-            self.do_timeout(token);
+    }
+
+    pub fn add_endpoint(&mut self, addr: &SocketAddr) {
+        debug!("client({}) adding endpoint: {}", self.id, addr);
+        for _ in 0..self.config.poolsize() {
+            self.connect_queue.push_back(*addr);
         }
-    }
-    fn does_negotiate(&self) -> bool;
-    fn session(&self, token: Token) -> &dyn Session;
-    fn session_mut(&mut self, token: Token) -> &mut dyn Session;
-
-    fn prepare_request(&mut self, token: Token, rng: &mut ThreadRng);
-
-    // client id
-    fn id(&self) -> usize {
-        self.common().id()
+        self.connect_shuffle();
     }
 
-    // stats helpers
-    fn stat_increment(&self, label: Stat) {
-        self.common().stat_increment(label);
-    }
-
-    fn stat_interval(&self, label: Stat, start: Instant, stop: Instant) {
-        self.common().stat_interval(label, start, stop);
-    }
-
-    fn heatmap_increment(&self, start: Instant, stop: Instant) {
-        self.common().heatmap_increment(start, stop);
-    }
-
-    // connect queue
-    fn connect_pending(&self) -> usize {
-        self.common().connect_pending()
-    }
-    fn connect_dequeue(&mut self) -> Option<Token> {
-        self.common_mut().connect_dequeue()
-    }
-    fn connect_enqueue(&mut self, token: Token) {
-        debug!("connect enqueue");
-        self.common_mut().connect_enqueue(token);
-    }
-    fn connect_requeue(&mut self, token: Token) {
-        debug!("connect requeue");
-        self.common_mut().connect_requeue(token);
-    }
     fn connect_shuffle(&mut self) {
-        debug!("shuffle connect queue");
-        self.common_mut().connect_shuffle();
-    }
-
-    // ready queue
-    fn ready_dequeue(&mut self) -> Option<Token> {
-        self.common_mut().ready_dequeue()
-    }
-    fn ready_enqueue(&mut self, token: Token) {
-        self.common_mut().ready_enqueue(token);
-    }
-    fn ready_requeue(&mut self, token: Token) {
-        self.common_mut().ready_requeue(token);
-    }
-
-    // token registration
-    fn deregister(&mut self, token: Token) -> Result<(), std::io::Error> {
-        self.session(token).deregister(self.event_loop())
-    }
-    fn register(&mut self, token: Token) -> Result<(), std::io::Error> {
-        self.session(token).register(
-            token,
-            self.event_loop(),
-            self.event_set(token),
-            self.poll_opt(token),
-        )
-    }
-    fn reregister(&mut self, token: Token) -> Result<(), std::io::Error> {
-        self.session(token).reregister(
-            token,
-            self.event_loop(),
-            self.event_set(token),
-            self.poll_opt(token),
-        )
-    }
-
-    // write helper
-    fn do_write(&mut self, token: Token) {
-        self.set_state(token, State::Writing);
-    }
-
-    // mio::Ready
-    fn event_set(&self, token: Token) -> mio::Ready {
-        match self.session(token).state() {
-            State::Closed => Ready::empty(),
-            State::Connecting => Ready::writable() | UnixReady::hup(),
-            State::Established => Ready::empty() | UnixReady::hup(),
-            State::Writing => Ready::writable() | UnixReady::hup(),
-            State::Reading => Ready::readable() | UnixReady::hup(),
-            State::Negotiating => Ready::readable() | Ready::writable() | UnixReady::hup(),
+        let mut tmp: Vec<SocketAddr> = self.connect_queue.drain(0..).collect();
+        let mut rng = thread_rng();
+        tmp.shuffle(&mut rng);
+        for addr in tmp {
+            self.connect_queue.push_back(addr);
         }
     }
 
-    // mio::PollOpt
-    fn poll_opt(&self, _token: Token) -> PollOpt {
-        PollOpt::edge() | PollOpt::oneshot()
-    }
+    fn do_timeouts(&mut self) {
+        let last = self.last_timeout;
+        let now = Instant::now();
+        let ticks =
+            (now - last).as_secs() as usize * 1000000 + (now - last).subsec_nanos() as usize / 1000;
 
-    // mio::Events
-    fn set_events(&mut self, events: Option<Events>) {
-        self.common_mut().set_events(events)
-    }
-    fn take_events(&mut self) -> Option<Events> {
-        self.common_mut().take_events()
-    }
+        let timeouts = self.timers.tick(ticks);
 
-    // mio::Poll
-    fn event_loop(&self) -> &Poll {
-        self.common().event_loop()
-    }
-
-    // timeout handling
-    fn clear_timeout(&mut self, token: Token) {
-        self.common_mut().cancel_timer(token);
-    }
-    fn set_timeout(&mut self, token: Token, microseconds: usize) {
-        self.common_mut().add_timer(token, microseconds);
-    }
-    fn do_timeout(&mut self, token: Token) {
-        let state = self.session(token).state();
-        debug!("timeout on client {} {:?} {:?}", self.id(), token, state);
-        match state {
-            State::Connecting | State::Negotiating => {
-                self.stat_increment(Stat::ConnectionsTimeout);
-                if !self.soft_timeout() {
-                    self.set_state(token, State::Closed);
-                }
-            }
-            State::Closed | State::Established | State::Writing => {
-                debug!("ignore timeout");
-            }
-            State::Reading => {
-                self.stat_increment(Stat::RequestsTimeout);
-                if !self.soft_timeout() {
-                    self.set_state(token, State::Closed);
-                }
-            }
-        }
-        self.clear_timeout(token);
-    }
-
-    fn do_close(&mut self, token: Token) {
-        trace!(
-            "do_close on client {} {:?} {:?}",
-            self.id(),
-            token,
-            self.state(token)
-        );
-        let _ = self.deregister(token);
-        self.clear_timeout(token);
-        self.set_session_state(token, State::Closed);
-        self.connect_enqueue(token);
-    }
-
-    fn do_established(&mut self, token: Token) {
-        let _ = self.deregister(token);
-        self.clear_timeout(token);
-        self.set_session_state(token, State::Established);
-        self.ready_enqueue(token);
-    }
-
-    fn do_negotiating(&mut self, token: Token) {
-        debug!("begin tls negotiation");
-        self.set_session_state(token, State::Negotiating);
-        if self.reregister(token).is_err() {
-            let _ = self.register(token);
-        }
-    }
-
-    fn do_connecting(&mut self, token: Token) {
-        self.stat_increment(Stat::ConnectionsTotal);
-        if self.session_mut(token).connect().is_ok() {
-            trace!("socket opened: client {} {:?}", self.id(), token);
-            self.session_mut(token).set_timestamp(Some(Instant::now()));
-            self.set_session_state(token, State::Connecting);
-            // TODO: use a configurable timeout value w/ policy here
-            self.set_timeout(token, self.common().connect_timeout());
-            if self.register(token).is_err() {
-                fatal!("Error registering: {:?}", State::Connecting);
-            }
-        } else {
-            debug!("socket error: client {} {:?}", self.id(), token);
-            self.stat_increment(Stat::ConnectionsError);
-            self.stat_increment(Stat::ConnectionsClosed);
-            self.connect_enqueue(token);
-        }
-    }
-
-    fn do_writing(&mut self, token: Token) {
-        self.set_session_state(token, State::Writing);
-        if self.reregister(token).is_err() {
-            let _ = self.register(token);
-        }
-    }
-
-    fn do_reading(&mut self, token: Token) {
-        self.set_session_state(token, State::Reading);
-        if self.reregister(token).is_err() {
-            let _ = self.register(token);
-        }
-        self.set_timeout(token, self.common().request_timeout());
-    }
-
-    // Ratelimiter helpers
-    fn try_connect_wait(&self) -> Result<(), ()> {
-        self.common().try_connect_wait()
-    }
-
-    fn try_request_wait(&self) -> Result<(), ()> {
-        self.common().try_request_wait()
-    }
-
-    fn should_close(&self) -> bool {
-        self.common().should_close()
-    }
-
-    // protocol helpers
-    fn decode(&self, buf: &[u8]) -> Result<Response, Error> {
-        self.common().decode(buf)
-    }
-
-    // state machine
-    fn set_state(&mut self, token: Token, target: State) {
-        let state = self.state(token);
-        match state {
-            State::Connecting => match target {
-                State::Established => {
-                    trace!("connection established {:?}", token);
-                    if let Some(t0) = self.session(token).timestamp() {
-                        self.stat_interval(Stat::ConnectionsLatency, t0, Instant::now());
+        for token in timeouts {
+            if let Some(state) = self.sessions.get(token).map(|v| v.state()) {
+                match state {
+                    State::Connecting => {
+                        // timeout while connecting
+                        self.stat_increment(Stat::ConnectionsTimeout);
                     }
-                    self.do_established(token);
-                }
-                State::Closed => {
-                    self.do_close(token);
-                }
-                State::Negotiating => {
-                    self.do_negotiating(token);
-                }
-                _ => {
-                    error!("Unhandled state transition: {:?} -> {:?}", state, target);
-                }
-            },
-            State::Closed => match target {
-                State::Connecting => {
-                    self.do_connecting(token);
-                }
-                _ => {
-                    error!("Unhandled state transition: {:?} -> {:?}", state, target);
-                }
-            },
-            State::Established => match target {
-                State::Closed => {
-                    self.stat_increment(Stat::ConnectionsClosed);
-                    self.do_close(token);
-                }
-                State::Writing => {
-                    trace!("writing to established connection");
-                    self.do_writing(token);
-                }
-                _ => {
-                    error!("Unhandled state transition: {:?} -> {:?}", state, target);
-                }
-            },
-            State::Negotiating => match target {
-                State::Established => {
-                    debug!("session established");
-                    if let Some(t0) = self.session(token).timestamp() {
-                        self.stat_interval(Stat::ConnectionsOpened, t0, Instant::now());
+                    State::Reading => {
+                        // timeout while reading
+                        self.stat_increment(Stat::RequestsTimeout);
                     }
-                    self.do_established(token);
-                }
-                State::Closed => {
-                    self.do_close(token);
-                }
-                _ => {
-                    error!("Unhandled state transition: {:?} -> {:?}", state, target);
-                }
-            },
-            State::Writing => match target {
-                State::Reading => {
-                    trace!("request sent, switch to reading");
-                    self.stat_increment(Stat::RequestsDequeued);
-                    self.do_reading(token);
-                }
-                State::Closed => {
-                    self.stat_increment(Stat::RequestsError);
-                    self.stat_increment(Stat::ConnectionsClosed);
-                    self.do_close(token);
-                }
-                _ => {
-                    error!("Unhandled state transition: {:?} -> {:?}", state, target);
-                }
-            },
-            State::Reading => match target {
-                State::Closed => {
-                    self.stat_increment(Stat::RequestsError);
-                    self.stat_increment(Stat::ConnectionsClosed);
-                    self.do_close(token);
-                }
-                State::Established => {
-                    trace!("response complete, switch to Established");
-                    self.stat_increment(Stat::ResponsesTotal);
-                    self.do_established(token);
-                }
-                _ => {
-                    error!("Unhandled state transition: {:?} -> {:?}", state, target);
-                }
-            },
-        }
-    }
-
-    fn set_session_state(&mut self, token: Token, state: State) {
-        self.session_mut(token).set_state(state)
-    }
-
-    fn handle_negotiating(&mut self, token: Token, event: Event) {
-        trace!("Got event on Negotiating connection");
-        if UnixReady::from(event.readiness()).is_hup() {
-            trace!("hangup on connect {:?}", token);
-            self.stat_increment(Stat::ConnectionsError);
-            self.stat_increment(Stat::ConnectionsServerClosed);
-            self.set_state(token, State::Closed);
-        } else {
-            let read_result = if event.readiness().is_readable() {
-                self.session_mut(token).session_read()
-            } else {
-                Ok(())
-            };
-            let write_result = if event.readiness().is_writable() {
-                self.session_mut(token).session_flush()
-            } else {
-                Ok(())
-            };
-            if self.session(token).is_handshaking() {
-                self.reregister(token).expect("failed to register");
-            } else if read_result.is_ok() && write_result.is_ok() {
-                self.set_state(token, State::Established);
-            } else {
-                self.set_state(token, State::Closed);
-            }
-        }
-    }
-
-    fn handle_connecting(&mut self, token: Token, event: Event) {
-        trace!("Got event on connecting connection");
-        if UnixReady::from(event.readiness()).is_hup() {
-            trace!("hangup on connect {:?}", token);
-            self.stat_increment(Stat::ConnectionsError);
-            self.stat_increment(Stat::ConnectionsServerClosed);
-            self.set_state(token, State::Closed);
-        } else if self.does_negotiate() {
-            self.set_state(token, State::Negotiating);
-        } else {
-            self.set_state(token, State::Established);
-        }
-    }
-
-    fn handle_established(&mut self, token: Token, event: Event) {
-        trace!("Got event on established connection");
-        if self.should_close() {
-            self.stat_increment(Stat::ConnectionsClientClosed);
-            self.set_state(token, State::Closed);
-        } else if UnixReady::from(event.readiness()).is_hup() {
-            trace!("hangup on established {:?}", token);
-            self.stat_increment(Stat::ConnectionsServerClosed);
-            self.set_state(token, State::Closed);
-        } else {
-            self.set_state(token, State::Established);
-        }
-    }
-
-    fn handle_reading(&mut self, token: Token, event: Event) {
-        trace!(
-            "Got event on reading connection: client {} {:?} {:?}",
-            self.id(),
-            token,
-            event
-        );
-        if self.should_close() {
-            self.stat_increment(Stat::ConnectionsClientClosed);
-            self.set_state(token, State::Closed);
-        } else if UnixReady::from(event.readiness()).is_hup() {
-            self.stat_increment(Stat::ConnectionsServerClosed);
-            self.set_state(token, State::Closed);
-        } else {
-            let _result = self.session_mut(token).read_to();
-            let buf = self.session(token).read_buf();
-            trace!("buffer: {:?}", buf);
-            let len = buf.len();
-            match len {
-                0 => {
-                    trace!("EOF on read");
-                    self.stat_increment(Stat::ConnectionsServerClosed);
-                    self.set_state(token, State::Closed);
-                }
-                n => {
-                    trace!("Got a response: {} bytes", n);
-                    let t1 = Instant::now();
-                    let parsed = self.decode(buf);
-                    match parsed {
-                        Ok(Response::Ok) => {
-                            self.stat_increment(Stat::ResponsesOk);
-                        }
-                        Ok(Response::Hit) => {
-                            self.stat_increment(Stat::ResponsesOk);
-                            self.stat_increment(Stat::ResponsesHit);
-                        }
-                        Ok(Response::Miss) => {
-                            self.stat_increment(Stat::ResponsesOk);
-                            self.stat_increment(Stat::ResponsesMiss);
-                        }
-                        Err(Error::Incomplete) => {
-                            if self.reregister(token).is_err() {
-                                let _ = self.register(token);
-                            }
-                        }
-                        Err(_) => {
-                            self.stat_increment(Stat::ResponsesError);
-                        }
-                        Ok(_) => {
-                            self.stat_increment(Stat::ResponsesOk);
-                        }
-                    };
-
-                    if parsed != Err(Error::Incomplete) {
-                        if let Some(t0) = self.session(token).timestamp() {
-                            self.stat_interval(Stat::ResponsesLatency, t0, t1);
-                            self.heatmap_increment(t0, t1);
-                        }
-                        trace!("switch to established");
-                        self.clear_timeout(token);
-                        self.set_state(token, State::Established);
-                        self.session_mut(token).clear_buffer();
+                    _ => {
+                        // ignore other timeouts
+                        continue;
                     }
                 }
-            }
-        }
-    }
-
-    fn handle_writing(&mut self, token: Token, event: Event) {
-        trace!("Got event on writing connection");
-        if self.should_close() {
-            self.stat_increment(Stat::ConnectionsClientClosed);
-            self.set_state(token, State::Closed);
-        } else if UnixReady::from(event.readiness()).is_hup() {
-            self.stat_increment(Stat::ConnectionsServerClosed);
-            self.set_state(token, State::Closed);
-        } else {
-            match self.session_mut(token).flush() {
-                Ok(_) => {
-                    self.set_state(token, State::Reading);
-                }
-                Err(_) => {
-                    // incomplete write, register again in same state
-                    self.reregister(token).expect("failed to register");
+                if !self.config.soft_timeout() {
+                    let session = self.sessions.remove(token);
+                    self.connect_queue.push_back(session.addr());
                 }
             }
         }
+
+        self.last_timeout = now;
     }
 
-    // mio::Event handler
-    fn ready(&mut self, token: Token, event: Event) {
-        let state = self.state(token);
-        trace!("ready: {:?} {:?} {:?}", token, state, event);
-        match state {
-            State::Closed => {
-                error!("Got event on closed connection");
-            }
-            State::Negotiating => self.handle_negotiating(token, event),
-            State::Connecting => self.handle_connecting(token, event),
-            State::Established => self.handle_established(token, event),
-            State::Reading => self.handle_reading(token, event),
-            State::Writing => self.handle_writing(token, event),
+    fn server_closed(&mut self, token: usize) {
+        // server has closed connection
+        trace!("server closed: {}", token);
+        self.metrics.increment(&Stat::ConnectionsClosed);
+        self.metrics.increment(&Stat::ConnectionsServerClosed);
+        let mut session = self.sessions.remove(token);
+        session.deregister(&self.poll);
+        self.connect_queue.push_back(session.addr());
+    }
+
+    fn hangup(&mut self, token: usize) {
+        if self.sessions.contains(token) {
+            self.metrics.increment(&Stat::ConnectionsClosed);
+            self.metrics.increment(&Stat::ConnectionsClientClosed);
+            let mut session = self.sessions.remove(token);
+            session.deregister(&self.poll);
+            self.connect_queue.push_back(session.addr());
         }
     }
 
-    fn state(&self, token: Token) -> State {
-        self.session(token).state()
-    }
-
-    // main function
-    fn run(&mut self, rng: &mut ThreadRng) {
-        // handle any timeouts
-        self.do_timeouts();
-
-        // handle any events
-        self.do_events();
-
-        // send requests
-        self.do_requests(rng);
-
-        // close connections
-        self.do_client_terminations();
-
-        // open connections
-        self.do_connects();
-    }
-
-    // handle events
     fn do_events(&mut self) {
         let mut events = self
-            .take_events()
+            .events
+            .take()
             .unwrap_or_else(|| Events::with_capacity(1024));
-        self.event_loop()
+        self.poll
             .poll(&mut events, Some(Duration::from_millis(1)))
             .unwrap();
-
         for event in events.iter() {
             let token = event.token();
-            self.ready(token, event);
+            if let Some(session) = self.sessions.get_mut(token.0) {
+                let read_status = if event.is_readable() {
+                    trace!("handle read for: {}", token.0);
+                    session.do_read()
+                } else {
+                    Ok(None)
+                };
+
+                let write_status = if event.is_writable() {
+                    trace!("handle write for: {}", token.0);
+                    session.do_write()
+                } else {
+                    Ok(None)
+                };
+
+                match read_status {
+                    Ok(Some(0)) => {
+                        self.server_closed(token.0);
+                        continue;
+                    }
+                    Ok(Some(bytes)) => {
+                        // parse response
+                        trace!("read {} bytes: {}", bytes, token.0);
+                        trace!("read: {:?}", session.rx_buffer());
+                        match self.codec.decode(session.rx_buffer()) {
+                            Ok(response) => {
+                                let stop = Instant::now();
+                                let start = session.timestamp();
+                                self.metrics.heatmap_increment(start, stop);
+                                self.metrics
+                                    .time_interval(&Stat::ResponsesLatency, start, stop);
+                                self.metrics.increment(&Stat::ResponsesTotal);
+                                self.metrics.increment(&Stat::ResponsesOk);
+                                session.clear_buffer();
+                                self.ready_queue.push_back(token.0);
+                                session.set_state(State::Writing);
+
+                                match response {
+                                    Response::Hit => {
+                                        self.metrics.increment(&Stat::ResponsesHit);
+                                    }
+                                    Response::Miss => {
+                                        self.metrics.increment(&Stat::ResponsesMiss);
+                                    }
+                                    _ => {}
+                                }
+                            }
+                            Err(error) => {
+                                if error != Error::Incomplete {
+                                    self.metrics.increment(&Stat::ResponsesTotal);
+                                    self.metrics.increment(&Stat::ResponsesError);
+                                }
+
+                                match error {
+                                    Error::ChecksumMismatch(a, b) => {
+                                        let stop = Instant::now();
+                                        let start = session.timestamp();
+                                        self.metrics.heatmap_increment(start, stop);
+                                        self.metrics.time_interval(
+                                            &Stat::ResponsesLatency,
+                                            start,
+                                            stop,
+                                        );
+                                        warn!("Response checksum mismatch!");
+                                        warn!("Expected: {:?}", a);
+                                        warn!("Got: {:?}", b);
+                                        session.clear_buffer();
+                                        self.ready_queue.push_back(token.0);
+                                        session.set_state(State::Writing);
+                                    }
+                                    _ => {
+                                        self.hangup(token.0);
+                                        continue;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Ok(None) => {
+                        // wasn't ready
+                        trace!("spurious read: {}", token.0);
+                    }
+                    Err(_) => {
+                        // got some error, close connection
+                        self.metrics.increment(&Stat::ResponsesTotal);
+                        self.metrics.increment(&Stat::ResponsesError);
+                        self.hangup(token.0);
+                        continue;
+                    }
+                }
+
+                match write_status {
+                    Ok(Some(bytes)) => {
+                        trace!("wrote: {} bytes: {}", bytes, token.0);
+                        if session.tx_pending() > 0 {
+                            // incomplete write
+                            println!("have: {} bytes pending: {}", session.tx_pending(), token.0);
+                        } else {
+                            // completed write
+                            self.metrics.increment(&Stat::RequestsDequeued);
+                            session.set_state(State::Reading);
+                        }
+                    }
+                    Ok(None) => {
+                        trace!("spurious write: {}", token.0);
+                    }
+                    Err(_) => {
+                        // got some error, close connection
+                        let session = self.sessions.remove(token.0);
+                        self.connect_queue.push_back(session.addr());
+                        continue;
+                    }
+                }
+
+                if session.state() == State::Connecting && !session.is_handshaking() {
+                    // increment time interval
+                    let stop = Instant::now();
+                    let start = session.timestamp();
+                    self.metrics
+                        .time_interval(&Stat::ConnectionsLatency, start, stop);
+                    self.metrics.increment(&Stat::ConnectionsOpened);
+
+                    // finished connecting
+                    session.set_state(State::Connected);
+                    self.ready_queue.push_back(token.0);
+                }
+                session.reregister(&self.poll);
+            } else {
+                // ignore event for unknown session?
+            }
         }
 
-        self.set_events(Some(events));
+        self.events = Some(events);
     }
 
-    // disbatch requests
+    fn send_request(&mut self, rng: &mut ThreadRng, token: usize) {
+        if let Some(session) = self.sessions.get_mut(token) {
+            trace!("send request: {}", token);
+            session.set_timestamp(Instant::now());
+            self.metrics.increment(&Stat::RequestsEnqueued);
+            self.codec.encode(session.tx_buffer(), rng);
+            trace!("encoded request: {:?}", session.tx_buffer());
+            session.set_state(State::Writing);
+            session.reregister(&self.poll);
+        }
+    }
+
     fn do_requests(&mut self, rng: &mut ThreadRng) {
-        // send a single request
-        if let Some(token) = self.ready_dequeue() {
-            if self.try_request_wait().is_ok() {
-                self.prepare_request(token, rng);
-                self.do_write(token);
-                self.stat_increment(Stat::RequestsEnqueued);
+        loop {
+            if let Some(token) = self.ready_queue.pop_front() {
+                if let Some(ref mut request) = self.request {
+                    if request.try_wait().is_ok() {
+                        self.send_request(rng, token);
+                    } else {
+                        self.ready_queue.push_front(token);
+                    }
+                } else {
+                    self.send_request(rng, token);
+                }
             } else {
-                self.ready_requeue(token);
+                break;
             }
         }
     }
 
-    // client connection terminations connection
-    fn do_client_terminations(&mut self) {
-        if self.should_close() {
-            if let Some(token) = self.ready_dequeue() {
-                trace!("closing");
-                self.stat_increment(Stat::ConnectionsClientClosed);
-                self.do_close(token);
+    fn do_hangups(&mut self) {
+        if self.close.is_some() {
+            loop {
+                if let Some(token) = self.ready_queue.pop_front() {
+                    trace!("hangup: {}", token);
+                    if self.sessions.contains(token) {
+                        if self.close.as_ref().unwrap().try_wait().is_ok() {
+                            self.hangup(token);
+                        } else {
+                            self.ready_queue.push_front(token);
+                            break;
+                        }
+                    }
+                } else {
+                    break;
+                }
             }
         }
     }
 
-    // establish connections
+    fn connect(&mut self, addr: SocketAddr) {
+        let session = self.sessions.vacant_entry();
+        let tls = if let Some(ref mut tls_config) = self.tls_config {
+            Some(rustls::ClientSession::new(
+                &tls_config,
+                webpki::DNSNameRef::try_from_ascii_str("localhost").expect("invalid dns name"),
+            ))
+        } else {
+            None
+        };
+        let start = Instant::now();
+        if let Ok(mut s) = Session::new(addr, Token(session.key()), tls) {
+            s.set_nodelay(self.config.tcp_nodelay());
+            self.metrics.increment(&Stat::ConnectionsTotal);
+            if self.tls_config.is_some() {
+                s.register(&self.poll);
+            } else {
+                self.metrics
+                    .time_interval(&Stat::ConnectionsLatency, start, Instant::now());
+                self.metrics.increment(&Stat::ConnectionsOpened);
+                s.register(&self.poll);
+                self.ready_queue.push_back(session.key());
+            }
+            session.insert(s);
+        } else {
+            self.metrics.increment(&Stat::ConnectionsError);
+            self.connect_queue.push_back(addr);
+        }
+    }
+
     fn do_connects(&mut self) {
-        let needed = self.connect_pending();
-        if needed > 0 {
-            debug!("pending connections: client {} {}", self.id(), needed);
-        }
-
-        // do a single connect
-        if let Some(token) = self.connect_dequeue() {
-            if self.try_connect_wait().is_ok() {
-                trace!("connecting...");
-                self.set_state(token, State::Connecting);
+        while let Some(addr) = self.connect_queue.pop_front() {
+            trace!("connect: {}", addr);
+            if let Some(ref mut connect) = self.connect {
+                if connect.try_wait().is_ok() {
+                    self.connect(addr);
+                } else {
+                    self.connect_queue.push_back(addr);
+                    break;
+                }
             } else {
-                debug!("Ratelimiting connect");
-                self.connect_requeue(token);
+                self.connect(addr);
             }
         }
+    }
+
+    pub fn run(&mut self, rng: &mut ThreadRng) {
+        self.do_timeouts();
+        self.do_events();
+        self.do_connects();
+        if self.close.is_some() {
+            self.do_hangups();
+        }
+        self.do_requests(rng);
+    }
+
+    fn stat_increment(&self, label: Stat) {
+        self.metrics.increment(&label)
+    }
+}
+
+fn load_tls_config(config: &Arc<Config>) -> Option<Arc<rustls::ClientConfig>> {
+    let cert_chain = config.tls_ca();
+    let cert = config.tls_cert();
+    let key = config.tls_key();
+
+    if cert_chain.is_some() && cert.is_some() && key.is_some() {
+        let mut config = rustls::ClientConfig::new();
+
+        let certificate_chain =
+            std::fs::File::open(cert_chain.unwrap()).expect("failed to open cert chain");
+        config
+            .root_store
+            .add_pem_file(&mut std::io::BufReader::new(certificate_chain))
+            .expect("failed to load cert chain");
+
+        config
+            .dangerous()
+            .set_certificate_verifier(Arc::new(NoCertificateVerification {}));
+
+        let cert = std::fs::File::open(cert.unwrap()).expect("failed to open cert");
+        let cert = rustls::internal::pemfile::certs(&mut std::io::BufReader::new(cert)).unwrap();
+
+        let key = std::fs::File::open(key.unwrap()).expect("failed to open private key");
+        let keys = rustls::internal::pemfile::pkcs8_private_keys(&mut std::io::BufReader::new(key))
+            .unwrap();
+        assert_eq!(keys.len(), 1);
+        let key = keys[0].clone();
+
+        config
+            .set_single_client_cert(cert, key)
+            .expect("invalid cert or key");
+
+        Some(Arc::new(config))
+    } else if cert_chain.is_none() && cert.is_none() && key.is_none() {
+        None
+    } else {
+        fatal!("Invalid TLS configuration");
+    }
+}
+
+pub struct NoCertificateVerification {}
+
+impl rustls::ServerCertVerifier for NoCertificateVerification {
+    fn verify_server_cert(
+        &self,
+        _roots: &rustls::RootCertStore,
+        _presented_certs: &[rustls::Certificate],
+        _dns_name: webpki::DNSNameRef<'_>,
+        _ocsp: &[u8],
+    ) -> Result<rustls::ServerCertVerified, rustls::TLSError> {
+        Ok(rustls::ServerCertVerified::assertion())
     }
 }

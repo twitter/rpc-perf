@@ -180,32 +180,26 @@ impl General {
         self.tcp_nodelay
     }
 
-    #[cfg(feature = "tls")]
     pub fn tls_key(&self) -> Option<String> {
         self.tls_key.clone()
     }
 
-    #[cfg(feature = "tls")]
     pub fn set_tls_key(&mut self, file: Option<String>) {
         self.tls_key = file;
     }
 
-    #[cfg(feature = "tls")]
     pub fn tls_cert(&self) -> Option<String> {
         self.tls_cert.clone()
     }
 
-    #[cfg(feature = "tls")]
     pub fn set_tls_cert(&mut self, file: Option<String>) {
         self.tls_cert = file;
     }
 
-    #[cfg(feature = "tls")]
     pub fn tls_ca(&self) -> Option<String> {
         self.tls_ca.clone()
     }
 
-    #[cfg(feature = "tls")]
     pub fn set_tls_ca(&mut self, file: Option<String>) {
         self.tls_ca = file;
     }
