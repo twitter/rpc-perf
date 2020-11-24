@@ -1,6 +1,5 @@
 [workspace]
 members = [
-    "buffer",
     "codec",
     "rpc-perf",
 ]
