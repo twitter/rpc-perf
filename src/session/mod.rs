@@ -5,7 +5,6 @@
 use std::net::SocketAddr;
 use std::time::Instant;
 
-use bytes::BytesMut;
 use mio::net::TcpStream;
 use mio::{Interest, Poll, Token};
 use rustcommon_buffer::Buffer;
@@ -22,7 +21,7 @@ pub enum State {
 
 pub struct Session {
     addr: SocketAddr,
-    buffer: Buffer,
+    pub(crate) buffer: Buffer,
     stream: TcpStream,
     tls: Option<ClientSession>,
     state: State,
@@ -40,7 +39,7 @@ impl Session {
             };
             Ok(Self {
                 addr,
-                buffer: Buffer::new(1024, 1024),
+                buffer: Buffer::with_capacity(1024, 1024),
                 stream,
                 tls,
                 token,
@@ -110,7 +109,7 @@ impl Session {
         if let Some(ref mut tls) = self.tls {
             match tls.write_tls(&mut self.stream) {
                 Ok(_) => {
-                    if self.buffer.tx_pending() > 0 {
+                    if self.buffer.write_pending() > 0 {
                         self.buffer.write_to(tls)
                     } else {
                         Ok(None)
@@ -123,20 +122,8 @@ impl Session {
         }
     }
 
-    pub fn clear_buffer(&mut self) {
-        self.buffer.clear();
-    }
-
-    pub fn rx_buffer(&self) -> &[u8] {
-        self.buffer.rx_buffer()
-    }
-
     pub fn tx_pending(&self) -> usize {
-        self.buffer.tx_pending()
-    }
-
-    pub fn tx_buffer(&mut self) -> &mut BytesMut {
-        self.buffer.tx_buffer()
+        self.buffer.write_pending()
     }
 
     pub fn interests(&self) -> Interest {

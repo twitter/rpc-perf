@@ -21,22 +21,22 @@ pub const SET: u8 = 14;
 pub const LIST: u8 = 15;
 
 #[derive(Clone)]
-pub struct Buffer {
+pub struct ThriftBuffer {
     buffer: Vec<u8>,
 }
 
-impl Default for Buffer {
-    fn default() -> Buffer {
+impl Default for ThriftBuffer {
+    fn default() -> Self {
         let mut buffer = Vec::<u8>::new();
         buffer.resize(4, 0);
 
-        Buffer { buffer }
+        Self { buffer }
     }
 }
 
-impl Buffer {
-    pub fn new() -> Buffer {
-        Buffer::default()
+impl ThriftBuffer {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn len(&self) -> usize {
@@ -150,7 +150,7 @@ mod test {
 
     #[test]
     fn ping() {
-        let mut buffer = Buffer::new();
+        let mut buffer = ThriftBuffer::new();
 
         // new buffer has 4 bytes to hold framing later
         assert_eq!(buffer.len(), 4);

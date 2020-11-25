@@ -16,8 +16,8 @@ impl Ping {
         }
     }
 
-    pub fn ping(&self, buf: &mut BytesMut) {
-        buf.extend_from_slice(b"PING\r\n");
+    pub fn ping(&self, buf: &mut Buffer) {
+        buf.put_slice(b"PING\r\n");
     }
 }
 
@@ -44,7 +44,7 @@ impl Codec for Ping {
         }
     }
 
-    fn encode(&mut self, buf: &mut BytesMut, _rng: &mut ThreadRng) {
+    fn encode(&mut self, buf: &mut Buffer, _rng: &mut ThreadRng) {
         self.ping(buf);
     }
 }
@@ -89,9 +89,11 @@ mod tests {
 
     #[test]
     fn encode_ping() {
-        let mut buf = BytesMut::new();
+        let mut buf = Buffer::new();
+        let mut test_case = Buffer::new();
+        test_case.put_slice(b"PING\r\n");
         let encoder = Ping::new();
         encoder.ping(&mut buf);
-        assert_eq!(&buf[..], b"PING\r\n");
+        assert_eq!(buf, test_case);
     }
 }

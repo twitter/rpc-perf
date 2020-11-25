@@ -3,6 +3,7 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 use std::collections::VecDeque;
+use std::io::BufRead;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Instant;
@@ -185,62 +186,68 @@ impl Client {
                         continue;
                     }
                     Ok(Some(bytes)) => {
+                        let start = session.timestamp();
                         // parse response
                         trace!("read {} bytes: {}", bytes, token.0);
-                        trace!("read: {:?}", session.rx_buffer());
-                        match self.codec.decode(session.rx_buffer()) {
-                            Ok(response) => {
-                                let stop = Instant::now();
-                                let start = session.timestamp();
-                                self.metrics.heatmap_increment(start, stop);
-                                self.metrics
-                                    .time_interval(&Stat::ResponsesLatency, start, stop);
-                                self.metrics.increment(&Stat::ResponsesTotal);
-                                self.metrics.increment(&Stat::ResponsesOk);
-                                session.clear_buffer();
-                                self.ready_queue.push_back(token.0);
-                                session.set_state(State::Writing);
+                        if let Ok(content) = session.buffer.fill_buf() {
+                            trace!("read: {:?}", content);
+                            match self.codec.decode(content) {
+                                Ok(response) => {
+                                    let stop = Instant::now();
 
-                                match response {
-                                    Response::Hit => {
-                                        self.metrics.increment(&Stat::ResponsesHit);
-                                    }
-                                    Response::Miss => {
-                                        self.metrics.increment(&Stat::ResponsesMiss);
-                                    }
-                                    _ => {}
-                                }
-                            }
-                            Err(error) => {
-                                if error != Error::Incomplete {
+                                    self.metrics.heatmap_increment(start, stop);
+                                    self.metrics.time_interval(
+                                        &Stat::ResponsesLatency,
+                                        start,
+                                        stop,
+                                    );
                                     self.metrics.increment(&Stat::ResponsesTotal);
-                                    self.metrics.increment(&Stat::ResponsesError);
-                                }
+                                    self.metrics.increment(&Stat::ResponsesOk);
 
-                                match error {
-                                    Error::ChecksumMismatch(a, b) => {
-                                        let stop = Instant::now();
-                                        let start = session.timestamp();
-                                        self.metrics.heatmap_increment(start, stop);
-                                        self.metrics.time_interval(
-                                            &Stat::ResponsesLatency,
-                                            start,
-                                            stop,
-                                        );
-                                        warn!("Response checksum mismatch!");
-                                        warn!("Expected: {:?}", a);
-                                        warn!("Got: {:?}", b);
-                                        session.clear_buffer();
-                                        self.ready_queue.push_back(token.0);
-                                        session.set_state(State::Writing);
+                                    self.ready_queue.push_back(token.0);
+                                    session.set_state(State::Writing);
+
+                                    match response {
+                                        Response::Hit => {
+                                            self.metrics.increment(&Stat::ResponsesHit);
+                                        }
+                                        Response::Miss => {
+                                            self.metrics.increment(&Stat::ResponsesMiss);
+                                        }
+                                        _ => {}
                                     }
-                                    _ => {
-                                        self.hangup(token.0);
-                                        continue;
+                                }
+                                Err(error) => {
+                                    if error != Error::Incomplete {
+                                        self.metrics.increment(&Stat::ResponsesTotal);
+                                        self.metrics.increment(&Stat::ResponsesError);
+                                    }
+
+                                    match error {
+                                        Error::ChecksumMismatch(a, b) => {
+                                            let stop = Instant::now();
+                                            let start = session.timestamp();
+                                            self.metrics.heatmap_increment(start, stop);
+                                            self.metrics.time_interval(
+                                                &Stat::ResponsesLatency,
+                                                start,
+                                                stop,
+                                            );
+                                            warn!("Response checksum mismatch!");
+                                            warn!("Expected: {:?}", a);
+                                            warn!("Got: {:?}", b);
+                                            self.ready_queue.push_back(token.0);
+                                            session.set_state(State::Writing);
+                                        }
+                                        _ => {
+                                            self.hangup(token.0);
+                                            continue;
+                                        }
                                     }
                                 }
                             }
                         }
+                        session.buffer.consume(bytes);
                     }
                     Ok(None) => {
                         // wasn't ready
@@ -304,8 +311,7 @@ impl Client {
             trace!("send request: {}", token);
             session.set_timestamp(Instant::now());
             self.metrics.increment(&Stat::RequestsEnqueued);
-            self.codec.encode(session.tx_buffer(), rng);
-            trace!("encoded request: {:?}", session.tx_buffer());
+            self.codec.encode(&mut session.buffer, rng);
             session.set_state(State::Writing);
             session.reregister(&self.poll);
         }

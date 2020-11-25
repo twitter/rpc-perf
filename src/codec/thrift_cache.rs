@@ -5,8 +5,7 @@
 use crate::codec::*;
 use crate::config::Action;
 use crate::stats::Stat;
-
-use bytes::BytesMut;
+use rustcommon_buffer::Buffer;
 
 pub struct ThriftCache {
     common: Common,
@@ -21,13 +20,13 @@ impl ThriftCache {
 
     pub fn append(
         &self,
-        buf: &mut BytesMut,
+        buf: &mut Buffer,
         sequence_id: i32,
         table: &[u8],
         key: &[u8],
         values: &[&[u8]],
     ) {
-        let mut buffer = thrift::Buffer::new();
+        let mut buffer = thrift::ThriftBuffer::new();
         buffer.protocol_header();
         buffer.method_name("append");
         buffer.sequence_id(sequence_id);
@@ -66,18 +65,18 @@ impl ThriftCache {
         buffer.stop();
         buffer.frame();
 
-        buf.extend_from_slice(buffer.as_bytes());
+        buf.put_slice(buffer.as_bytes());
     }
 
     pub fn appendx(
         &self,
-        buf: &mut BytesMut,
+        buf: &mut Buffer,
         sequence_id: i32,
         table: &[u8],
         key: &[u8],
         values: &[&[u8]],
     ) {
-        let mut buffer = thrift::Buffer::new();
+        let mut buffer = thrift::ThriftBuffer::new();
         buffer.protocol_header();
         buffer.method_name("appendx");
         buffer.sequence_id(sequence_id);
@@ -116,18 +115,18 @@ impl ThriftCache {
         buffer.stop();
         buffer.frame();
 
-        buf.extend_from_slice(buffer.as_bytes());
+        buf.put_slice(buffer.as_bytes());
     }
 
     pub fn count(
         &self,
-        buf: &mut BytesMut,
+        buf: &mut Buffer,
         sequence_id: i32,
         table: &[u8],
         key: &[u8],
         timeout: Option<i32>,
     ) {
-        let mut buffer = thrift::Buffer::new();
+        let mut buffer = thrift::ThriftBuffer::new();
         buffer.protocol_header();
         buffer.method_name("appendx");
         buffer.sequence_id(sequence_id);
@@ -162,19 +161,19 @@ impl ThriftCache {
         buffer.stop();
         buffer.frame();
 
-        buf.extend_from_slice(buffer.as_bytes());
+        buf.put_slice(buffer.as_bytes());
     }
 
     pub fn get(
         &self,
-        buf: &mut BytesMut,
+        buf: &mut Buffer,
         sequence_id: i32,
         table: &[u8],
         key: &[u8],
         fields: &[&[u8]],
         timeout: Option<i32>,
     ) {
-        let mut buffer = thrift::Buffer::new();
+        let mut buffer = thrift::ThriftBuffer::new();
         buffer.protocol_header();
         buffer.method_name("get");
         buffer.sequence_id(sequence_id);
@@ -216,13 +215,13 @@ impl ThriftCache {
         buffer.stop();
         buffer.frame();
 
-        buf.extend_from_slice(buffer.as_bytes());
+        buf.put_slice(buffer.as_bytes());
     }
 
     #[allow(clippy::too_many_arguments)]
     pub fn put(
         &self,
-        buf: &mut BytesMut,
+        buf: &mut Buffer,
         sequence_id: i32,
         table: &[u8],
         key: &[u8],
@@ -232,7 +231,7 @@ impl ThriftCache {
         ttl: Option<i64>,
         timeout: Option<i32>,
     ) {
-        let mut buffer = thrift::Buffer::new();
+        let mut buffer = thrift::ThriftBuffer::new();
         buffer.protocol_header();
         buffer.method_name("put");
         buffer.sequence_id(sequence_id);
@@ -299,19 +298,19 @@ impl ThriftCache {
         buffer.stop();
         buffer.frame();
 
-        buf.extend_from_slice(buffer.as_bytes());
+        buf.put_slice(buffer.as_bytes());
     }
 
     pub fn range(
         &self,
-        buf: &mut BytesMut,
+        buf: &mut Buffer,
         sequence_id: i32,
         table: &[u8],
         key: &[u8],
         start: Option<i32>,
         stop: Option<i32>,
     ) {
-        let mut buffer = thrift::Buffer::new();
+        let mut buffer = thrift::ThriftBuffer::new();
         buffer.protocol_header();
         buffer.method_name("range");
         buffer.sequence_id(sequence_id);
@@ -349,13 +348,13 @@ impl ThriftCache {
         buffer.stop();
         buffer.frame();
 
-        buf.extend_from_slice(buffer.as_bytes());
+        buf.put_slice(buffer.as_bytes());
     }
 
     #[allow(clippy::too_many_arguments)]
     pub fn remove(
         &self,
-        buf: &mut BytesMut,
+        buf: &mut Buffer,
         sequence_id: i32,
         table: &[u8],
         key: &[u8],
@@ -364,7 +363,7 @@ impl ThriftCache {
         count: Option<i32>,
         timeout: Option<i32>,
     ) {
-        let mut buffer = thrift::Buffer::new();
+        let mut buffer = thrift::ThriftBuffer::new();
         buffer.protocol_header();
         buffer.method_name("remove");
         buffer.sequence_id(sequence_id);
@@ -417,13 +416,13 @@ impl ThriftCache {
         buffer.stop();
         buffer.frame();
 
-        buf.extend_from_slice(buffer.as_bytes());
+        buf.put_slice(buffer.as_bytes());
     }
 
     #[allow(clippy::too_many_arguments)]
     pub fn scan(
         &self,
-        buf: &mut BytesMut,
+        buf: &mut Buffer,
         sequence_id: i32,
         table: &[u8],
         key: &[u8],
@@ -433,7 +432,7 @@ impl ThriftCache {
         limit: Option<i32>,
         timeout: Option<i32>,
     ) {
-        let mut buffer = thrift::Buffer::new();
+        let mut buffer = thrift::ThriftBuffer::new();
         buffer.protocol_header();
         buffer.method_name("appendx");
         buffer.sequence_id(sequence_id);
@@ -492,13 +491,13 @@ impl ThriftCache {
         buffer.stop();
         buffer.frame();
 
-        buf.extend_from_slice(buffer.as_bytes());
+        buf.put_slice(buffer.as_bytes());
     }
 
     #[allow(clippy::too_many_arguments)]
     pub fn trim(
         &self,
-        buf: &mut BytesMut,
+        buf: &mut Buffer,
         sequence_id: i32,
         table: &[u8],
         key: &[u8],
@@ -506,7 +505,7 @@ impl ThriftCache {
         trim_from_smallest: bool,
         timeout: Option<i32>,
     ) {
-        let mut buffer = thrift::Buffer::new();
+        let mut buffer = thrift::ThriftBuffer::new();
         buffer.protocol_header();
         buffer.method_name("trim");
         buffer.sequence_id(sequence_id);
@@ -545,7 +544,7 @@ impl ThriftCache {
         buffer.stop();
         buffer.frame();
 
-        buf.extend_from_slice(buffer.as_bytes());
+        buf.put_slice(buffer.as_bytes());
     }
 }
 
@@ -585,7 +584,7 @@ impl Codec for ThriftCache {
     }
 
     // TODO(bmartin): fix stats
-    fn encode(&mut self, buf: &mut BytesMut, rng: &mut ThreadRng) {
+    fn encode(&mut self, buf: &mut Buffer, rng: &mut ThreadRng) {
         let command = self.generate(rng);
         match command.action() {
             Action::Hget => {
@@ -677,12 +676,12 @@ mod test {
 
     #[test]
     fn get() {
-        let mut buf = BytesMut::new();
+        let mut buf = Buffer::new();
         let codec = ThriftCache::new();
         codec.get(&mut buf, 0, b"0", b"key", &[b"alpha"], None);
-        let mut check = BytesMut::new();
+        let mut check = Buffer::new();
 
-        check.extend_from_slice(&[
+        check.put_slice(&[
             0, 0, 0, 60, // len
             128, 1, 0, 1, // protocol
             0, 0, 0, 3, // method length

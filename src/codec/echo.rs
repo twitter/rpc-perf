@@ -4,8 +4,6 @@
 
 use crate::codec::*;
 
-use bytes::BytesMut;
-
 use core::mem::transmute;
 
 pub struct Echo {
@@ -19,11 +17,11 @@ impl Echo {
         }
     }
 
-    pub fn echo(&self, buf: &mut BytesMut, value: &[u8]) {
+    pub fn echo(&self, buf: &mut Buffer, value: &[u8]) {
         let crc = crc::crc32::checksum_ieee(value);
-        buf.extend_from_slice(value);
-        buf.extend_from_slice(&crc.to_be_bytes()); // TODO: this could panic
-        buf.extend_from_slice(b"\r\n");
+        buf.put_slice(value);
+        buf.put_u32(crc);
+        buf.put_slice(b"\r\n");
     }
 }
 
@@ -71,7 +69,7 @@ impl Codec for Echo {
         }
     }
 
-    fn encode(&mut self, buf: &mut BytesMut, rng: &mut ThreadRng) {
+    fn encode(&mut self, buf: &mut Buffer, rng: &mut ThreadRng) {
         let command = self.generate(rng);
         self.echo(buf, command.key().unwrap());
     }
@@ -120,9 +118,11 @@ mod tests {
 
     #[test]
     fn encode_echo() {
-        let mut buf = BytesMut::new();
+        let mut buf = Buffer::new();
+        let mut test_case = Buffer::new();
         let encoder = Echo::new();
         encoder.echo(&mut buf, &[0, 1, 2]);
-        assert_eq!(&buf[..], &[0, 1, 2, 8, 84, 137, 127, 13, 10]);
+        test_case.put_slice(&[0, 1, 2, 8, 84, 137, 127, 13, 10]);
+        assert_eq!(buf, test_case);
     }
 }
