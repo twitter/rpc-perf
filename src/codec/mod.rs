@@ -7,21 +7,40 @@ mod memcache;
 mod pelikan_rds;
 mod ping;
 mod redis;
+mod thrift;
 mod thrift_cache;
 
-pub use crate::codec::echo::Echo;
-pub use crate::codec::memcache::Memcache;
-pub use crate::codec::pelikan_rds::PelikanRds;
-pub use crate::codec::ping::Ping;
-pub use crate::codec::redis::{Redis, RedisMode};
-pub use crate::codec::thrift_cache::ThriftCache;
+pub use echo::Echo;
+pub use memcache::Memcache;
+pub use pelikan_rds::PelikanRds;
+pub use ping::Ping;
+pub use redis::{Redis, RedisMode};
+pub use thrift_cache::ThriftCache;
+
 use crate::config::{Action, Config, Generator};
 use crate::stats::Metrics;
 use std::sync::Arc;
 
 use bytes::BytesMut;
-pub use codec::{Decoder, Error, Response};
 use rand::rngs::ThreadRng;
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Response {
+    Ok,
+    Version,
+    Hit,
+    Miss,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Error {
+    Incomplete,
+    Error,
+    ClientError,
+    ServerError,
+    Unknown,
+    ChecksumMismatch(Vec<u8>, Vec<u8>),
+}
 
 pub struct Command {
     action: Action,

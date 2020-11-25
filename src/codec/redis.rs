@@ -1,32 +1,38 @@
-// Copyright 2019 Twitter, Inc.
+// Copyright 2019-2020 Twitter, Inc.
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
-
-use super::*;
-
-use bytes::{Buf, BytesMut};
 
 use std::cmp::Ordering;
 use std::io::{BufRead, BufReader};
 use std::str;
 
-pub enum Mode {
+use crate::codec::*;
+use crate::config::Action;
+use crate::stats::Stat;
+
+use bytes::{Buf, BytesMut};
+
+pub enum RedisMode {
     Inline,
     Resp,
 }
 
 pub struct Redis {
-    mode: Mode,
+    common: Common,
+    mode: RedisMode,
 }
 
 impl Redis {
-    pub fn new(mode: Mode) -> Self {
-        Self { mode }
+    pub fn new(mode: RedisMode) -> Self {
+        Self {
+            common: Common::new(),
+            mode,
+        }
     }
 
     fn command(&self, buf: &mut BytesMut, command: &str, args: &[&[u8]]) {
         match self.mode {
-            Mode::Inline => {
+            RedisMode::Inline => {
                 buf.extend_from_slice(command.to_string().as_bytes());
                 for arg in args {
                     buf.extend_from_slice(b" ");
@@ -34,7 +40,7 @@ impl Redis {
                 }
                 buf.extend_from_slice(b"\r\n");
             }
-            Mode::Resp => {
+            RedisMode::Resp => {
                 buf.extend_from_slice(
                     format!("*{}\r\n${}\r\n{}", 1 + args.len(), command.len(), command).as_bytes(),
                 );
@@ -148,7 +154,15 @@ impl Redis {
     }
 }
 
-impl Decoder for Redis {
+impl Codec for Redis {
+    fn common(&self) -> &Common {
+        &self.common
+    }
+
+    fn common_mut(&mut self) -> &mut Common {
+        &mut self.common
+    }
+
     fn decode(&self, buf: &[u8]) -> Result<Response, Error> {
         let end = &buf[buf.len() - 2..buf.len()];
 
@@ -227,6 +241,112 @@ impl Decoder for Redis {
             _ => Err(Error::Unknown),
         }
     }
+
+    fn encode(&mut self, buf: &mut BytesMut, rng: &mut ThreadRng) {
+        let command = self.generate(rng);
+        match command.action() {
+            Action::Delete => {
+                let key = command.key().unwrap();
+                let keys = vec![key];
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsDelete);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
+                }
+                self.delete(buf, &keys);
+            }
+            Action::Get => {
+                let key = command.key().unwrap();
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsGet);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
+                }
+                self.get(buf, key);
+            }
+            Action::Llen => {
+                let key = command.key().unwrap();
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsLen);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
+                }
+                self.llen(buf, key);
+            }
+            Action::Lpush => {
+                let key = command.key().unwrap();
+                let values = command.values().unwrap();
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsPush);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
+                    let len: usize = values.iter().map(|v| v.len()).sum();
+                    metrics.distribution(&Stat::ValueSize, len as u64);
+                }
+                self.lpush(buf, key, &values);
+            }
+            Action::Lpushx => {
+                let key = command.key().unwrap();
+                let values = command.values().unwrap();
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsPush);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
+                    let len: usize = values.iter().map(|v| v.len()).sum();
+                    metrics.distribution(&Stat::ValueSize, len as u64);
+                }
+                self.lpushx(buf, key, &values);
+            }
+            Action::Lrange => {
+                let key = command.key().unwrap();
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsRange);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
+                }
+                // TODO: proper handling of start and stop
+                self.lrange(buf, key, 0, command.count.unwrap_or(1) as isize);
+            }
+            Action::Ltrim => {
+                let key = command.key().unwrap();
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsTrim);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
+                }
+                // TODO: proper handling of start and stop
+                self.ltrim(buf, key, 0, command.count.unwrap_or(1) as isize);
+            }
+            Action::Rpush => {
+                let key = command.key().unwrap();
+                let values = command.values().unwrap();
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsPush);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
+                    let len: usize = values.iter().map(|v| v.len()).sum();
+                    metrics.distribution(&Stat::ValueSize, len as u64);
+                }
+                self.rpush(buf, key, &values);
+            }
+            Action::Rpushx => {
+                let key = command.key().unwrap();
+                let values = command.values().unwrap();
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsPush);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
+                    let len: usize = values.iter().map(|v| v.len()).sum();
+                    metrics.distribution(&Stat::ValueSize, len as u64);
+                }
+                self.rpushx(buf, key, &values);
+            }
+            Action::Set => {
+                let key = command.key().unwrap();
+                let value = command.value().unwrap();
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsSet);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
+                    metrics.distribution(&Stat::ValueSize, value.len() as u64);
+                }
+                self.set(buf, key, value, command.ttl());
+            }
+            action => {
+                fatal!("Action: {:?} unsupported for Redis", action);
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -235,7 +355,7 @@ mod tests {
 
     fn decode_messages(messages: Vec<&'static [u8]>, response: Result<Response, Error>) {
         for message in messages {
-            let decoder = Redis::new(Mode::Resp);
+            let decoder = Redis::new(RedisMode::Resp);
             let mut buf = BytesMut::with_capacity(1024);
             buf.extend_from_slice(&message);
 
@@ -283,7 +403,7 @@ mod tests {
 
     #[test]
     fn encode_delete() {
-        let redis = Redis::new(Mode::Inline);
+        let redis = Redis::new(RedisMode::Inline);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(b"delete abc\r\n");
@@ -291,7 +411,7 @@ mod tests {
         redis.delete(&mut buf, &keys);
         assert_eq!(test_case, buf);
 
-        let redis = Redis::new(Mode::Resp);
+        let redis = Redis::new(RedisMode::Resp);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(b"*2\r\n$6\r\ndelete\r\n$3\r\nabc\r\n");
@@ -302,7 +422,7 @@ mod tests {
 
     #[test]
     fn encode_mget() {
-        let redis = Redis::new(Mode::Inline);
+        let redis = Redis::new(RedisMode::Inline);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(b"mget abc xyz\r\n");
@@ -310,7 +430,7 @@ mod tests {
         redis.mget(&mut buf, &keys);
         assert_eq!(test_case, buf);
 
-        let redis = Redis::new(Mode::Resp);
+        let redis = Redis::new(RedisMode::Resp);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(b"*3\r\n$4\r\nmget\r\n$3\r\nabc\r\n$3\r\nxyz\r\n");
@@ -321,7 +441,7 @@ mod tests {
 
     #[test]
     fn encode_ttl_resp() {
-        let redis = Redis::new(Mode::Resp);
+        let redis = Redis::new(RedisMode::Resp);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(
@@ -334,7 +454,7 @@ mod tests {
 
     #[test]
     fn encode_resp_without_ttl() {
-        let redis = Redis::new(Mode::Resp);
+        let redis = Redis::new(RedisMode::Resp);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(b"*3\r\n$3\r\nset\r\n$3\r\nabc\r\n$4\r\n1234\r\n");
@@ -345,7 +465,7 @@ mod tests {
 
     #[test]
     fn encode_ttl_inline() {
-        let redis = Redis::new(Mode::Inline);
+        let redis = Redis::new(RedisMode::Inline);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(b"set xyz 987 EX 1000\r\n");
@@ -356,7 +476,7 @@ mod tests {
 
     #[test]
     fn encode_inline_without_ttl() {
-        let redis = Redis::new(Mode::Inline);
+        let redis = Redis::new(RedisMode::Inline);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(b"set qrs 567\r\n");
@@ -367,7 +487,7 @@ mod tests {
 
     #[test]
     fn encode_lpush() {
-        let redis = Redis::new(Mode::Inline);
+        let redis = Redis::new(RedisMode::Inline);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(b"lpush abc 123\r\n");
@@ -375,7 +495,7 @@ mod tests {
         redis.lpush(&mut buf, b"abc", &values);
         assert_eq!(test_case, buf);
 
-        let redis = Redis::new(Mode::Inline);
+        let redis = Redis::new(RedisMode::Inline);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(b"lpush abc 123 456\r\n");
@@ -383,7 +503,7 @@ mod tests {
         redis.lpush(&mut buf, b"abc", &values);
         assert_eq!(test_case, buf);
 
-        let redis = Redis::new(Mode::Resp);
+        let redis = Redis::new(RedisMode::Resp);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(b"*3\r\n$5\r\nlpush\r\n$3\r\nabc\r\n$2\r\n42\r\n");
@@ -391,7 +511,7 @@ mod tests {
         redis.lpush(&mut buf, b"abc", &values);
         assert_eq!(test_case, buf);
 
-        let redis = Redis::new(Mode::Resp);
+        let redis = Redis::new(RedisMode::Resp);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(b"*4\r\n$5\r\nlpush\r\n$3\r\nabc\r\n$2\r\n42\r\n$3\r\n206\r\n");
@@ -402,7 +522,7 @@ mod tests {
 
     #[test]
     fn encode_lpushx() {
-        let redis = Redis::new(Mode::Inline);
+        let redis = Redis::new(RedisMode::Inline);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(b"lpushx abc 123\r\n");
@@ -410,7 +530,7 @@ mod tests {
         redis.lpushx(&mut buf, b"abc", &values);
         assert_eq!(test_case, buf);
 
-        let redis = Redis::new(Mode::Inline);
+        let redis = Redis::new(RedisMode::Inline);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(b"lpushx abc 123 456\r\n");
@@ -418,7 +538,7 @@ mod tests {
         redis.lpushx(&mut buf, b"abc", &values);
         assert_eq!(test_case, buf);
 
-        let redis = Redis::new(Mode::Resp);
+        let redis = Redis::new(RedisMode::Resp);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(b"*3\r\n$6\r\nlpushx\r\n$3\r\nabc\r\n$2\r\n42\r\n");
@@ -426,7 +546,7 @@ mod tests {
         redis.lpushx(&mut buf, b"abc", &values);
         assert_eq!(test_case, buf);
 
-        let redis = Redis::new(Mode::Resp);
+        let redis = Redis::new(RedisMode::Resp);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case
@@ -438,14 +558,14 @@ mod tests {
 
     #[test]
     fn encode_ltrim() {
-        let redis = Redis::new(Mode::Inline);
+        let redis = Redis::new(RedisMode::Inline);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(b"ltrim abc 0 -2\r\n");
         redis.ltrim(&mut buf, b"abc", 0, -2);
         assert_eq!(test_case, buf);
 
-        let redis = Redis::new(Mode::Resp);
+        let redis = Redis::new(RedisMode::Resp);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(b"*4\r\n$5\r\nltrim\r\n$3\r\nabc\r\n$1\r\n0\r\n$2\r\n-2\r\n");
@@ -455,14 +575,14 @@ mod tests {
 
     #[test]
     fn encode_lrange() {
-        let redis = Redis::new(Mode::Inline);
+        let redis = Redis::new(RedisMode::Inline);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(b"lrange abc 0 -2\r\n");
         redis.lrange(&mut buf, b"abc", 0, -2);
         assert_eq!(test_case, buf);
 
-        let redis = Redis::new(Mode::Resp);
+        let redis = Redis::new(RedisMode::Resp);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(b"*4\r\n$6\r\nlrange\r\n$3\r\nabc\r\n$1\r\n0\r\n$2\r\n-2\r\n");
@@ -472,14 +592,14 @@ mod tests {
 
     #[test]
     fn encode_lset() {
-        let redis = Redis::new(Mode::Inline);
+        let redis = Redis::new(RedisMode::Inline);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(b"lset bee 0 cafe\r\n");
         redis.lset(&mut buf, b"bee", 0, b"cafe");
         assert_eq!(test_case, buf);
 
-        let redis = Redis::new(Mode::Resp);
+        let redis = Redis::new(RedisMode::Resp);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(b"*4\r\n$4\r\nlset\r\n$3\r\nbee\r\n$1\r\n0\r\n$4\r\ncafe\r\n");
@@ -489,14 +609,14 @@ mod tests {
 
     #[test]
     fn encode_lindex() {
-        let redis = Redis::new(Mode::Inline);
+        let redis = Redis::new(RedisMode::Inline);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(b"lindex bee 0\r\n");
         redis.lindex(&mut buf, b"bee", 0);
         assert_eq!(test_case, buf);
 
-        let redis = Redis::new(Mode::Resp);
+        let redis = Redis::new(RedisMode::Resp);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(b"*3\r\n$6\r\nlindex\r\n$3\r\nbee\r\n$1\r\n0\r\n");
@@ -506,14 +626,14 @@ mod tests {
 
     #[test]
     fn encode_llen() {
-        let redis = Redis::new(Mode::Inline);
+        let redis = Redis::new(RedisMode::Inline);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(b"llen bee\r\n");
         redis.llen(&mut buf, b"bee");
         assert_eq!(test_case, buf);
 
-        let redis = Redis::new(Mode::Resp);
+        let redis = Redis::new(RedisMode::Resp);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(b"*2\r\n$4\r\nllen\r\n$3\r\nbee\r\n");
@@ -523,14 +643,14 @@ mod tests {
 
     #[test]
     fn encode_lpop() {
-        let redis = Redis::new(Mode::Inline);
+        let redis = Redis::new(RedisMode::Inline);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(b"lpop bee\r\n");
         redis.lpop(&mut buf, b"bee");
         assert_eq!(test_case, buf);
 
-        let redis = Redis::new(Mode::Resp);
+        let redis = Redis::new(RedisMode::Resp);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(b"*2\r\n$4\r\nlpop\r\n$3\r\nbee\r\n");
@@ -540,7 +660,7 @@ mod tests {
 
     #[test]
     fn encode_rpush() {
-        let redis = Redis::new(Mode::Inline);
+        let redis = Redis::new(RedisMode::Inline);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(b"rpush abc 123\r\n");
@@ -548,7 +668,7 @@ mod tests {
         redis.rpush(&mut buf, b"abc", &values);
         assert_eq!(test_case, buf);
 
-        let redis = Redis::new(Mode::Inline);
+        let redis = Redis::new(RedisMode::Inline);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(b"rpush abc 123 456\r\n");
@@ -556,7 +676,7 @@ mod tests {
         redis.rpush(&mut buf, b"abc", &values);
         assert_eq!(test_case, buf);
 
-        let redis = Redis::new(Mode::Resp);
+        let redis = Redis::new(RedisMode::Resp);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(b"*3\r\n$5\r\nrpush\r\n$3\r\nabc\r\n$2\r\n42\r\n");
@@ -564,7 +684,7 @@ mod tests {
         redis.rpush(&mut buf, b"abc", &values);
         assert_eq!(test_case, buf);
 
-        let redis = Redis::new(Mode::Resp);
+        let redis = Redis::new(RedisMode::Resp);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(b"*4\r\n$5\r\nrpush\r\n$3\r\nabc\r\n$2\r\n42\r\n$3\r\n206\r\n");
@@ -575,7 +695,7 @@ mod tests {
 
     #[test]
     fn encode_rpushx() {
-        let redis = Redis::new(Mode::Inline);
+        let redis = Redis::new(RedisMode::Inline);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(b"rpushx abc 123\r\n");
@@ -583,7 +703,7 @@ mod tests {
         redis.rpushx(&mut buf, b"abc", &values);
         assert_eq!(test_case, buf);
 
-        let redis = Redis::new(Mode::Inline);
+        let redis = Redis::new(RedisMode::Inline);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(b"rpushx abc 123 456\r\n");
@@ -591,7 +711,7 @@ mod tests {
         redis.rpushx(&mut buf, b"abc", &values);
         assert_eq!(test_case, buf);
 
-        let redis = Redis::new(Mode::Resp);
+        let redis = Redis::new(RedisMode::Resp);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case.extend_from_slice(b"*3\r\n$6\r\nrpushx\r\n$3\r\nabc\r\n$2\r\n42\r\n");
@@ -599,7 +719,7 @@ mod tests {
         redis.rpushx(&mut buf, b"abc", &values);
         assert_eq!(test_case, buf);
 
-        let redis = Redis::new(Mode::Resp);
+        let redis = Redis::new(RedisMode::Resp);
         let mut buf = BytesMut::with_capacity(64);
         let mut test_case = BytesMut::with_capacity(64);
         test_case

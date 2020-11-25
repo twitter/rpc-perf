@@ -31,20 +31,11 @@ With rust installed, clone this repo, and cd into this folder:
 
 ```shell
 git clone https://github.com/twitter/rpc-perf.git
-cd rpc-perf/rpc-perf
+cd rpc-perf
 cargo build --release
 ```
 
-If you need TLS support, you'll need to use nightly Rust:
-
-```shell
-git clone https://github.com/twitter/rpc-perf.git
-cd rpc-perf/rpc-perf
-rustup override set nightly
-cargo build --release --features tls
-```
-
-This will produce a binary at `../target/release/rpc-perf` which can be run in-place or copied to a
+This will produce a binary at `target/release/rpc-perf` which can be run in-place or copied to a
 more convenient location on your system.
 
 ## Configuration
@@ -143,4 +134,3 @@ Please report sensitive security issues via Twitter's bug-bounty program
 [Open Source Code of Conduct]: https://github.com/twitter/code-of-conduct/blob/master/code-of-conduct.md
 [rustlang]: https://rust-lang.org/
 [rustup]: https://rustup.rs
-

@@ -1,17 +1,22 @@
-// Copyright 2019 Twitter, Inc.
+// Copyright 2019-2020 Twitter, Inc.
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use crate::*;
+use crate::codec::*;
+use crate::config::Action;
+use crate::stats::Stat;
 
 use bytes::BytesMut;
 
-#[derive(Default)]
-pub struct Cache {}
+pub struct ThriftCache {
+    common: Common,
+}
 
-impl Cache {
+impl ThriftCache {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            common: Common::new(),
+        }
     }
 
     pub fn append(
@@ -544,7 +549,21 @@ impl Cache {
     }
 }
 
-impl Decoder for Cache {
+impl Default for ThriftCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Codec for ThriftCache {
+    fn common(&self) -> &Common {
+        &self.common
+    }
+
+    fn common_mut(&mut self) -> &mut Common {
+        &mut self.common
+    }
+
     fn decode(&self, buf: &[u8]) -> Result<Response, Error> {
         let bytes = buf.len() as u32;
         if bytes > 4 {
@@ -564,6 +583,92 @@ impl Decoder for Cache {
             Err(Error::Incomplete)
         }
     }
+
+    // TODO(bmartin): fix stats
+    fn encode(&mut self, buf: &mut BytesMut, rng: &mut ThreadRng) {
+        let command = self.generate(rng);
+        match command.action() {
+            Action::Hget => {
+                let pkey = command.key().unwrap();
+                let fields = command.fields().unwrap();
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsGet);
+                    // metrics.distribution("keys/size", pkey.len() as u64);
+                }
+                self.get(buf, 0, b"0", pkey, &fields, None);
+            }
+            Action::Hset => {
+                let key = command.key().unwrap();
+                let fields = command.fields().unwrap();
+                let values = command.values().unwrap();
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsSet);
+                    // metrics.distribution("keys/size", key.len() as u64);
+                    // metrics.distribution("values/size", values.len() as u64);
+                }
+                self.put(
+                    buf,
+                    0,
+                    b"0",
+                    key,
+                    &fields,
+                    &values,
+                    None,
+                    command.ttl().map(|ttl| ttl as i64),
+                    None,
+                );
+            }
+            Action::Hdel => {
+                let key = command.key().unwrap();
+                let fields = command.fields().unwrap();
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsDelete);
+                    // metrics.distribution("keys/size", key.len() as u64);
+                    // metrics.distribution("values/size", values.len() as u64);
+                }
+                self.remove(buf, 0, b"0", key, &fields, None, None, None);
+            }
+            Action::Lrange => {
+                let key = command.key().unwrap();
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsRange);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
+                }
+                self.range(buf, 0, b"0", key, Some(0), command.count.map(|x| x as i32));
+            }
+            Action::Ltrim => {
+                let key = command.key().unwrap();
+                let count = command.count().unwrap() as i32;
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsTrim);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
+                }
+                // TODO: proper handling of start and stop
+                self.trim(buf, 0, b"0", key, count, true, None);
+            }
+            Action::Rpush => {
+                let key = command.key().unwrap();
+                let values = command.values().unwrap();
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsPush);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
+                }
+                self.append(buf, 0, b"0", key, &values);
+            }
+            Action::Rpushx => {
+                let key = command.key().unwrap();
+                let values = command.values().unwrap();
+                if let Some(metrics) = self.common.metrics() {
+                    metrics.increment(&Stat::CommandsPush);
+                    metrics.distribution(&Stat::KeySize, key.len() as u64);
+                }
+                self.appendx(buf, 0, b"0", key, &values);
+            }
+            action => {
+                fatal!("Action: {:?} unsupported for ThriftCache", action);
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -573,7 +678,7 @@ mod test {
     #[test]
     fn get() {
         let mut buf = BytesMut::new();
-        let codec = Cache::new();
+        let codec = ThriftCache::new();
         codec.get(&mut buf, 0, b"0", b"key", &[b"alpha"], None);
         let mut check = BytesMut::new();
 

@@ -151,15 +151,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "codec"
-version = "0.3.0"
-dependencies = [
- "bytes",
- "crc",
- "rand",
-]
-
-[[package]]
 name = "color_quant"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -753,7 +744,6 @@ dependencies = [
  "byteorder",
  "bytes",
  "clap",
- "codec",
  "crc",
  "mio",
  "rand",

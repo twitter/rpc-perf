@@ -2,18 +2,21 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use super::*;
+use crate::codec::*;
 
 use bytes::BytesMut;
 
-use std::mem::transmute;
+use core::mem::transmute;
 
-#[derive(Default)]
-pub struct Echo {}
+pub struct Echo {
+    common: Common,
+}
 
 impl Echo {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            common: Common::new(),
+        }
     }
 
     pub fn echo(&self, buf: &mut BytesMut, value: &[u8]) {
@@ -24,7 +27,21 @@ impl Echo {
     }
 }
 
-impl Decoder for Echo {
+impl Default for Echo {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Codec for Echo {
+    fn common(&self) -> &Common {
+        &self.common
+    }
+
+    fn common_mut(&mut self) -> &mut Common {
+        &mut self.common
+    }
+
     fn decode(&self, buf: &[u8]) -> Result<Response, Error> {
         // shortest response is 7 bytes (1 byte + 4 byte crc + CR + LF)
         if buf.len() < 7 {
@@ -52,6 +69,11 @@ impl Decoder for Echo {
         } else {
             Ok(Response::Ok)
         }
+    }
+
+    fn encode(&mut self, buf: &mut BytesMut, rng: &mut ThreadRng) {
+        let command = self.generate(rng);
+        self.echo(buf, command.key().unwrap());
     }
 }
 
