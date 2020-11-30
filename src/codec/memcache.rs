@@ -218,6 +218,7 @@ impl Codec for Memcache {
 
 #[cfg(test)]
 mod tests {
+    use bytes::*;
     use super::*;
 
     fn decode_messages(messages: Vec<&'static [u8]>, response: Result<Response, Error>) {
