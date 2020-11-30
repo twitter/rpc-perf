@@ -51,8 +51,8 @@ impl Codec for Ping {
 
 #[cfg(test)]
 mod tests {
-    use bytes::*;
     use super::*;
+    use bytes::*;
 
     fn decode_messages(messages: Vec<&'static [u8]>, response: Result<Response, Error>) {
         for message in messages {
