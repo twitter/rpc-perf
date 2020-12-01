@@ -15,13 +15,13 @@ pub use memcache::Memcache;
 pub use pelikan_rds::PelikanRds;
 pub use ping::Ping;
 pub use redis::{Redis, RedisMode};
+use rustcommon_buffer::Buffer;
 pub use thrift_cache::ThriftCache;
 
 use crate::config::{Action, Config, Generator};
 use crate::stats::Metrics;
 use std::sync::Arc;
 
-use bytes::BytesMut;
 use rand::rngs::ThreadRng;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -300,7 +300,7 @@ pub trait Codec: Send {
     fn common(&self) -> &Common;
     fn common_mut(&mut self) -> &mut Common;
     fn decode(&self, buf: &[u8]) -> Result<Response, Error>;
-    fn encode(&mut self, buf: &mut BytesMut, rng: &mut ThreadRng);
+    fn encode(&mut self, buf: &mut Buffer, rng: &mut ThreadRng);
 
     fn generate(&self, rng: &mut ThreadRng) -> Command {
         self.common().generator.generate(rng)

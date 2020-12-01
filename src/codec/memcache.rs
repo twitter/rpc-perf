@@ -7,7 +7,7 @@ use crate::config::Action;
 use crate::stats::Stat;
 use std::io::{BufRead, BufReader};
 
-use bytes::{Buf, BytesMut};
+use bytes::Buf;
 
 pub struct Memcache {
     common: Common,
@@ -20,15 +20,15 @@ impl Memcache {
         }
     }
 
-    pub fn get(&self, buf: &mut BytesMut, key: &[u8]) {
-        buf.extend_from_slice(b"get ");
-        buf.extend_from_slice(key);
-        buf.extend_from_slice(b"\r\n");
+    pub fn get(&self, buf: &mut Buffer, key: &[u8]) {
+        buf.put_slice(b"get ");
+        buf.put_slice(key);
+        buf.put_slice(b"\r\n");
     }
 
     pub fn set(
         &self,
-        buf: &mut BytesMut,
+        buf: &mut Buffer,
         key: &[u8],
         value: &[u8],
         exptime: Option<u32>,
@@ -38,17 +38,17 @@ impl Memcache {
         let flags = format!("{}", flags.unwrap_or(0));
         let length = format!("{}", value.len());
 
-        buf.extend_from_slice(b"set ");
-        buf.extend_from_slice(key);
-        buf.extend_from_slice(b" ");
-        buf.extend_from_slice(flags.as_bytes());
-        buf.extend_from_slice(b" ");
-        buf.extend_from_slice(exptime.as_bytes());
-        buf.extend_from_slice(b" ");
-        buf.extend_from_slice(length.as_bytes());
-        buf.extend_from_slice(b"\r\n");
-        buf.extend_from_slice(value);
-        buf.extend_from_slice(b"\r\n");
+        buf.put_slice(b"set ");
+        buf.put_slice(key);
+        buf.put_slice(b" ");
+        buf.put_slice(flags.as_bytes());
+        buf.put_slice(b" ");
+        buf.put_slice(exptime.as_bytes());
+        buf.put_slice(b" ");
+        buf.put_slice(length.as_bytes());
+        buf.put_slice(b"\r\n");
+        buf.put_slice(value);
+        buf.put_slice(b"\r\n");
     }
 }
 
@@ -188,7 +188,7 @@ impl Codec for Memcache {
         Err(Error::Unknown)
     }
 
-    fn encode(&mut self, buf: &mut BytesMut, rng: &mut ThreadRng) {
+    fn encode(&mut self, buf: &mut Buffer, rng: &mut ThreadRng) {
         let command = self.generate(rng);
         match command.action() {
             Action::Get => {
@@ -219,6 +219,7 @@ impl Codec for Memcache {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bytes::*;
 
     fn decode_messages(messages: Vec<&'static [u8]>, response: Result<Response, Error>) {
         for message in messages {
@@ -308,17 +309,27 @@ mod tests {
 
     #[test]
     fn encode_get() {
-        let mut buf = BytesMut::new();
+        let mut buf = Buffer::new();
+        let mut test_case = Buffer::new();
+
+        test_case.put_slice(b"get 0\r\n");
+
         let encoder = Memcache::new();
         encoder.get(&mut buf, b"0");
-        assert_eq!(&buf[..], b"get 0\r\n");
+
+        assert_eq!(buf, test_case);
     }
 
     #[test]
     fn encode_set() {
-        let mut buf = BytesMut::new();
+        let mut buf = Buffer::new();
+        let mut test_case = Buffer::new();
+
+        test_case.put_slice(b"set 0 0 0 5\r\nvalue\r\n");
+
         let encoder = Memcache::new();
         encoder.set(&mut buf, b"0", b"value", None, None);
-        assert_eq!(&buf[..], b"set 0 0 0 5\r\nvalue\r\n");
+
+        assert_eq!(buf, test_case);
     }
 }
