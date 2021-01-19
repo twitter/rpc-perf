@@ -269,7 +269,7 @@ impl Client {
                         if session.tx_pending() > 0 {
                             // incomplete write
                             println!("have: {} bytes pending: {}", session.tx_pending(), token.0);
-                        } else {
+                        } else if bytes > 0 {
                             // completed write
                             self.metrics.increment(&Stat::RequestsDequeued);
                             session.set_state(State::Reading);
