@@ -175,6 +175,7 @@ impl Client {
 
                 let write_status = if event.is_writable() {
                     trace!("handle write for: {}", token.0);
+                    session.set_timestamp(Instant::now());
                     session.do_write()
                 } else {
                     Ok(None)
@@ -325,6 +326,7 @@ impl Client {
                         self.send_request(rng, token);
                     } else {
                         self.ready_queue.push_front(token);
+                        break;
                     }
                 } else {
                     self.send_request(rng, token);
