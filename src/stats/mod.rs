@@ -260,7 +260,7 @@ impl Metrics {
                             1_000_000_000,
                             3,
                             Duration::new(self.config.interval().try_into().unwrap(), 0),
-                            Duration::new((self.config.interval() / 10).try_into().unwrap(), 0),
+                            Duration::new((self.config.interval() as f64 / 10.0).ceil() as u64, 0),
                         ),
                     );
                 }
