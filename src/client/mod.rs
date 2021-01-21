@@ -175,6 +175,7 @@ impl Client {
 
                 let write_status = if event.is_writable() {
                     trace!("handle write for: {}", token.0);
+                    session.set_timestamp(Instant::now());
                     session.do_write()
                 } else {
                     Ok(None)
@@ -268,7 +269,7 @@ impl Client {
                         if session.tx_pending() > 0 {
                             // incomplete write
                             println!("have: {} bytes pending: {}", session.tx_pending(), token.0);
-                        } else {
+                        } else if bytes > 0 {
                             // completed write
                             self.metrics.increment(&Stat::RequestsDequeued);
                             session.set_state(State::Reading);
@@ -325,6 +326,7 @@ impl Client {
                         self.send_request(rng, token);
                     } else {
                         self.ready_queue.push_front(token);
+                        break;
                     }
                 } else {
                     self.send_request(rng, token);
