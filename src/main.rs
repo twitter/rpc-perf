@@ -188,25 +188,6 @@ fn do_warmup(config: Arc<Config>, metrics: &Arc<Metrics>) {
     }
 }
 
-// fn make_client(id: usize, codec: Box<dyn Codec>, config: &Config) -> Client {
-//     Client::new(id, codec, config)
-//     // if config.tls_ca().is_some() && config.tls_key().is_some() && config.tls_cert().is_some() {
-//     //     let mut client = TLSClient::new(id, codec);
-//     //     if let Some(cafile) = config.tls_ca() {
-//     //         client.load_ca(&cafile);
-//     //     }
-
-//     //     if let Some(keyfile) = config.tls_key() {
-//     //         if let Some(certfile) = config.tls_cert() {
-//     //             client.load_key_and_cert(&keyfile, &certfile);
-//     //         }
-//     //     }
-//     //     Box::new(client)
-//     // } else {
-//     //     Box::new(PlainClient::new(id, codec))
-//     // }
-// }
-
 #[derive(Clone)]
 pub(crate) struct ClientConfig {
     config: Arc<Config>,
@@ -252,10 +233,6 @@ fn launch_clients(config: ClientConfig) {
             close_rate,
             metrics.clone(),
         );
-        // client.set_metrics(metrics.clone());
-        // client.set_connect_timeout(config.connect_timeout());
-        // client.set_request_timeout(config.request_timeout());
-        // client.set_soft_timeout(config.soft_timeout());
 
         let endpoints = config.endpoints();
 
