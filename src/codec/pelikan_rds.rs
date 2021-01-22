@@ -24,28 +24,28 @@ impl PelikanRds {
     }
 
     pub fn get(&self, buf: &mut Buffer, key: &[u8]) {
-        buf.put_slice(format!("*2\r\n$3\r\nget\r\n${}\r\n", key.len()).as_bytes());
-        buf.put_slice(key);
-        buf.put_slice(b"\r\n");
+        buf.extend_from_slice(format!("*2\r\n$3\r\nget\r\n${}\r\n", key.len()).as_bytes());
+        buf.extend_from_slice(key);
+        buf.extend_from_slice(b"\r\n");
     }
 
     pub fn set(&self, buf: &mut Buffer, key: &[u8], value: &[u8], ttl: Option<usize>) {
         if ttl.is_some() {
-            buf.put_slice(b"*5\r\n");
+            buf.extend_from_slice(b"*5\r\n");
         } else {
-            buf.put_slice(b"*3\r\n");
+            buf.extend_from_slice(b"*3\r\n");
         }
-        buf.put_slice(format!("$3\r\nset\r\n${}\r\n", key.len()).as_bytes());
-        buf.put_slice(key);
-        buf.put_slice(format!("\r\n${}\r\n", value.len()).as_bytes());
-        buf.put_slice(value);
-        buf.put_slice(b"\r\n");
+        buf.extend_from_slice(format!("$3\r\nset\r\n${}\r\n", key.len()).as_bytes());
+        buf.extend_from_slice(key);
+        buf.extend_from_slice(format!("\r\n${}\r\n", value.len()).as_bytes());
+        buf.extend_from_slice(value);
+        buf.extend_from_slice(b"\r\n");
         if let Some(ttl_value) = ttl {
             let formated_ttl = format!("{}", ttl_value);
-            buf.put_slice(b"$2\r\nEX\r\n");
-            buf.put_slice(format!("${}\r\n", formated_ttl.len()).as_bytes());
-            buf.put_slice(formated_ttl.as_bytes());
-            buf.put_slice(b"\r\n");
+            buf.extend_from_slice(b"$2\r\nEX\r\n");
+            buf.extend_from_slice(format!("${}\r\n", formated_ttl.len()).as_bytes());
+            buf.extend_from_slice(formated_ttl.as_bytes());
+            buf.extend_from_slice(b"\r\n");
         }
     }
 
@@ -60,40 +60,40 @@ impl PelikanRds {
     ) {
         let esize = format!("{}", esize);
         if watermark_low.is_some() && watermark_high.is_some() {
-            buf.put_slice(format!("*5\r\n$13\r\nSArray.create\r\n${}\r\n", key.len()).as_bytes());
+            buf.extend_from_slice(format!("*5\r\n$13\r\nSArray.create\r\n${}\r\n", key.len()).as_bytes());
         } else {
-            buf.put_slice(format!("*3\r\n$13\r\nSArray.create\r\n${}\r\n", key.len()).as_bytes());
+            buf.extend_from_slice(format!("*3\r\n$13\r\nSArray.create\r\n${}\r\n", key.len()).as_bytes());
         }
-        buf.put_slice(key);
-        buf.put_slice(format!("\r\n${}\r\n{}\r\n", esize.len(), esize).as_bytes());
+        buf.extend_from_slice(key);
+        buf.extend_from_slice(format!("\r\n${}\r\n{}\r\n", esize.len(), esize).as_bytes());
         if watermark_low.is_some() && watermark_high.is_some() {
             let watermark_low = format!("{}", watermark_low.unwrap());
             let watermark_high = format!("{}", watermark_high.unwrap());
-            buf.put_slice(format!("${}\r\n{}\r\n", watermark_low.len(), watermark_low).as_bytes());
-            buf.put_slice(
+            buf.extend_from_slice(format!("${}\r\n{}\r\n", watermark_low.len(), watermark_low).as_bytes());
+            buf.extend_from_slice(
                 format!("${}\r\n{}\r\n", watermark_high.len(), watermark_high).as_bytes(),
             );
         }
     }
 
     pub fn sarray_delete(&self, buf: &mut Buffer, key: &[u8]) {
-        buf.put_slice(format!("*2\r\n$13\r\nSArray.delete\r\n${}\r\n", key.len()).as_bytes());
-        buf.put_slice(key);
-        buf.put_slice(b"\r\n");
+        buf.extend_from_slice(format!("*2\r\n$13\r\nSArray.delete\r\n${}\r\n", key.len()).as_bytes());
+        buf.extend_from_slice(key);
+        buf.extend_from_slice(b"\r\n");
     }
 
     pub fn sarray_len(&self, buf: &mut Buffer, key: &[u8]) {
-        buf.put_slice(format!("*2\r\n$10\r\nSArray.len\r\n${}\r\n", key.len()).as_bytes());
-        buf.put_slice(key);
-        buf.put_slice(b"\r\n");
+        buf.extend_from_slice(format!("*2\r\n$10\r\nSArray.len\r\n${}\r\n", key.len()).as_bytes());
+        buf.extend_from_slice(key);
+        buf.extend_from_slice(b"\r\n");
     }
 
     pub fn sarray_find(&self, buf: &mut Buffer, key: &[u8], value: &[u8]) {
-        buf.put_slice(format!("*3\r\n$11\r\nSArray.find\r\n${}\r\n", key.len()).as_bytes());
-        buf.put_slice(key);
-        buf.put_slice(format!("\r\n${}\r\n", value.len()).as_bytes());
-        buf.put_slice(value);
-        buf.put_slice(b"\r\n");
+        buf.extend_from_slice(format!("*3\r\n$11\r\nSArray.find\r\n${}\r\n", key.len()).as_bytes());
+        buf.extend_from_slice(key);
+        buf.extend_from_slice(format!("\r\n${}\r\n", value.len()).as_bytes());
+        buf.extend_from_slice(value);
+        buf.extend_from_slice(b"\r\n");
     }
 
     pub fn sarray_get(&self, buf: &mut Buffer, key: &[u8], index: Option<u64>, count: Option<u64>) {
@@ -104,55 +104,55 @@ impl PelikanRds {
         };
         let count = count.map(|v| format!("{}", v));
         if index.is_some() && count.is_some() {
-            buf.put_slice(b"*4\r\n");
+            buf.extend_from_slice(b"*4\r\n");
         } else if index.is_some() {
-            buf.put_slice(b"*3\r\n");
+            buf.extend_from_slice(b"*3\r\n");
         } else {
-            buf.put_slice(b"*2\r\n");
+            buf.extend_from_slice(b"*2\r\n");
         }
-        buf.put_slice(format!("$10\r\nSArray.get\r\n${}\r\n", key.len()).as_bytes());
-        buf.put_slice(key);
+        buf.extend_from_slice(format!("$10\r\nSArray.get\r\n${}\r\n", key.len()).as_bytes());
+        buf.extend_from_slice(key);
         if let Some(index) = index {
-            buf.put_slice(format!("\r\n${}\r\n{}", index.len(), index).as_bytes());
+            buf.extend_from_slice(format!("\r\n${}\r\n{}", index.len(), index).as_bytes());
         }
         if let Some(count) = count {
-            buf.put_slice(format!("\r\n${}\r\n{}", count.len(), count).as_bytes());
+            buf.extend_from_slice(format!("\r\n${}\r\n{}", count.len(), count).as_bytes());
         }
-        buf.put_slice(b"\r\n");
+        buf.extend_from_slice(b"\r\n");
     }
 
     pub fn sarray_insert(&self, buf: &mut Buffer, key: &[u8], values: &[&[u8]]) {
         let args = 2 + values.len();
-        buf.put_slice(
+        buf.extend_from_slice(
             format!("*{}\r\n$13\r\nSArray.insert\r\n${}\r\n", args, key.len()).as_bytes(),
         );
-        buf.put_slice(key);
+        buf.extend_from_slice(key);
         for value in values {
-            buf.put_slice(format!("\r\n${}\r\n", value.len()).as_bytes());
-            buf.put_slice(value);
+            buf.extend_from_slice(format!("\r\n${}\r\n", value.len()).as_bytes());
+            buf.extend_from_slice(value);
         }
-        buf.put_slice(b"\r\n");
+        buf.extend_from_slice(b"\r\n");
     }
 
     pub fn sarray_remove(&self, buf: &mut Buffer, key: &[u8], values: &[&[u8]]) {
         let args = 2 + values.len();
-        buf.put_slice(
+        buf.extend_from_slice(
             format!("*{}\r\n$13\r\nSArray.remove\r\n${}\r\n", args, key.len()).as_bytes(),
         );
-        buf.put_slice(key);
+        buf.extend_from_slice(key);
         for value in values {
-            buf.put_slice(format!("\r\n${}\r\n", value.len()).as_bytes());
-            buf.put_slice(value);
+            buf.extend_from_slice(format!("\r\n${}\r\n", value.len()).as_bytes());
+            buf.extend_from_slice(value);
         }
-        buf.put_slice(b"\r\n");
+        buf.extend_from_slice(b"\r\n");
     }
 
     pub fn sarray_truncate(&self, buf: &mut Buffer, key: &[u8], count: u64) {
         let count = format!("{}", count);
-        buf.put_slice(format!("*3\r\n$15\r\nSArray.truncate\r\n${}\r\n", key.len()).as_bytes());
-        buf.put_slice(key);
-        buf.put_slice(b"\r\n");
-        buf.put_slice(format!("${}\r\n{}\r\n", count.len(), count).as_bytes());
+        buf.extend_from_slice(format!("*3\r\n$15\r\nSArray.truncate\r\n${}\r\n", key.len()).as_bytes());
+        buf.extend_from_slice(key);
+        buf.extend_from_slice(b"\r\n");
+        buf.extend_from_slice(format!("${}\r\n{}\r\n", count.len(), count).as_bytes());
     }
 }
 
@@ -411,7 +411,7 @@ mod tests {
         let mut buf = Buffer::new();
         let mut test_case = Buffer::new();
         test_case
-            .put_slice(b"*5\r\n$3\r\nset\r\n$3\r\nabc\r\n$4\r\n1234\r\n$2\r\nEX\r\n$4\r\n9876\r\n");
+            .extend_from_slice(b"*5\r\n$3\r\nset\r\n$3\r\nabc\r\n$4\r\n1234\r\n$2\r\nEX\r\n$4\r\n9876\r\n");
         c.set(&mut buf, b"abc", b"1234", Some(9876));
 
         assert_eq!(test_case, buf);
@@ -422,7 +422,7 @@ mod tests {
         let c = PelikanRds::new();
         let mut buf = Buffer::new();
         let mut test_case = Buffer::new();
-        test_case.put_slice(b"*3\r\n$3\r\nset\r\n$3\r\nabc\r\n$4\r\n1234\r\n");
+        test_case.extend_from_slice(b"*3\r\n$3\r\nset\r\n$3\r\nabc\r\n$4\r\n1234\r\n");
         c.set(&mut buf, b"abc", b"1234", None);
 
         assert_eq!(test_case, buf);
@@ -433,13 +433,13 @@ mod tests {
         let c = PelikanRds::new();
         let mut buf = Buffer::new();
         let mut test_case = Buffer::new();
-        test_case.put_slice(b"*3\r\n$13\r\nSArray.create\r\n$3\r\nabc\r\n$2\r\n64\r\n");
+        test_case.extend_from_slice(b"*3\r\n$13\r\nSArray.create\r\n$3\r\nabc\r\n$2\r\n64\r\n");
         c.sarray_create(&mut buf, b"abc", 64, None, None);
         assert_eq!(test_case, buf);
 
         let mut buf = Buffer::new();
         let mut test_case = Buffer::new();
-        test_case.put_slice(
+        test_case.extend_from_slice(
             b"*5\r\n$13\r\nSArray.create\r\n$3\r\nabc\r\n$2\r\n64\r\n$4\r\n3000\r\n$4\r\n3200\r\n",
         );
         c.sarray_create(&mut buf, b"abc", 64, Some(3000), Some(3200));
@@ -451,7 +451,7 @@ mod tests {
         let c = PelikanRds::new();
         let mut buf = Buffer::new();
         let mut test_case = Buffer::new();
-        test_case.put_slice(b"*2\r\n$13\r\nSArray.delete\r\n$3\r\nabc\r\n");
+        test_case.extend_from_slice(b"*2\r\n$13\r\nSArray.delete\r\n$3\r\nabc\r\n");
         c.sarray_delete(&mut buf, b"abc");
         assert_eq!(test_case, buf);
     }
@@ -462,25 +462,25 @@ mod tests {
 
         let mut buf = Buffer::new();
         let mut test_case = Buffer::new();
-        test_case.put_slice(b"*2\r\n$10\r\nSArray.get\r\n$3\r\nabc\r\n");
+        test_case.extend_from_slice(b"*2\r\n$10\r\nSArray.get\r\n$3\r\nabc\r\n");
         c.sarray_get(&mut buf, b"abc", None, None);
         assert_eq!(test_case, buf);
 
         let mut buf = Buffer::new();
         let mut test_case = Buffer::new();
-        test_case.put_slice(b"*3\r\n$10\r\nSArray.get\r\n$3\r\nabc\r\n$2\r\n42\r\n");
+        test_case.extend_from_slice(b"*3\r\n$10\r\nSArray.get\r\n$3\r\nabc\r\n$2\r\n42\r\n");
         c.sarray_get(&mut buf, b"abc", Some(42), None);
         assert_eq!(test_case, buf);
 
         let mut buf = Buffer::new();
         let mut test_case = Buffer::new();
-        test_case.put_slice(b"*4\r\n$10\r\nSArray.get\r\n$3\r\nabc\r\n$2\r\n42\r\n$1\r\n8\r\n");
+        test_case.extend_from_slice(b"*4\r\n$10\r\nSArray.get\r\n$3\r\nabc\r\n$2\r\n42\r\n$1\r\n8\r\n");
         c.sarray_get(&mut buf, b"abc", Some(42), Some(8));
         assert_eq!(test_case, buf);
 
         let mut buf = Buffer::new();
         let mut test_case = Buffer::new();
-        test_case.put_slice(b"*4\r\n$10\r\nSArray.get\r\n$3\r\nabc\r\n$1\r\n0\r\n$1\r\n8\r\n");
+        test_case.extend_from_slice(b"*4\r\n$10\r\nSArray.get\r\n$3\r\nabc\r\n$1\r\n0\r\n$1\r\n8\r\n");
         c.sarray_get(&mut buf, b"abc", None, Some(8));
         assert_eq!(test_case, buf);
     }
@@ -491,7 +491,7 @@ mod tests {
 
         let mut buf = Buffer::new();
         let mut test_case = Buffer::new();
-        test_case.put_slice(b"*3\r\n$13\r\nSArray.insert\r\n$3\r\nabc\r\n$2\r\n42\r\n");
+        test_case.extend_from_slice(b"*3\r\n$13\r\nSArray.insert\r\n$3\r\nabc\r\n$2\r\n42\r\n");
         let values: Vec<&[u8]> = vec![b"42"];
         c.sarray_insert(&mut buf, b"abc", &values);
         assert_eq!(test_case, buf);
@@ -499,7 +499,7 @@ mod tests {
         let mut buf = Buffer::new();
         let mut test_case = Buffer::new();
         test_case
-            .put_slice(b"*4\r\n$13\r\nSArray.insert\r\n$3\r\nabc\r\n$2\r\n42\r\n$3\r\n206\r\n");
+            .extend_from_slice(b"*4\r\n$13\r\nSArray.insert\r\n$3\r\nabc\r\n$2\r\n42\r\n$3\r\n206\r\n");
         let values: Vec<&[u8]> = vec![b"42", b"206"];
         c.sarray_insert(&mut buf, b"abc", &values);
         assert_eq!(test_case, buf);
@@ -511,7 +511,7 @@ mod tests {
 
         let mut buf = Buffer::new();
         let mut test_case = Buffer::new();
-        test_case.put_slice(b"*3\r\n$13\r\nSArray.remove\r\n$3\r\nabc\r\n$2\r\n42\r\n");
+        test_case.extend_from_slice(b"*3\r\n$13\r\nSArray.remove\r\n$3\r\nabc\r\n$2\r\n42\r\n");
         let values: Vec<&[u8]> = vec![b"42"];
         c.sarray_remove(&mut buf, b"abc", &values);
         assert_eq!(test_case, buf);
@@ -519,7 +519,7 @@ mod tests {
         let mut buf = Buffer::new();
         let mut test_case = Buffer::new();
         test_case
-            .put_slice(b"*4\r\n$13\r\nSArray.remove\r\n$3\r\nabc\r\n$2\r\n42\r\n$3\r\n206\r\n");
+            .extend_from_slice(b"*4\r\n$13\r\nSArray.remove\r\n$3\r\nabc\r\n$2\r\n42\r\n$3\r\n206\r\n");
         let values: Vec<&[u8]> = vec![b"42", b"206"];
         c.sarray_remove(&mut buf, b"abc", &values);
         assert_eq!(test_case, buf);
@@ -531,7 +531,7 @@ mod tests {
 
         let mut buf = Buffer::new();
         let mut test_case = Buffer::new();
-        test_case.put_slice(b"*3\r\n$15\r\nSArray.truncate\r\n$3\r\nabc\r\n$2\r\n42\r\n");
+        test_case.extend_from_slice(b"*3\r\n$15\r\nSArray.truncate\r\n$3\r\nabc\r\n$2\r\n42\r\n");
         c.sarray_truncate(&mut buf, b"abc", 42);
         assert_eq!(test_case, buf);
     }

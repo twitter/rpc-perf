@@ -65,7 +65,7 @@ impl ThriftCache {
         buffer.stop();
         buffer.frame();
 
-        buf.put_slice(buffer.as_bytes());
+        buf.extend_from_slice(buffer.as_bytes());
     }
 
     pub fn appendx(
@@ -115,7 +115,7 @@ impl ThriftCache {
         buffer.stop();
         buffer.frame();
 
-        buf.put_slice(buffer.as_bytes());
+        buf.extend_from_slice(buffer.as_bytes());
     }
 
     pub fn count(
@@ -161,7 +161,7 @@ impl ThriftCache {
         buffer.stop();
         buffer.frame();
 
-        buf.put_slice(buffer.as_bytes());
+        buf.extend_from_slice(buffer.as_bytes());
     }
 
     pub fn get(
@@ -215,7 +215,7 @@ impl ThriftCache {
         buffer.stop();
         buffer.frame();
 
-        buf.put_slice(buffer.as_bytes());
+        buf.extend_from_slice(buffer.as_bytes());
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -298,7 +298,7 @@ impl ThriftCache {
         buffer.stop();
         buffer.frame();
 
-        buf.put_slice(buffer.as_bytes());
+        buf.extend_from_slice(buffer.as_bytes());
     }
 
     pub fn range(
@@ -348,7 +348,7 @@ impl ThriftCache {
         buffer.stop();
         buffer.frame();
 
-        buf.put_slice(buffer.as_bytes());
+        buf.extend_from_slice(buffer.as_bytes());
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -416,7 +416,7 @@ impl ThriftCache {
         buffer.stop();
         buffer.frame();
 
-        buf.put_slice(buffer.as_bytes());
+        buf.extend_from_slice(buffer.as_bytes());
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -491,7 +491,7 @@ impl ThriftCache {
         buffer.stop();
         buffer.frame();
 
-        buf.put_slice(buffer.as_bytes());
+        buf.extend_from_slice(buffer.as_bytes());
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -544,7 +544,7 @@ impl ThriftCache {
         buffer.stop();
         buffer.frame();
 
-        buf.put_slice(buffer.as_bytes());
+        buf.extend_from_slice(buffer.as_bytes());
     }
 }
 
@@ -681,7 +681,7 @@ mod test {
         codec.get(&mut buf, 0, b"0", b"key", &[b"alpha"], None);
         let mut check = Buffer::new();
 
-        check.put_slice(&[
+        check.extend_from_slice(&[
             0, 0, 0, 60, // len
             128, 1, 0, 1, // protocol
             0, 0, 0, 3, // method length

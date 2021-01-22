@@ -195,7 +195,7 @@ impl Client {
                             match self.codec.decode(content) {
                                 Ok(response) => {
                                     let stop = Instant::now();
-
+                                    
                                     self.metrics.heatmap_increment(start, stop);
                                     self.metrics.time_interval(
                                         &Stat::ResponsesLatency,
