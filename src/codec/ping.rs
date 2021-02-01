@@ -92,7 +92,7 @@ mod tests {
     fn encode_ping() {
         let mut buf = Buffer::new();
         let mut test_case = Buffer::new();
-        test_case.put_slice(b"PING\r\n");
+        test_case.extend_from_slice(b"PING\r\n");
         let encoder = Ping::new();
         encoder.ping(&mut buf);
         assert_eq!(buf, test_case);

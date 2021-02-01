@@ -122,7 +122,7 @@ mod tests {
         let mut test_case = Buffer::new();
         let encoder = Echo::new();
         encoder.echo(&mut buf, &[0, 1, 2]);
-        test_case.put_slice(&[0, 1, 2, 8, 84, 137, 127, 13, 10]);
+        test_case.extend_from_slice(&[0, 1, 2, 8, 84, 137, 127, 13, 10]);
         assert_eq!(buf, test_case);
     }
 }
