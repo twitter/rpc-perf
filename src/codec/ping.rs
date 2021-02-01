@@ -17,7 +17,7 @@ impl Ping {
     }
 
     pub fn ping(&self, buf: &mut Buffer) {
-        buf.put_slice(b"PING\r\n");
+        buf.extend_from_slice(b"PING\r\n");
     }
 }
 

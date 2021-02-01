@@ -19,9 +19,9 @@ impl Echo {
 
     pub fn echo(&self, buf: &mut Buffer, value: &[u8]) {
         let crc = crc::crc32::checksum_ieee(value);
-        buf.put_slice(value);
+        buf.extend_from_slice(value);
         buf.put_u32(crc);
-        buf.put_slice(b"\r\n");
+        buf.extend_from_slice(b"\r\n");
     }
 }
 
