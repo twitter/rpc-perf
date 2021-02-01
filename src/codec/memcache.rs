@@ -21,9 +21,9 @@ impl Memcache {
     }
 
     pub fn get(&self, buf: &mut Buffer, key: &[u8]) {
-        buf.put_slice(b"get ");
-        buf.put_slice(key);
-        buf.put_slice(b"\r\n");
+        buf.extend_from_slice(b"get ");
+        buf.extend_from_slice(key);
+        buf.extend_from_slice(b"\r\n");
     }
 
     pub fn set(
@@ -38,17 +38,17 @@ impl Memcache {
         let flags = format!("{}", flags.unwrap_or(0));
         let length = format!("{}", value.len());
 
-        buf.put_slice(b"set ");
-        buf.put_slice(key);
-        buf.put_slice(b" ");
-        buf.put_slice(flags.as_bytes());
-        buf.put_slice(b" ");
-        buf.put_slice(exptime.as_bytes());
-        buf.put_slice(b" ");
-        buf.put_slice(length.as_bytes());
-        buf.put_slice(b"\r\n");
-        buf.put_slice(value);
-        buf.put_slice(b"\r\n");
+        buf.extend_from_slice(b"set ");
+        buf.extend_from_slice(key);
+        buf.extend_from_slice(b" ");
+        buf.extend_from_slice(flags.as_bytes());
+        buf.extend_from_slice(b" ");
+        buf.extend_from_slice(exptime.as_bytes());
+        buf.extend_from_slice(b" ");
+        buf.extend_from_slice(length.as_bytes());
+        buf.extend_from_slice(b"\r\n");
+        buf.extend_from_slice(value);
+        buf.extend_from_slice(b"\r\n");
     }
 }
 
@@ -312,7 +312,7 @@ mod tests {
         let mut buf = Buffer::new();
         let mut test_case = Buffer::new();
 
-        test_case.put_slice(b"get 0\r\n");
+        test_case.extend_from_slice(b"get 0\r\n");
 
         let encoder = Memcache::new();
         encoder.get(&mut buf, b"0");
@@ -325,7 +325,7 @@ mod tests {
         let mut buf = Buffer::new();
         let mut test_case = Buffer::new();
 
-        test_case.put_slice(b"set 0 0 0 5\r\nvalue\r\n");
+        test_case.extend_from_slice(b"set 0 0 0 5\r\nvalue\r\n");
 
         let encoder = Memcache::new();
         encoder.set(&mut buf, b"0", b"value", None, None);
