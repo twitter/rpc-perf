@@ -12,7 +12,6 @@ well as testing new hardware platforms and network changes.
 * [Getting rpc-perf](#getting-rpc-perf)
 * [Configuration](#configuration)
 * [Sample Usage](#sample-usage)
-* [Sample Output](#sample-output)
 * [Practices](#practices)
 * [Features](#features)
 * [Future Work](#future-work)
