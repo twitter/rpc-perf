@@ -591,6 +591,13 @@ impl Config {
                     .value_name("File")
                     .help("Certificate Authority for TLS authentication")
                     .takes_value(true),
+            )
+            .arg(
+                Arg::with_name("tls-session-cache-size")
+                    .long("tls-session-cache-size")
+                    .value_name("Number")
+                    .help("the maximum number of TLS stored sessions")
+                    .takes_value(true),
             );
 
         let matches = app.get_matches();
@@ -737,6 +744,10 @@ impl Config {
             config.general.set_waterfall(Some(waterfall.to_string()));
         }
 
+        if let Some(tls_session_cache_size) = parse_numeric_arg(&matches, "tls-session-cache-size") {
+            config.general.set_tls_session_cache_size(tls_session_cache_size);
+        }
+
         config
     }
 
@@ -836,6 +847,10 @@ impl Config {
         self.general.tls_ca()
     }
 
+    pub fn tls_session_cache_size(&self) -> usize {
+        self.general.tls_session_cache_size()
+    }
+
     pub fn warmup_hitrate(&self) -> Option<f64> {
         self.general.warmup_hitrate()
     }
@@ -843,6 +858,7 @@ impl Config {
     pub fn waterfall(&self) -> Option<String> {
         self.general.waterfall()
     }
+
 
     fn load_from_file(filename: &str) -> Config {
         let mut file = std::fs::File::open(filename).expect("failed to open workload file");

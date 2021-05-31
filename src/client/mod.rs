@@ -14,6 +14,7 @@ use rand::rngs::ThreadRng;
 use rand::thread_rng;
 use rustcommon_timer::Wheel;
 use rustls::ClientConfig;
+use rustls::ClientSessionMemoryCache;
 use slab::Slab;
 
 use crate::codec::*;
@@ -422,6 +423,7 @@ fn load_tls_config(config: &Arc<Config>) -> Option<Arc<rustls::ClientConfig>> {
     let cert_chain = config.tls_ca();
     let cert = config.tls_cert();
     let key = config.tls_key();
+    let session_cache_size = config.tls_session_cache_size();
 
     if cert_chain.is_some() && cert.is_some() && key.is_some() {
         let mut config = rustls::ClientConfig::new();
@@ -449,6 +451,10 @@ fn load_tls_config(config: &Arc<Config>) -> Option<Arc<rustls::ClientConfig>> {
         config
             .set_single_client_cert(cert, key)
             .expect("invalid cert or key");
+
+        if session_cache_size > 0 {
+            config.session_persistence = ClientSessionMemoryCache::new(session_cache_size);
+        }
 
         Some(Arc::new(config))
     } else if cert_chain.is_none() && cert.is_none() && key.is_none() {

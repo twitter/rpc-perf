@@ -35,6 +35,8 @@ pub struct General {
     tls_key: Option<String>,
     tls_cert: Option<String>,
     tls_ca: Option<String>,
+    #[serde(default = "default_tls_session_cache_size")]
+    tls_session_cache_size: usize,
     warmup_hitrate: Option<f64>,
     #[serde(default = "default_tcp_nodelay")]
     tcp_nodelay: bool,
@@ -204,6 +206,14 @@ impl General {
         self.tls_ca = file;
     }
 
+    pub fn tls_session_cache_size(&self) -> usize {
+        self.tls_session_cache_size
+    }
+
+    pub fn set_tls_session_cache_size(&mut self, size: usize) {
+        self.tls_session_cache_size = size;
+    }
+
     pub fn set_warmup_hitrate(&mut self, hitrate: Option<f64>) {
         self.warmup_hitrate = hitrate;
     }
@@ -240,6 +250,7 @@ impl Default for General {
             tls_key: None,
             tls_cert: None,
             tls_ca: None,
+            tls_session_cache_size: 0,
             warmup_hitrate: None,
             tcp_nodelay: default_tcp_nodelay(),
             request_timeout: default_request_timeout(),
@@ -280,6 +291,10 @@ fn default_connect_timeout() -> usize {
 
 fn default_soft_timeout() -> bool {
     false
+}
+
+fn default_tls_session_cache_size() -> usize {
+    0
 }
 
 #[derive(Copy, Clone, Deserialize, Debug)]
