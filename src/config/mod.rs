@@ -744,8 +744,11 @@ impl Config {
             config.general.set_waterfall(Some(waterfall.to_string()));
         }
 
-        if let Some(tls_session_cache_size) = parse_numeric_arg(&matches, "tls-session-cache-size") {
-            config.general.set_tls_session_cache_size(tls_session_cache_size);
+        if let Some(tls_session_cache_size) = parse_numeric_arg(&matches, "tls-session-cache-size")
+        {
+            config
+                .general
+                .set_tls_session_cache_size(tls_session_cache_size);
         }
 
         config
@@ -858,7 +861,6 @@ impl Config {
     pub fn waterfall(&self) -> Option<String> {
         self.general.waterfall()
     }
-
 
     fn load_from_file(filename: &str) -> Config {
         let mut file = std::fs::File::open(filename).expect("failed to open workload file");
