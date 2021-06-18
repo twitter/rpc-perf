@@ -1,0 +1,25 @@
+[general]
+protocol = "memcache"
+interval = 1
+service = true
+threads = 4
+
+[target]
+zk_server = "zookeeper"
+zk_path = "service/role/env/job"
+zk_endpoint_name = "serviceEndpoint"
+
+[connection]
+poolsize = 25
+
+[request]
+ratelimit = 50000
+
+
+[[keyspace]]
+commands = [
+	{ verb = "get" },
+	{ verb = "set" }
+]
+length = 3
+values = [ { length = 16 } ]

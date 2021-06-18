@@ -1,0 +1,24 @@
+[general]
+protocol = "memcache"
+interval = 1
+service = true
+threads = 4
+
+[target]
+endpoints = [
+	"127.0.0.1:12321"
+]
+
+[connection]
+poolsize = 25
+
+[request]
+ratelimit = 50000
+
+[[keyspace]]
+commands = [
+	{ verb = "get" },
+	{ verb = "set" }
+]
+length = 3
+values = [ { length = 16 } ]
