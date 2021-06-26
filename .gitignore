@@ -2,3 +2,4 @@ target
 vendor
 .cargo
 **/*.rs.bk
+.idea
