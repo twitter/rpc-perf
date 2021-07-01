@@ -48,7 +48,6 @@ impl MetricsSnapshot {
                     }
                 }
                 Output::Percentile(percentile) => {
-                    // per prometheus naming https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels metric names cannot have . in them
                     let metric_label = format!("{}", label);
                     let metric_name =
                         format!("{}{{percentile=\"{:02}\"}}", metric_label, percentile);
