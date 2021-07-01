@@ -39,15 +39,21 @@ impl MetricsSnapshot {
                 Output::Reading => {
                     if let Some(ref count_label) = self.count_label {
                         let metric_name = format!("{}/{}", label, count_label);
-                        data.push(format!("# TYPE {} gauge\n{} {}", metric_name, metric_name, value));
+                        data.push(format!(
+                            "# TYPE {} gauge\n{} {}",
+                            metric_name, metric_name, value
+                        ));
                     } else {
                         data.push(format!("# TYPE {} gauge\n{} {}", label, label, value));
                     }
                 }
                 Output::Percentile(percentile) => {
                     // per prometheus naming https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels metric names cannot have . in them
-                    let metric_name = format!("{}/p{:02}", label, percentile).replace(".","");
-                    data.push(format!("# TYPE {} gauge\n{} {}", metric_name, metric_name, value));
+                    let metric_name = format!("{}/p{:02}", label, percentile).replace(".", "");
+                    data.push(format!(
+                        "# TYPE {} gauge\n{} {}",
+                        metric_name, metric_name, value
+                    ));
                 }
             }
         }
