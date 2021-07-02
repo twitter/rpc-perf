@@ -38,19 +38,30 @@ impl MetricsSnapshot {
             match output {
                 Output::Reading => {
                     if let Some(ref count_label) = self.count_label {
-                        data.push(format!("{}/{} {}", label, count_label, value));
+                        let metric_name = format!("{}/{}", label, count_label);
+                        data.push(format!(
+                            "# TYPE {} gauge\n{} {}",
+                            metric_name, metric_name, value
+                        ));
                     } else {
-                        data.push(format!("{} {}", label, value));
+                        data.push(format!("# TYPE {} gauge\n{} {}", label, label, value));
                     }
                 }
                 Output::Percentile(percentile) => {
-                    data.push(format!("{}/p{:02} {}", label, percentile, value));
+                    let metric_label = format!("{}", label);
+                    let metric_name =
+                        format!("{}{{percentile=\"{:02}\"}}", metric_label, percentile);
+                    data.push(format!(
+                        "# TYPE {} gauge\n{} {}",
+                        metric_label, metric_name, value
+                    ));
                 }
             }
         }
         data.sort();
         let mut content = data.join("\n");
         content += "\n";
+
         let parts: Vec<&str> = content.split('/').collect();
         parts.join("_")
     }
