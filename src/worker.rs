@@ -239,7 +239,9 @@ impl Worker {
     /// Handle writing to the session
     fn do_write(&mut self, token: Token) -> Result<(), Error> {
         let session = get_session_mut!(self, token)?;
-        session.flush()?;
+        if !session.write_buffer.is_empty() {
+            session.flush()?;
+        }
         Ok(())
     }
 
