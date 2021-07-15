@@ -2,12 +2,15 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
+#![allow(clippy::unnecessary_unwrap)]
+
 #[macro_use]
 extern crate rustcommon_fastmetrics;
 
 #[macro_use]
 extern crate rustcommon_logger;
 
+use boring::ssl::*;
 use bytes::BytesMut;
 use clap::{App, Arg};
 use mio::{Events, Poll, Token};
@@ -22,7 +25,7 @@ use zstd::Decoder;
 use std::borrow::Borrow;
 use std::collections::VecDeque;
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, ErrorKind};
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::time::{Duration, Instant};
 
@@ -90,6 +93,27 @@ fn main() {
                 .help("number of client worker threads")
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("tls-chain")
+                .long("tls-chain")
+                .value_name("FILE")
+                .help("TLS root cert chain")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("tls-key")
+                .long("tls-key")
+                .value_name("FILE")
+                .help("TLS private key")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("tls-cert")
+                .long("tls-cert")
+                .value_name("FILE")
+                .help("TLS certificate")
+                .takes_value(true),
+        )
         .get_matches();
 
     // config value parsing and defaults
@@ -112,6 +136,27 @@ fn main() {
         .expect("invalid value for 'workers'");
     let binary = matches.is_present("binary-trace");
 
+    // configure tls connector
+    let key = matches.value_of("tls-key");
+    let cert = matches.value_of("tls-cert");
+    let chain = matches.value_of("tls-chain");
+
+    let tls = if key.is_some() && cert.is_some() && chain.is_some() {
+        let mut builder = SslConnector::builder(SslMethod::tls_client()).expect("failed to initialize TLS client");
+        builder.set_verify(SslVerifyMode::NONE);
+        builder.set_ca_file(chain.unwrap()).expect("failed to set TLS CA chain");
+        builder.set_certificate_file(cert.unwrap(), SslFiletype::PEM).expect("failed to set TLS cert");
+        builder.set_private_key_file(key.unwrap(), SslFiletype::PEM).expect("failed to set TLS key");
+        let connector = builder.build();
+        Some(connector)
+    } else if key.is_none() && cert.is_none() && chain.is_none() {
+        None
+    } else {
+        fatal!("incomplete TLS config");
+    };
+
+
+
     // open files
     let zlog = File::open(trace).expect("failed to open input zlog");
     let zbuf = BufReader::new(zlog);
@@ -125,53 +170,33 @@ fn main() {
 
     // spawn workers
     for _ in 0..workers {
-        let mut worker = Worker::new(sockaddr, poolsize, work.clone());
+        let mut worker = Worker::new(sockaddr, poolsize, tls.clone(), work.clone());
         std::thread::spawn(move || worker.run());
     }
 
     // generator state
-    let mut ts_sec = 0;
-    let mut sent = 0;
-    let mut skip = 0;
+    let mut ts_sec: u64 = 0;
+    let mut sent: usize = 0;
+    let mut skip: usize = 0;
     let mut next = Instant::now();
 
     info!("running...");
-
-    // binary format
-    // time: u32,
-    // obj_id: u64,
-    // klen(10)/vlen(22): u32,
-    // op(8)/ttl(24): u32,
-
-    // ops
-    // get: 1
-    // gets: 2
-    // set: 3
-    // add: 4
-    // cas: 5
-    // replace: 6
-    // append: 7
-    // prepend: 8
-    // delete: 9
-    // incr: 10
-    // decr: 11
-    // failed: 12
-    // invalid: 13
 
     // read trace and generate work
     if binary {
         let mut tmp = [0_u8; 20];
         while log.read_exact(&mut tmp).is_ok() {
             let ts: u64 = u32::from_le_bytes([tmp[0], tmp[1], tmp[2], tmp[3]]) as u64;
-            let obj_id: u64 = u64::from_le_bytes([
+            let keyid: u64 = u64::from_le_bytes([
                 tmp[4], tmp[5], tmp[6], tmp[7], tmp[8], tmp[9], tmp[10], tmp[11],
             ]);
-            let len: u32 = u32::from_le_bytes([tmp[12], tmp[13], tmp[14], tmp[15]]);
-            let ttl_op: u32 = u32::from_le_bytes([tmp[16], tmp[17], tmp[18], tmp[19]]);
-            let op: u8 = (ttl_op >> 24) as u8;
-            let ttl: u32 = ttl_op & 0x00FF_FFFF;
-            let klen = len >> 22;
-            let vlen: usize = (len & 0x003F_FFFF) as usize;
+            let klen_vlen: u32 = u32::from_le_bytes([tmp[12], tmp[13], tmp[14], tmp[15]]);
+            let op_ttl: u32 = u32::from_le_bytes([tmp[16], tmp[17], tmp[18], tmp[19]]);
+            let op: u8 = (op_ttl >> 24) as u8;
+            let ttl: u32 = op_ttl & 0x00FF_FFFF;
+            let klen = klen_vlen >> 22;
+            let vlen: usize = (klen_vlen & 0x003F_FFFF) as usize;
+
             // handle new timestamp in log
             if ts > ts_sec {
                 let mut now = Instant::now();
@@ -191,7 +216,7 @@ fn main() {
                 }
             }
 
-            let key = format!("{:01$}", obj_id, klen as usize);
+            let key = format!("{:01$}", keyid, klen as usize);
 
             let mut request = match op {
                 1 => Request::Get { key },
@@ -276,7 +301,7 @@ struct Worker {
 }
 
 impl Worker {
-    pub fn new(addr: SocketAddr, poolsize: usize, work: Queue<Request>) -> Self {
+    pub fn new(addr: SocketAddr, poolsize: usize, tls: Option<SslConnector>, work: Queue<Request>) -> Self {
         let poll = mio::Poll::new().unwrap();
 
         let mut sessions: Slab<Session> = Slab::with_capacity(poolsize);
@@ -285,7 +310,7 @@ impl Worker {
 
         for _ in 0..poolsize {
             let mut session = Session::new(addr);
-            session.connect(None, false).expect("failed to connect");
+            session.connect(tls.as_ref(), false).expect("failed to connect");
             let entry = sessions.vacant_entry();
             let token = Token(entry.key());
             ready_queue.push_back(token);
@@ -385,6 +410,19 @@ impl Worker {
                 // handle error events first
                 if event.is_error() {
                     panic!("error");
+                }
+
+                // handle handshaking
+                if session.is_handshaking() {
+                    if let Err(e) = session.do_handshake() {
+                        if e.kind() != ErrorKind::WouldBlock {
+                            panic!("error");
+                        }
+                    }
+                    if session.is_handshaking() {
+                        let _ = session.reregister(&self.poll);
+                        continue;
+                    }
                 }
 
                 // handle reads
