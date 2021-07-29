@@ -32,10 +32,14 @@ use std::time::{Duration, Instant};
 mod metrics;
 mod session;
 
+use crate::metrics::*;
 use crate::session::Session;
 
 // TODO(bmartin): this should be split up into a library and binary
 fn main() {
+    // initialize metrics
+    metrics_init();
+
     // initialize logging
     Logger::new()
         .label("rpc-replay")
@@ -142,11 +146,18 @@ fn main() {
     let chain = matches.value_of("tls-chain");
 
     let tls = if key.is_some() && cert.is_some() && chain.is_some() {
-        let mut builder = SslConnector::builder(SslMethod::tls_client()).expect("failed to initialize TLS client");
+        let mut builder = SslConnector::builder(SslMethod::tls_client())
+            .expect("failed to initialize TLS client");
         builder.set_verify(SslVerifyMode::NONE);
-        builder.set_ca_file(chain.unwrap()).expect("failed to set TLS CA chain");
-        builder.set_certificate_file(cert.unwrap(), SslFiletype::PEM).expect("failed to set TLS cert");
-        builder.set_private_key_file(key.unwrap(), SslFiletype::PEM).expect("failed to set TLS key");
+        builder
+            .set_ca_file(chain.unwrap())
+            .expect("failed to set TLS CA chain");
+        builder
+            .set_certificate_file(cert.unwrap(), SslFiletype::PEM)
+            .expect("failed to set TLS cert");
+        builder
+            .set_private_key_file(key.unwrap(), SslFiletype::PEM)
+            .expect("failed to set TLS key");
         let connector = builder.build();
         Some(connector)
     } else if key.is_none() && cert.is_none() && chain.is_none() {
@@ -154,8 +165,6 @@ fn main() {
     } else {
         fatal!("incomplete TLS config");
     };
-
-
 
     // open files
     let zlog = File::open(trace).expect("failed to open input zlog");
@@ -168,9 +177,27 @@ fn main() {
     // initialize work queue
     let work = Queue::with_capacity(1024 * 1024); // arbitrarily large
 
+    let request_heatmap = Some(Arc::new(AtomicHeatmap::<u64, AtomicU64>::new(
+        1_000_000,
+        3,
+        Duration::from_secs(60),
+        Duration::from_millis(1000),
+    )));
+
+    // spawn admin
+    let mut admin = Admin::new(None);
+    admin.set_request_heatmap(request_heatmap.clone());
+    let _admin_thread = std::thread::spawn(move || admin.run());
+
     // spawn workers
     for _ in 0..workers {
-        let mut worker = Worker::new(sockaddr, poolsize, tls.clone(), work.clone());
+        let mut worker = Worker::new(
+            sockaddr,
+            poolsize,
+            tls.clone(),
+            work.clone(),
+            request_heatmap.clone(),
+        );
         std::thread::spawn(move || worker.run());
     }
 
@@ -200,12 +227,12 @@ fn main() {
             // handle new timestamp in log
             if ts > ts_sec {
                 let mut now = Instant::now();
-                info!("ts: {} sent: {} skip: {}", ts, sent, skip);
+                // info!("ts: {} sent: {} skip: {}", ts, sent, skip);
                 if ts_sec != 0 {
                     let log_dur = Duration::from_secs(ts - ts_sec).div_f64(speed);
                     next += log_dur;
                     if now > next {
-                        warn!("falling behind... try reducing replay rate");
+                        debug!("falling behind... try reducing replay rate");
                     }
                 }
                 ts_sec = ts;
@@ -289,7 +316,7 @@ fn main() {
 }
 
 // A very fast PRNG
-pub fn rng() -> impl RngCore {
+pub fn rng() -> rand_xoshiro::Xoshiro256PlusPlus {
     rand_xoshiro::Xoshiro256PlusPlus::seed_from_u64(0)
 }
 
@@ -298,10 +325,18 @@ struct Worker {
     ready_queue: VecDeque<Token>,
     poll: Poll,
     work: Queue<Request>,
+    request_heatmap: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>,
+    rng: rand_xoshiro::Xoshiro256PlusPlus,
 }
 
 impl Worker {
-    pub fn new(addr: SocketAddr, poolsize: usize, tls: Option<SslConnector>, work: Queue<Request>) -> Self {
+    pub fn new(
+        addr: SocketAddr,
+        poolsize: usize,
+        tls: Option<SslConnector>,
+        work: Queue<Request>,
+        request_heatmap: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>,
+    ) -> Self {
         let poll = mio::Poll::new().unwrap();
 
         let mut sessions: Slab<Session> = Slab::with_capacity(poolsize);
@@ -310,7 +345,9 @@ impl Worker {
 
         for _ in 0..poolsize {
             let mut session = Session::new(addr);
-            session.connect(tls.as_ref(), false).expect("failed to connect");
+            session
+                .connect(tls.as_ref(), false)
+                .expect("failed to connect");
             let entry = sessions.vacant_entry();
             let token = Token(entry.key());
             ready_queue.push_back(token);
@@ -324,76 +361,84 @@ impl Worker {
             ready_queue,
             poll,
             work,
+            request_heatmap,
+            rng: rng(),
+        }
+    }
+
+    pub fn send_request(&mut self, token: Token, request: Request) {
+        let session = self.sessions.get_mut(token.0).expect("bad token");
+        increment_counter!(&Metric::Request);
+        match request {
+            Request::Get { key } => {
+                increment_counter!(&Metric::RequestGet);
+                session
+                    .write_buffer
+                    .extend_from_slice(format!("get {}\r\n", key).as_bytes());
+                debug!("get {}", key);
+            }
+            Request::Gets { key } => {
+                increment_counter!(&Metric::RequestGet);
+                session
+                    .write_buffer
+                    .extend_from_slice(format!("gets {}\r\n", key).as_bytes());
+                debug!("get {}", key);
+            }
+            Request::Set { key, vlen, ttl } => {
+                let value = (&mut self.rng as &mut dyn RngCore)
+                    .sample_iter(&Alphanumeric)
+                    .take(vlen)
+                    .collect::<Vec<u8>>();
+                session
+                    .write_buffer
+                    .extend_from_slice(format!("set {} 0 {} {}\r\n", key, ttl, vlen).as_bytes());
+                session.write_buffer.extend_from_slice(&value);
+                session.write_buffer.extend_from_slice(b"\r\n");
+                debug!("set {} 0 {} {}", key, ttl, vlen);
+            }
+            Request::Add { key, vlen, ttl } => {
+                let value = (&mut self.rng as &mut dyn RngCore)
+                    .sample_iter(&Alphanumeric)
+                    .take(vlen)
+                    .collect::<Vec<u8>>();
+                session
+                    .write_buffer
+                    .extend_from_slice(format!("add {} 0 {} {}\r\n", key, ttl, vlen).as_bytes());
+                session.write_buffer.extend_from_slice(&value);
+                session.write_buffer.extend_from_slice(b"\r\n");
+                debug!("add {} 0 {} {}", key, ttl, vlen);
+            }
+            Request::Replace { key, vlen, ttl } => {
+                let value = (&mut self.rng as &mut dyn RngCore)
+                    .sample_iter(&Alphanumeric)
+                    .take(vlen)
+                    .collect::<Vec<u8>>();
+                session.write_buffer.extend_from_slice(
+                    format!("replace {} 0 {} {}\r\n", key, ttl, vlen).as_bytes(),
+                );
+                session.write_buffer.extend_from_slice(&value);
+                session.write_buffer.extend_from_slice(b"\r\n");
+                debug!("replace {} 0 {} {}", key, ttl, vlen);
+            }
+            Request::Delete { key } => {
+                session
+                    .write_buffer
+                    .extend_from_slice(format!("delete {}\r\n", key).as_bytes());
+                debug!("delete {}", key);
+            }
+        }
+        let _ = session.flush();
+        if session.write_pending() > 0 {
+            let _ = session.reregister(&self.poll);
         }
     }
 
     pub fn run(&mut self) {
         let mut events = Events::with_capacity(1024);
-        let mut rng = rng();
         loop {
-            while let Some(token) = self.ready_queue.pop_front() {
-                let session = self.sessions.get_mut(token.0).expect("bad token");
+            if let Some(token) = self.ready_queue.pop_front() {
                 if let Some(request) = self.work.pop() {
-                    match request {
-                        Request::Get { key } => {
-                            session
-                                .write_buffer
-                                .extend_from_slice(format!("get {}\r\n", key).as_bytes());
-                            debug!("get {}", key);
-                        }
-                        Request::Gets { key } => {
-                            session
-                                .write_buffer
-                                .extend_from_slice(format!("gets {}\r\n", key).as_bytes());
-                            debug!("get {}", key);
-                        }
-                        Request::Set { key, vlen, ttl } => {
-                            let value = (&mut rng)
-                                .sample_iter(&Alphanumeric)
-                                .take(vlen)
-                                .collect::<Vec<u8>>();
-                            session.write_buffer.extend_from_slice(
-                                format!("set {} 0 {} {}\r\n", key, ttl, vlen).as_bytes(),
-                            );
-                            session.write_buffer.extend_from_slice(&value);
-                            session.write_buffer.extend_from_slice(b"\r\n");
-                            debug!("set {} 0 {} {}", key, ttl, vlen);
-                        }
-                        Request::Add { key, vlen, ttl } => {
-                            let value = (&mut rng)
-                                .sample_iter(&Alphanumeric)
-                                .take(vlen)
-                                .collect::<Vec<u8>>();
-                            session.write_buffer.extend_from_slice(
-                                format!("add {} 0 {} {}\r\n", key, ttl, vlen).as_bytes(),
-                            );
-                            session.write_buffer.extend_from_slice(&value);
-                            session.write_buffer.extend_from_slice(b"\r\n");
-                            debug!("add {} 0 {} {}", key, ttl, vlen);
-                        }
-                        Request::Replace { key, vlen, ttl } => {
-                            let value = (&mut rng)
-                                .sample_iter(&Alphanumeric)
-                                .take(vlen)
-                                .collect::<Vec<u8>>();
-                            session.write_buffer.extend_from_slice(
-                                format!("replace {} 0 {} {}\r\n", key, ttl, vlen).as_bytes(),
-                            );
-                            session.write_buffer.extend_from_slice(&value);
-                            session.write_buffer.extend_from_slice(b"\r\n");
-                            debug!("replace {} 0 {} {}", key, ttl, vlen);
-                        }
-                        Request::Delete { key } => {
-                            session
-                                .write_buffer
-                                .extend_from_slice(format!("delete {}\r\n", key).as_bytes());
-                            debug!("delete {}", key);
-                        }
-                    }
-                    let _ = session.flush();
-                    if session.write_pending() > 0 {
-                        let _ = session.reregister(&self.poll);
-                    }
+                    self.send_request(token, request);
                 } else {
                     self.ready_queue.push_front(token);
                 }
@@ -409,14 +454,18 @@ impl Worker {
 
                 // handle error events first
                 if event.is_error() {
-                    panic!("error");
+                    let _ = session.deregister(&self.poll);
+                    session.close();
+                    warn!("error");
                 }
 
                 // handle handshaking
                 if session.is_handshaking() {
                     if let Err(e) = session.do_handshake() {
                         if e.kind() != ErrorKind::WouldBlock {
-                            panic!("error");
+                            let _ = session.deregister(&self.poll);
+                            session.close();
+                            warn!("error");
                         }
                     }
                     if session.is_handshaking() {
@@ -432,28 +481,46 @@ impl Worker {
                             continue;
                         }
                         Ok(Some(0)) => {
-                            panic!("server hangup");
+                            let _ = session.deregister(&self.poll);
+                            session.close();
+                            warn!("server hangup");
                         }
                         Ok(Some(_)) => match decode(&mut session.read_buffer) {
                             Ok(_) => {
-                                self.ready_queue.push_back(token);
+                                increment_counter!(&Metric::Response);
+                                if let Some(ref heatmap) = self.request_heatmap {
+                                    let now = Instant::now();
+                                    let elapsed = now - session.timestamp();
+                                    let us = (elapsed.as_secs_f64() * 1_000_000.0) as u64;
+                                    heatmap.increment(now, us, 1);
+                                }
+                                if let Some(request) = self.work.pop() {
+                                    self.send_request(token, request);
+                                } else {
+                                    self.ready_queue.push_back(token);
+                                }
+
                                 continue;
                             }
                             Err(ParseError::Incomplete) => {
                                 continue;
                             }
                             Err(_) => {
-                                panic!("parse error");
+                                let _ = session.deregister(&self.poll);
+                                session.close();
+                                warn!("parse error");
                             }
                         },
                         Err(_) => {
-                            panic!("read error");
+                            let _ = session.deregister(&self.poll);
+                            session.close();
+                            warn!("read error");
                         }
                     }
                 }
 
                 // handle writes
-                if event.is_writable() {
+                if event.is_writable() && !session.write_buffer.is_empty() {
                     session.flush().expect("flush failed");
                     if session.write_pending() > 0 {
                         let _ = session.reregister(&self.poll);
@@ -502,9 +569,337 @@ fn decode(buffer: &mut BytesMut) -> Result<(), ParseError> {
 
     let mut windows = buf.windows(5);
     if let Some(response_end) = windows.position(|w| w == b"END\r\n") {
+        if response_end > 0 {
+            increment_counter!(&Metric::ResponseHit)
+        }
         let _ = buffer.split_to(response_end + 5);
         return Ok(());
     }
 
     Err(ParseError::Incomplete)
+}
+
+/// TODO(bmartin): this should be consolidated with rpc-perf
+use crate::metrics::Metric;
+use rustcommon_fastmetrics::{Metric as MetricTrait, Source};
+use rustcommon_heatmap::AtomicHeatmap;
+use rustcommon_heatmap::AtomicU64;
+use rustcommon_ratelimiter::Ratelimiter;
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use strum::IntoEnumIterator;
+use tiny_http::{Method, Response, Server};
+
+pub struct Admin {
+    snapshot: Snapshot,
+    connect_heatmap: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>,
+    request_heatmap: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>,
+    request_ratelimit: Option<Arc<Ratelimiter>>,
+    server: Option<Server>,
+}
+
+impl Admin {
+    pub fn new(admin_addr: Option<SocketAddr>) -> Self {
+        let snapshot = Snapshot::new(None, None);
+        let server = admin_addr.map(|admin_addr| Server::http(admin_addr).unwrap());
+
+        Self {
+            snapshot,
+            connect_heatmap: None,
+            request_heatmap: None,
+            request_ratelimit: None,
+            server,
+        }
+    }
+
+    pub fn set_connect_heatmap(&mut self, heatmap: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>) {
+        self.connect_heatmap = heatmap;
+    }
+
+    pub fn set_request_heatmap(&mut self, heatmap: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>) {
+        self.request_heatmap = heatmap;
+    }
+
+    pub fn set_request_ratelimit(&mut self, ratelimiter: Option<Arc<Ratelimiter>>) {
+        self.request_ratelimit = ratelimiter;
+    }
+
+    pub fn run(mut self) {
+        // let mut next = Instant::now() + self.config.general().interval();
+        let mut next = Instant::now() + Duration::from_secs(60);
+        let mut snapshot =
+            Snapshot::new(self.connect_heatmap.as_ref(), self.request_heatmap.as_ref());
+        loop {
+            while Instant::now() < next {
+                snapshot =
+                    Snapshot::new(self.connect_heatmap.as_ref(), self.request_heatmap.as_ref());
+                if let Some(ref server) = self.server {
+                    while let Ok(Some(mut request)) = server.try_recv() {
+                        let url = request.url();
+                        let parts: Vec<&str> = url.split('?').collect();
+                        let url = parts[0];
+                        match request.method() {
+                            Method::Get => match url {
+                                "/" => {
+                                    debug!("Serving GET on index");
+                                    let _ = request.respond(Response::from_string(format!(
+                                        "Welcome to {}\nVersion: {}\n",
+                                        "rpc-replay", "0.0.0",
+                                    )));
+                                }
+                                "/metrics" => {
+                                    debug!("Serving Prometheus compatible stats");
+                                    let _ = request
+                                        .respond(Response::from_string(self.snapshot.prometheus()));
+                                }
+                                "/metrics.json" | "/vars.json" | "/admin/metrics.json" => {
+                                    debug!("Serving machine readable stats");
+                                    let _ = request
+                                        .respond(Response::from_string(self.snapshot.json()));
+                                }
+                                "/vars" => {
+                                    debug!("Serving human readable stats");
+                                    let _ = request
+                                        .respond(Response::from_string(self.snapshot.human()));
+                                }
+                                url => {
+                                    debug!("GET on non-existent url: {}", url);
+                                    debug!("Serving machine readable stats");
+                                    let _ = request
+                                        .respond(Response::from_string(self.snapshot.json()));
+                                }
+                            },
+                            Method::Put => match request.url() {
+                                "/ratelimit/request" => {
+                                    let mut content = String::new();
+                                    request.as_reader().read_to_string(&mut content).unwrap();
+                                    if let Ok(rate) = content.parse() {
+                                        if let Some(ref ratelimiter) = self.request_ratelimit {
+                                            ratelimiter.set_rate(rate);
+                                            let _ = request.respond(Response::empty(200));
+                                        } else {
+                                            let _ = request.respond(Response::empty(400));
+                                        }
+                                    } else {
+                                        let _ = request.respond(Response::empty(400));
+                                    }
+                                }
+                                url => {
+                                    debug!("PUT on non-existent url: {}", url);
+                                    let _ = request.respond(Response::empty(404));
+                                }
+                            },
+                            method => {
+                                debug!("unsupported request method: {}", method);
+                                let _ = request.respond(Response::empty(404));
+                            }
+                        }
+                    }
+                }
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+            next += Duration::from_secs(60);
+
+            let window = get_counter!(&Metric::Window).unwrap_or(0);
+
+            info!("-----");
+            info!("Window: {}", window);
+
+            let request_rate = snapshot.rate(&self.snapshot, Metric::Request);
+            let response_rate = snapshot.rate(&self.snapshot, Metric::Response);
+            let connect_rate = snapshot.rate(&self.snapshot, Metric::Connect);
+
+            info!(
+                "Rate: Request: {:.2} rps Response: {:.2} rps Connect: {:.2} cps",
+                request_rate, response_rate, connect_rate
+            );
+
+            let request_success =
+                snapshot.success_rate(&self.snapshot, Metric::Request, Metric::RequestEx);
+            let response_success =
+                snapshot.success_rate(&self.snapshot, Metric::Response, Metric::ResponseEx);
+            let connect_success =
+                snapshot.success_rate(&self.snapshot, Metric::Connect, Metric::ConnectEx);
+
+            info!(
+                "Success: Request: {:.2} % Response: {:.2} % Connect: {:.2} %",
+                request_success, response_success, connect_success
+            );
+
+            let hit_rate =
+                snapshot.hitrate(&self.snapshot, Metric::RequestGet, Metric::ResponseHit);
+
+            info!("Hit-rate: {:.2} %", hit_rate);
+
+            if let Some(ref heatmap) = self.request_heatmap {
+                let p25 = heatmap.percentile(0.25).unwrap_or(0);
+                let p50 = heatmap.percentile(0.50).unwrap_or(0);
+                let p75 = heatmap.percentile(0.75).unwrap_or(0);
+                let p90 = heatmap.percentile(0.90).unwrap_or(0);
+                let p99 = heatmap.percentile(0.99).unwrap_or(0);
+                let p999 = heatmap.percentile(0.999).unwrap_or(0);
+                let p9999 = heatmap.percentile(0.9999).unwrap_or(0);
+                info!("Response Latency (us): p25: {} p50: {} p75: {} p90: {} p99: {} p999: {} p9999: {}",
+                    p25, p50, p75, p90, p99, p999, p9999
+                );
+            }
+
+            increment_counter!(&Metric::Window);
+            self.snapshot = snapshot.clone();
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct Snapshot {
+    counters: HashMap<Metric, u64>,
+    _gauges: HashMap<Metric, i64>,
+    timestamp: Instant,
+    connect_percentiles: Vec<(String, u64)>,
+    request_percentiles: Vec<(String, u64)>,
+}
+
+impl Snapshot {
+    fn new(
+        connect_heatmap: Option<&Arc<AtomicHeatmap<u64, AtomicU64>>>,
+        request_heatmap: Option<&Arc<AtomicHeatmap<u64, AtomicU64>>>,
+    ) -> Self {
+        let mut counters = HashMap::new();
+        let mut gauges = HashMap::new();
+        for metric in Metric::iter() {
+            match metric.source() {
+                Source::Counter => {
+                    let value = get_counter!(&metric).unwrap_or(0);
+                    counters.insert(metric, value);
+                }
+                Source::Gauge => {
+                    let value = get_gauge!(&metric).unwrap_or(0);
+                    gauges.insert(metric, value);
+                }
+            }
+        }
+
+        let percentiles = vec![
+            ("p25", 0.25),
+            ("p50", 0.50),
+            ("p75", 0.75),
+            ("p90", 0.90),
+            ("p99", 0.99),
+            ("p999", 0.999),
+            ("p9999", 0.9999),
+        ];
+
+        let mut connect_percentiles = Vec::new();
+        if let Some(ref heatmap) = connect_heatmap {
+            for (label, value) in &percentiles {
+                connect_percentiles
+                    .push((label.to_string(), heatmap.percentile(*value).unwrap_or(0)));
+            }
+        }
+
+        let mut request_percentiles = Vec::new();
+        if let Some(ref heatmap) = request_heatmap {
+            for (label, value) in &percentiles {
+                request_percentiles
+                    .push((label.to_string(), heatmap.percentile(*value).unwrap_or(0)));
+            }
+        }
+
+        Self {
+            counters,
+            _gauges: gauges,
+            timestamp: Instant::now(),
+            connect_percentiles,
+            request_percentiles,
+        }
+    }
+
+    fn delta_count(&self, other: &Self, counter: Metric) -> u64 {
+        let this = self.counters.get(&counter).unwrap_or(&0);
+        let other = other.counters.get(&counter).unwrap_or(&0);
+        this - other
+    }
+
+    fn rate(&self, other: &Self, counter: Metric) -> f64 {
+        let delta = self.delta_count(other, counter) as f64;
+        let time = (self.timestamp - other.timestamp).as_secs_f64();
+        delta / time
+    }
+
+    fn success_rate(&self, other: &Self, total: Metric, error: Metric) -> f64 {
+        let total = self.rate(other, total);
+        let error = self.rate(other, error);
+        if total > 0.0 {
+            100.0 - (100.0 * error / total)
+        } else {
+            100.0
+        }
+    }
+
+    fn hitrate(&self, other: &Self, total: Metric, hit: Metric) -> f64 {
+        let total = self.rate(other, total);
+        let hit = self.rate(other, hit);
+        if total > 0.0 {
+            100.0 * hit / total
+        } else {
+            0.0
+        }
+    }
+
+    pub fn human(&self) -> String {
+        let mut data = Vec::new();
+        for (counter, value) in &self.counters {
+            data.push(format!("{}: {}", counter, value));
+        }
+        for (label, value) in &self.connect_percentiles {
+            data.push(format!("connect/latency/{}: {}", label, value));
+        }
+        for (label, value) in &self.request_percentiles {
+            data.push(format!("response/latency/{}: {}", label, value));
+        }
+        data.sort();
+        let mut content = data.join("\n");
+        content += "\n";
+        content
+    }
+
+    pub fn json(&self) -> String {
+        let head = "{".to_owned();
+
+        let mut data = Vec::new();
+        for (label, value) in &self.counters {
+            data.push(format!("\"{}\": {}", label, value));
+        }
+        for (label, value) in &self.connect_percentiles {
+            data.push(format!("\"connect/latency/{}\": {}", label, value));
+        }
+        for (label, value) in &self.request_percentiles {
+            data.push(format!("\"response/latency/{}\": {}", label, value));
+        }
+        data.sort();
+        let body = data.join(",");
+        let mut content = head;
+        content += &body;
+        content += "}";
+        content
+    }
+
+    pub fn prometheus(&self) -> String {
+        let mut data = Vec::new();
+        for (counter, value) in &self.counters {
+            data.push(format!("{} {}", counter, value));
+        }
+        for (label, value) in &self.connect_percentiles {
+            data.push(format!("connect/latency/{}: {}", label, value));
+        }
+        for (label, value) in &self.request_percentiles {
+            data.push(format!("response/latency/{}: {}", label, value));
+        }
+        data.sort();
+        let mut content = data.join("\n");
+        content += "\n";
+        let parts: Vec<&str> = content.split('/').collect();
+        parts.join("_")
+    }
 }
