@@ -454,14 +454,18 @@ impl Worker {
 
                 // handle error events first
                 if event.is_error() {
-                    panic!("error");
+                    let _ = session.deregister(&self.poll);
+                    session.close();
+                    warn!("error");
                 }
 
                 // handle handshaking
                 if session.is_handshaking() {
                     if let Err(e) = session.do_handshake() {
                         if e.kind() != ErrorKind::WouldBlock {
-                            panic!("error");
+                            let _ = session.deregister(&self.poll);
+                            session.close();
+                            warn!("error");
                         }
                     }
                     if session.is_handshaking() {
@@ -477,7 +481,9 @@ impl Worker {
                             continue;
                         }
                         Ok(Some(0)) => {
-                            panic!("server hangup");
+                            let _ = session.deregister(&self.poll);
+                            session.close();
+                            warn!("server hangup");
                         }
                         Ok(Some(_)) => match decode(&mut session.read_buffer) {
                             Ok(_) => {
@@ -500,11 +506,15 @@ impl Worker {
                                 continue;
                             }
                             Err(_) => {
-                                panic!("parse error");
+                                let _ = session.deregister(&self.poll);
+                                session.close();
+                                warn!("parse error");
                             }
                         },
                         Err(_) => {
-                            panic!("read error");
+                            let _ = session.deregister(&self.poll);
+                            session.close();
+                            warn!("read error");
                         }
                     }
                 }
