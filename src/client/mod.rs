@@ -453,10 +453,9 @@ fn load_tls_config(config: &Arc<Config>) -> Option<Arc<rustls::ClientConfig>> {
             .set_single_client_cert(cert, key)
             .expect("invalid cert or key");
 
-        
         config.session_persistence = match session_cache_size {
-            0 => Arc::new(NoClientSessionStorage{}),
-            _ => ClientSessionMemoryCache::new(session_cache_size)
+            0 => Arc::new(NoClientSessionStorage {}),
+            _ => ClientSessionMemoryCache::new(session_cache_size),
         };
 
         Some(Arc::new(config))
