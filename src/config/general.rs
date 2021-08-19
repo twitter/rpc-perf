@@ -250,7 +250,7 @@ impl Default for General {
             tls_key: None,
             tls_cert: None,
             tls_ca: None,
-            tls_session_cache_size: 0,
+            tls_session_cache_size: 32, // to match default cache size value in rustls library
             warmup_hitrate: None,
             tcp_nodelay: default_tcp_nodelay(),
             request_timeout: default_request_timeout(),
