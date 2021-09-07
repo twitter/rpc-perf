@@ -44,12 +44,6 @@ jobs:
         with:
           command: test
           args: ${{ env.CARGO_FLAGS }} --workspace --tests --bins --examples
-      - uses: actions-rs/cargo@v1
-        if: ${{ matrix.profile == 'debug' }}
-        name: doctests
-        with:
-          command: test
-          args: ${{ env.CARGO_FLAGS }} --doc -- --test-threads 16
 
   # Fast clippy check to ensure things compile
   check:
