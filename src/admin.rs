@@ -7,7 +7,6 @@ use crate::Arc;
 use crate::Config;
 use rustcommon_heatmap::AtomicHeatmap;
 use rustcommon_heatmap::AtomicU64;
-use rustcommon_metrics::{Counter, Gauge};
 use rustcommon_ratelimiter::Ratelimiter;
 use std::collections::HashMap;
 use std::time::Instant;

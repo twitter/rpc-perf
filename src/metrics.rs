@@ -2,7 +2,9 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use rustcommon_metrics::{metric, Counter, Gauge};
+use rustcommon_metrics::metric;
+
+pub use rustcommon_metrics::{Counter, Gauge};
 
 /// Number of connect attempts.
 #[metric(name = "connect")]
