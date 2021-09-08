@@ -2,7 +2,6 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use crate::metrics::Metric;
 use crate::metrics::*;
 use std::time::Instant;
 
@@ -53,9 +52,7 @@ impl Session {
 
     pub fn connected(&mut self) {
         if !self.connected {
-            increment_gauge!(&Metric::Open);
             OPEN.increment();
-            increment_counter!(&Metric::Session);
             SESSION.increment();
             self.connected = true;
         }
@@ -134,7 +131,6 @@ impl Session {
 
     /// Reads from the stream into the session buffer
     pub fn read(&mut self) -> Result<Option<usize>, std::io::Error> {
-        increment_counter!(&Metric::SessionRecv);
         SESSION_RECV.increment();
         let mut total_bytes = 0;
         loop {
@@ -155,7 +151,6 @@ impl Session {
                     break;
                 }
                 Ok(bytes) => {
-                    increment_counter_by!(&Metric::SessionRecvByte, bytes as u64);
                     SESSION_RECV_BYTE.add(bytes as _);
                     self.read_buffer
                         .extend_from_slice(&self.tmp_buffer[0..bytes]);
@@ -173,7 +168,6 @@ impl Session {
                         }
                     } else {
                         trace!("error reading from session");
-                        increment_counter!(&Metric::SessionRecvEx);
                         SESSION_RECV_EX.increment();
                         return Err(e);
                     }
@@ -186,7 +180,6 @@ impl Session {
     /// Flush the session buffer to the stream
     pub fn flush(&mut self) -> Result<Option<usize>, std::io::Error> {
         self.timestamp = Instant::now();
-        increment_counter!(&Metric::SessionSend);
         SESSION_SEND.increment();
         let write_result = match &mut self.stream {
             Some(Stream::Plain(s)) => s.write(&self.write_buffer.borrow()),
@@ -201,13 +194,11 @@ impl Session {
         match write_result {
             Ok(0) => Ok(Some(0)),
             Ok(bytes) => {
-                increment_counter_by!(&Metric::SessionSendByte, bytes as u64);
                 SESSION_SEND_BYTE.add(bytes as _);
                 self.write_buffer.advance(bytes);
                 Ok(Some(bytes))
             }
             Err(e) => {
-                increment_counter!(&Metric::SessionSendEx);
                 SESSION_SEND_EX.increment();
                 Err(e)
             }
@@ -260,9 +251,7 @@ impl Session {
     pub fn close(&mut self) {
         trace!("closing session");
         if self.connected {
-            decrement_gauge!(&Metric::Open);
             OPEN.decrement();
-            increment_counter!(&Metric::Close);
             CLOSE.increment();
             self.connected = false;
         }

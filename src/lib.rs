@@ -6,9 +6,6 @@
 extern crate rustcommon_logger;
 
 #[macro_use]
-extern crate rustcommon_fastmetrics;
-
-#[macro_use]
 mod macros;
 
 mod admin;
@@ -41,8 +38,6 @@ pub struct Builder {
 impl Builder {
     /// Create a new runtime builder from the given config
     pub fn new(config: Option<String>) -> Self {
-        metrics_init();
-
         let config = Config::new(config);
 
         let config = Arc::new(config);

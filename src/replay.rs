@@ -5,9 +5,6 @@
 #![allow(clippy::unnecessary_unwrap)]
 
 #[macro_use]
-extern crate rustcommon_fastmetrics;
-
-#[macro_use]
 extern crate rustcommon_logger;
 
 use boring::ssl::*;
@@ -38,10 +35,6 @@ use std::sync::Arc;
 
 // TODO(bmartin): this should be split up into a library and binary
 fn main() {
-    // initialize metrics
-    rpc_perf::
-    metrics_init();
-
     // initialize logging
     Logger::new()
         .label("rpc-replay")
@@ -370,11 +363,9 @@ impl Worker {
 
     pub fn send_request(&mut self, token: Token, request: Request) {
         let session = self.sessions.get_mut(token.0).expect("bad token");
-        increment_counter!(&Metric::Request);
         REQUEST.increment();
         match request {
             Request::Get { key } => {
-                increment_counter!(&Metric::RequestGet);
                 REQUEST_GET.increment();
                 session
                     .write_buffer
@@ -382,7 +373,6 @@ impl Worker {
                 debug!("get {}", key);
             }
             Request::Gets { key } => {
-                increment_counter!(&Metric::RequestGet);
                 REQUEST_GET.increment();
                 session
                     .write_buffer
@@ -492,7 +482,6 @@ impl Worker {
                         }
                         Ok(Some(_)) => match decode(&mut session.read_buffer) {
                             Ok(_) => {
-                                increment_counter!(&Metric::Response);
                                 RESPONSE.increment();
                                 if let Some(ref heatmap) = self.request_heatmap {
                                     let now = Instant::now();
@@ -576,7 +565,6 @@ fn decode(buffer: &mut BytesMut) -> Result<(), ParseError> {
     let mut windows = buf.windows(5);
     if let Some(response_end) = windows.position(|w| w == b"END\r\n") {
         if response_end > 0 {
-            increment_counter!(&Metric::ResponseHit);
             RESPONSE_HIT.increment();
         }
         let _ = buffer.split_to(response_end + 5);

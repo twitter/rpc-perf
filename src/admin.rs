@@ -78,8 +78,11 @@ impl Admin {
             };
         let mut snapshot =
             Snapshot::new(self.connect_heatmap.as_ref(), self.request_heatmap.as_ref());
+
         loop {
             while Instant::now() < next {
+                snapshot =
+                    Snapshot::new(self.connect_heatmap.as_ref(), self.request_heatmap.as_ref());
                 if let Some(ref server) = self.server {
                     while let Ok(Some(mut request)) = server.try_recv() {
                         let url = request.url();
@@ -146,8 +149,6 @@ impl Admin {
                 }
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
-
-            snapshot = Snapshot::new(self.connect_heatmap.as_ref(), self.request_heatmap.as_ref());
             next += match self.config.as_ref() {
                 Some(config) => config.general().interval(),
                 None => Duration::from_secs(60),
@@ -219,7 +220,6 @@ impl Admin {
             }
 
             WINDOW.increment();
-            increment_counter!(&Metric::Window);
             self.snapshot = snapshot.clone();
 
             if let Some(max_window) = self
@@ -258,26 +258,11 @@ impl Snapshot {
             };
 
             if let Some(counter) = any.downcast_ref::<Counter>() {
-                info!("METRIC: {} = {}", metric.name(), counter.value());
                 counters.insert(metric.name(), counter.value());
             } else if let Some(gauge) = any.downcast_ref::<Gauge>() {
-                info!("METRIC: {} = {}", metric.name(), gauge.value());
                 gauges.insert(metric.name(), gauge.value());
             }
         }
-
-        // for metric in Metric::iter() {
-        //     match metric.source() {
-        //         Source::Counter => {
-        //             let value = get_counter!(&metric).unwrap_or(0);
-        //             counters.insert(metric, value);
-        //         }
-        //         Source::Gauge => {
-        //             let value = get_gauge!(&metric).unwrap_or(0);
-        //             gauges.insert(metric, value);
-        //         }
-        //     }
-        // }
 
         let percentiles = vec![
             ("p25", 0.25),
