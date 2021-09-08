@@ -822,7 +822,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-atomics"
 version = "1.0.0"
-source = "git+https://github.com/twitter/rustcommon?branch=master#d7ecec8e97e63f77ebfa843ed493ecbd0d883c2d"
+source = "git+https://github.com/twitter/rustcommon?branch=master#d827387d3171e2d5925f29835b77dc0ae57d614c"
 dependencies = [
  "serde",
 ]
@@ -830,7 +830,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-fastmetrics"
 version = "0.0.3"
-source = "git+https://github.com/twitter/rustcommon?branch=master#d7ecec8e97e63f77ebfa843ed493ecbd0d883c2d"
+source = "git+https://github.com/twitter/rustcommon?branch=master#d827387d3171e2d5925f29835b77dc0ae57d614c"
 dependencies = [
  "thiserror",
 ]
@@ -838,7 +838,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-heatmap"
 version = "0.1.1"
-source = "git+https://github.com/twitter/rustcommon?branch=master#d7ecec8e97e63f77ebfa843ed493ecbd0d883c2d"
+source = "git+https://github.com/twitter/rustcommon?branch=master#d827387d3171e2d5925f29835b77dc0ae57d614c"
 dependencies = [
  "crossbeam",
  "rustcommon-atomics",
@@ -849,7 +849,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-histogram"
 version = "1.0.0"
-source = "git+https://github.com/twitter/rustcommon?branch=master#d7ecec8e97e63f77ebfa843ed493ecbd0d883c2d"
+source = "git+https://github.com/twitter/rustcommon?branch=master#d827387d3171e2d5925f29835b77dc0ae57d614c"
 dependencies = [
  "rustcommon-atomics",
  "thiserror",
@@ -858,7 +858,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-logger"
 version = "1.0.0"
-source = "git+https://github.com/twitter/rustcommon?branch=master#d7ecec8e97e63f77ebfa843ed493ecbd0d883c2d"
+source = "git+https://github.com/twitter/rustcommon?branch=master#d827387d3171e2d5925f29835b77dc0ae57d614c"
 dependencies = [
  "log",
  "time",
@@ -867,7 +867,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-metrics-derive"
 version = "0.1.0"
-source = "git+https://github.com/twitter/rustcommon?branch=master#d7ecec8e97e63f77ebfa843ed493ecbd0d883c2d"
+source = "git+https://github.com/twitter/rustcommon?branch=master#d827387d3171e2d5925f29835b77dc0ae57d614c"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -878,7 +878,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-metrics-v2"
 version = "0.1.0"
-source = "git+https://github.com/twitter/rustcommon?branch=master#d7ecec8e97e63f77ebfa843ed493ecbd0d883c2d"
+source = "git+https://github.com/twitter/rustcommon?branch=master#d827387d3171e2d5925f29835b77dc0ae57d614c"
 dependencies = [
  "linkme",
  "parking_lot",
@@ -888,7 +888,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-ratelimiter"
 version = "1.0.0"
-source = "git+https://github.com/twitter/rustcommon?branch=master#d7ecec8e97e63f77ebfa843ed493ecbd0d883c2d"
+source = "git+https://github.com/twitter/rustcommon?branch=master#d827387d3171e2d5925f29835b77dc0ae57d614c"
 dependencies = [
  "rand 0.7.3",
  "rand_distr 0.2.2",

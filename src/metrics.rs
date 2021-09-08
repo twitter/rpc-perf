@@ -84,6 +84,7 @@ pub static SESSION_SEND_BYTE: Counter = Counter::new();
 
 use strum_macros::{AsRefStr, EnumIter};
 
+#[deprecated]
 #[derive(Debug, Clone, Copy, AsRefStr, EnumIter, Hash, Eq, PartialEq)]
 #[strum(serialize_all = "snake_case")]
 pub enum Metric {

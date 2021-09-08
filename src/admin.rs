@@ -2,21 +2,22 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use crate::metrics::Metric;
+use crate::metrics::*;
 use crate::Arc;
 use crate::Config;
-use rustcommon_fastmetrics::{Metric as MetricTrait, Source};
 use rustcommon_heatmap::AtomicHeatmap;
 use rustcommon_heatmap::AtomicU64;
+use rustcommon_metrics::{Counter, Gauge};
 use rustcommon_ratelimiter::Ratelimiter;
 use std::collections::HashMap;
 use std::time::Instant;
 
-use strum::IntoEnumIterator;
+use std::net::SocketAddr;
+use std::time::Duration;
 use tiny_http::{Method, Response, Server};
 
 pub struct Admin {
-    config: Arc<Config>,
+    config: Option<Arc<Config>>,
     snapshot: Snapshot,
     connect_heatmap: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>,
     request_heatmap: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>,
@@ -34,7 +35,21 @@ impl Admin {
         };
 
         Self {
-            config,
+            config: Some(config),
+            snapshot,
+            connect_heatmap: None,
+            request_heatmap: None,
+            request_ratelimit: None,
+            server,
+        }
+    }
+
+    pub fn for_replay(admin_addr: Option<SocketAddr>) -> Self {
+        let snapshot = Snapshot::new(None, None);
+        let server = admin_addr.map(|admin_addr| Server::http(admin_addr).unwrap());
+
+        Self {
+            config: None,
             snapshot,
             connect_heatmap: None,
             request_heatmap: None,
@@ -56,7 +71,11 @@ impl Admin {
     }
 
     pub fn run(mut self) {
-        let mut next = Instant::now() + self.config.general().interval();
+        let mut next = Instant::now()
+            + match self.config.as_ref() {
+                Some(config) => config.general().interval(),
+                None => Duration::from_secs(60),
+            };
         let mut snapshot =
             Snapshot::new(self.connect_heatmap.as_ref(), self.request_heatmap.as_ref());
         loop {
@@ -129,24 +148,27 @@ impl Admin {
                 }
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
-            next += self.config.general().interval();
+            next += match self.config.as_ref() {
+                Some(config) => config.general().interval(),
+                None => Duration::from_secs(60),
+            };
 
-            let window = get_counter!(&Metric::Window).unwrap_or(0);
+            let window = WINDOW.value();
 
             info!("-----");
             info!("Window: {}", window);
             info!(
                 "Connections: Attempts: {} Opened: {} Errors: {} Timeouts: {} Open: {}",
-                snapshot.delta_count(&self.snapshot, Metric::Connect),
-                snapshot.delta_count(&self.snapshot, Metric::Session),
-                snapshot.delta_count(&self.snapshot, Metric::ConnectEx),
-                snapshot.delta_count(&self.snapshot, Metric::ConnectTimeout),
-                get_gauge!(&Metric::Open).unwrap_or(0),
+                snapshot.delta_count(&self.snapshot, CONNECT.name()),
+                snapshot.delta_count(&self.snapshot, SESSION.name()),
+                snapshot.delta_count(&self.snapshot, CONNECT_EX.name()),
+                snapshot.delta_count(&self.snapshot, CONNECT_TIMEOUT.name()),
+                OPEN.value()
             );
 
-            let request_rate = snapshot.rate(&self.snapshot, Metric::Request);
-            let response_rate = snapshot.rate(&self.snapshot, Metric::Response);
-            let connect_rate = snapshot.rate(&self.snapshot, Metric::Connect);
+            let request_rate = snapshot.rate(&self.snapshot, REQUEST.name());
+            let response_rate = snapshot.rate(&self.snapshot, RESPONSE.name());
+            let connect_rate = snapshot.rate(&self.snapshot, CONNECT.name());
 
             info!(
                 "Rate: Request: {:.2} rps Response: {:.2} rps Connect: {:.2} cps",
@@ -154,11 +176,11 @@ impl Admin {
             );
 
             let request_success =
-                snapshot.success_rate(&self.snapshot, Metric::Request, Metric::RequestEx);
+                snapshot.success_rate(&self.snapshot, REQUEST.name(), REQUEST_EX.name());
             let response_success =
-                snapshot.success_rate(&self.snapshot, Metric::Response, Metric::ResponseEx);
+                snapshot.success_rate(&self.snapshot, RESPONSE.name(), RESPONSE_EX.name());
             let connect_success =
-                snapshot.success_rate(&self.snapshot, Metric::Connect, Metric::ConnectEx);
+                snapshot.success_rate(&self.snapshot, CONNECT.name(), CONNECT_EX.name());
 
             info!(
                 "Success: Request: {:.2} % Response: {:.2} % Connect: {:.2} %",
@@ -166,7 +188,7 @@ impl Admin {
             );
 
             let hit_rate =
-                snapshot.hitrate(&self.snapshot, Metric::RequestGet, Metric::ResponseHit);
+                snapshot.hitrate(&self.snapshot, REQUEST_GET.name(), RESPONSE_HIT.name());
 
             info!("Hit-rate: {:.2} %", hit_rate);
 
@@ -196,10 +218,15 @@ impl Admin {
                 );
             }
 
+            WINDOW.increment();
             increment_counter!(&Metric::Window);
             self.snapshot = snapshot.clone();
 
-            if let Some(max_window) = self.config.general().windows() {
+            if let Some(max_window) = self
+                .config
+                .as_ref()
+                .and_then(|config| config.general().windows())
+            {
                 if window >= max_window as u64 {
                     break;
                 }
@@ -210,8 +237,8 @@ impl Admin {
 
 #[derive(Clone)]
 pub struct Snapshot {
-    counters: HashMap<Metric, u64>,
-    _gauges: HashMap<Metric, i64>,
+    counters: HashMap<&'static str, u64>,
+    _gauges: HashMap<&'static str, i64>,
     timestamp: Instant,
     connect_percentiles: Vec<(String, u64)>,
     request_percentiles: Vec<(String, u64)>,
@@ -224,18 +251,31 @@ impl Snapshot {
     ) -> Self {
         let mut counters = HashMap::new();
         let mut gauges = HashMap::new();
-        for metric in Metric::iter() {
-            match metric.source() {
-                Source::Counter => {
-                    let value = get_counter!(&metric).unwrap_or(0);
-                    counters.insert(metric, value);
-                }
-                Source::Gauge => {
-                    let value = get_gauge!(&metric).unwrap_or(0);
-                    gauges.insert(metric, value);
-                }
+        for metric in rustcommon_metrics::metrics().static_metrics() {
+            let any = match metric.as_any() {
+                Some(any) => any,
+                None => continue,
+            };
+
+            if let Some(counter) = any.downcast_ref::<Counter>() {
+                counters.insert(metric.name(), counter.value());
+            } else if let Some(gauge) = any.downcast_ref::<Gauge>() {
+                gauges.insert(metric.name(), gauge.value());
             }
         }
+
+        // for metric in Metric::iter() {
+        //     match metric.source() {
+        //         Source::Counter => {
+        //             let value = get_counter!(&metric).unwrap_or(0);
+        //             counters.insert(metric, value);
+        //         }
+        //         Source::Gauge => {
+        //             let value = get_gauge!(&metric).unwrap_or(0);
+        //             gauges.insert(metric, value);
+        //         }
+        //     }
+        // }
 
         let percentiles = vec![
             ("p25", 0.25),
@@ -272,19 +312,19 @@ impl Snapshot {
         }
     }
 
-    fn delta_count(&self, other: &Self, counter: Metric) -> u64 {
+    fn delta_count(&self, other: &Self, counter: &'static str) -> u64 {
         let this = self.counters.get(&counter).unwrap_or(&0);
         let other = other.counters.get(&counter).unwrap_or(&0);
         this - other
     }
 
-    fn rate(&self, other: &Self, counter: Metric) -> f64 {
+    fn rate(&self, other: &Self, counter: &'static str) -> f64 {
         let delta = self.delta_count(other, counter) as f64;
         let time = (self.timestamp - other.timestamp).as_secs_f64();
         delta / time
     }
 
-    fn success_rate(&self, other: &Self, total: Metric, error: Metric) -> f64 {
+    fn success_rate(&self, other: &Self, total: &'static str, error: &'static str) -> f64 {
         let total = self.rate(other, total);
         let error = self.rate(other, error);
         if total > 0.0 {
@@ -294,7 +334,7 @@ impl Snapshot {
         }
     }
 
-    fn hitrate(&self, other: &Self, total: Metric, hit: Metric) -> f64 {
+    fn hitrate(&self, other: &Self, total: &'static str, hit: &'static str) -> f64 {
         let total = self.rate(other, total);
         let hit = self.rate(other, hit);
         if total > 0.0 {

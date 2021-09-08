@@ -19,10 +19,10 @@ mod metrics;
 mod session;
 mod worker;
 
-use crate::admin::Admin;
-use crate::config::Config;
-use crate::metrics::*;
-use crate::session::Session;
+pub use crate::admin::Admin;
+pub use crate::config::Config;
+pub use crate::metrics::*;
+pub use crate::session::Session;
 use core::time::Duration;
 use rustcommon_heatmap::AtomicHeatmap;
 use rustcommon_heatmap::AtomicU64;

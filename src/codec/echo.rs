@@ -59,6 +59,7 @@ impl Codec for Echo {
                 if crc_bytes != crc[..] {
                     debug!("Response has bad CRC: {:?} != {:?}", crc, crc_bytes);
                     increment_counter!(&Metric::ResponseEx);
+                    metrics::RESPONSE_EX.increment();
                     Err(ParseError::Error)
                 } else {
                     let _ = buffer.split_to(response_end + 2);
