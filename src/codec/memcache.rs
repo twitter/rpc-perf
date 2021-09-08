@@ -60,7 +60,7 @@ impl Codec for Memcache {
         let command = keyspace.choose_command(&mut self.rng);
         match command.verb() {
             Verb::Get => {
-                increment_counter!(&Metric::RequestGet);
+                metrics::REQUEST_GET.increment();
                 Memcache::get(&mut self.rng, keyspace, buf)
             }
             Verb::Set => Memcache::set(&mut self.rng, keyspace, buf),
@@ -97,7 +97,7 @@ impl Codec for Memcache {
             let mut lines = response_buf.windows(2);
             while let Some(line_end) = lines.position(|w| w == b"\r\n") {
                 if response_buf.len() >= 5 && &response_buf[start..(start + 5)] == b"VALUE" {
-                    increment_counter!(&Metric::ResponseHit);
+                    metrics::RESPONSE_HIT.increment();
                 }
                 start = line_end + 2;
             }

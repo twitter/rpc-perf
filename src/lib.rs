@@ -6,9 +6,6 @@
 extern crate rustcommon_logger;
 
 #[macro_use]
-extern crate rustcommon_fastmetrics;
-
-#[macro_use]
 mod macros;
 
 mod admin;
@@ -19,10 +16,10 @@ mod metrics;
 mod session;
 mod worker;
 
-use crate::admin::Admin;
-use crate::config::Config;
-use crate::metrics::*;
-use crate::session::Session;
+pub use crate::admin::Admin;
+pub use crate::config::Config;
+pub use crate::metrics::*;
+pub use crate::session::Session;
 use core::time::Duration;
 use rustcommon_heatmap::AtomicHeatmap;
 use rustcommon_heatmap::AtomicU64;
@@ -41,8 +38,6 @@ pub struct Builder {
 impl Builder {
     /// Create a new runtime builder from the given config
     pub fn new(config: Option<String>) -> Self {
-        metrics_init();
-
         let config = Config::new(config);
 
         let config = Arc::new(config);

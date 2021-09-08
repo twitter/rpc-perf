@@ -29,10 +29,10 @@ rand = { version = "0.8.0", features = ["small_rng"] }
 rand_xoshiro = { version = "0.6.0" }
 rand_distr = "0.4.0"
 rtrb = "*"
-rustcommon-fastmetrics = { git = "https://github.com/twitter/rustcommon", branch = "master" }
 rustcommon-heatmap = { git = "https://github.com/twitter/rustcommon", branch = "master" }
 rustcommon-logger = { git = "https://github.com/twitter/rustcommon", branch = "master" }
 rustcommon-ratelimiter = { git = "https://github.com/twitter/rustcommon", branch = "master" }
+rustcommon-metrics = { git = "https://github.com/twitter/rustcommon", branch = "master", package = "rustcommon-metrics-v2" }
 serde = "1.0.116"
 serde_derive = "1.0.116"
 serde_json = "*"

@@ -58,7 +58,7 @@ impl Codec for Echo {
                 let crc_bytes: [u8; 4] = unsafe { std::mem::transmute(crc_calc.to_be()) };
                 if crc_bytes != crc[..] {
                     debug!("Response has bad CRC: {:?} != {:?}", crc, crc_bytes);
-                    increment_counter!(&Metric::ResponseEx);
+                    metrics::RESPONSE_EX.increment();
                     Err(ParseError::Error)
                 } else {
                     let _ = buffer.split_to(response_end + 2);
