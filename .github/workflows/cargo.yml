@@ -125,4 +125,4 @@ jobs:
       - name: Run
         run: target/release/rpc-perf --config configs/memcache.toml &
       - name: Validate
-        run: sleep 60 && curl -s http://localhost:8080/vars.json | jq '.' > /dev/null
+        run: sleep 60 && curl -s http://localhost:9090/vars.json | jq '.' > /dev/null
