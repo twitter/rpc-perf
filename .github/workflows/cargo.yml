@@ -108,7 +108,7 @@ jobs:
       - name: Build
         run: cargo build --release
       - name: Smoketest
-        run: target/release/rpc-perf --config configs/memcache.toml
+        run: target/release/rpc-perf configs/memcache.toml
 
   exposition-smoketest:
     name: exposition smoketest
@@ -123,6 +123,6 @@ jobs:
       - name: Build
         run: cargo build --release
       - name: Run
-        run: target/release/rpc-perf --config configs/memcache.toml &
+        run: target/release/rpc-perf configs/memcache.toml &
       - name: Validate
         run: sleep 60 && curl -s http://localhost:9090/vars.json | jq '.' > /dev/null
