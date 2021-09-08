@@ -1,5 +1,6 @@
 use crate::codec::*;
 use crate::*;
+use crate::metrics::*;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use rustcommon_heatmap::AtomicHeatmap;
@@ -133,10 +134,12 @@ impl Worker {
         match session.connect(self.tls.as_ref(), self.config.connection().tcp_nodelay()) {
             Ok(()) => {
                 increment_counter!(&Metric::Connect);
+                CONNECT.increment();
                 Ok(())
             }
             Err(e) => {
                 increment_counter!(&Metric::ConnectEx);
+                CONNECT_EX.increment();
                 Err(e)
             }
         }
@@ -198,6 +201,7 @@ impl Worker {
     fn send_request(&mut self, token: Token) -> Result<(), Error> {
         let session = get_session_mut!(self, token)?;
         increment_counter!(&Metric::Request);
+        REQUEST.increment();
         self.codec.encode(&mut session.write_buffer);
         self.reregister(token)
     }
@@ -217,6 +221,7 @@ impl Worker {
                 match response {
                     Ok(()) => {
                         increment_counter!(&Metric::Response);
+                        RESPONSE.increment();
                         if let Some(ref heatmap) = self.request_heatmap {
                             let now = Instant::now();
                             let elapsed = now - session.timestamp();
@@ -289,6 +294,7 @@ impl Worker {
                             // yay, we sent a request
                         } else if self.disconnect(token).is_ok() {
                             increment_counter!(&Metric::RequestEx);
+                            REQUEST_EX.increment();
                         } else {
                             panic!("this shouldn't happen");
                         }
@@ -309,6 +315,7 @@ impl Worker {
                 if event.is_error() {
                     if self.is_connecting(token).unwrap() {
                         increment_counter!(&Metric::ConnectEx);
+                        CONNECT_EX.increment();
                     }
                     // increment_counter!(&Stat::WorkerEventError);
                     let _ = self.disconnect(token);
@@ -320,6 +327,7 @@ impl Worker {
                     if let Err(e) = self.handshake(token) {
                         if e.kind() != ErrorKind::WouldBlock {
                             increment_counter!(&Metric::ConnectEx);
+                            CONNECT_EX.increment();
                             let _ = self.disconnect(token);
                         }
                     }
@@ -333,6 +341,7 @@ impl Worker {
                         }
                         Err(_) => {
                             increment_counter!(&Metric::ConnectEx);
+                            CONNECT_EX.increment();
                             let _ = self.disconnect(token);
                             continue;
                         }
