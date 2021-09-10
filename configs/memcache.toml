@@ -1,7 +1,8 @@
 [general]
 protocol = "memcache"
-interval = 1
-service = true
+interval = 60
+windows = 5
+service = false
 threads = 4
 admin = "127.0.0.1:9090"
 
@@ -15,7 +16,6 @@ poolsize = 25
 
 [request]
 ratelimit = 50000
-
 
 [[keyspace]]
 commands = [
