@@ -1,8 +1,4 @@
-on:
-  push:
-  pull_request:
-    branches:
-      - master
+on: [ push, pull_request ]
 
 env:
   CARGO_TERM_COLOR: always
@@ -109,10 +105,10 @@ jobs:
           - 11211:11211        
     steps:
       - uses: actions/checkout@v2
-      - name: Run
-        run: bash build/ci.sh
+      - name: Build
+        run: cargo build --release
       - name: Smoketest
-        run: target/release/rpc-perf --config configs/default.toml --endpoint localhost:11211
+        run: target/release/rpc-perf configs/memcache.toml
 
   exposition-smoketest:
     name: exposition smoketest
@@ -125,8 +121,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Build
-        run: bash build/ci.sh
+        run: cargo build --release
       - name: Run
-        run: target/release/rpc-perf --config configs/default.toml --endpoint localhost:11211 --listen 127.0.0.1:9090 &
+        run: target/release/rpc-perf configs/memcache.toml &
       - name: Validate
-        run: sleep 60 && curl -s http://localhost:8080/vars.json | jq '.' > /dev/null
+        run: sleep 60 && curl -s http://localhost:9090/vars.json | jq '.' > /dev/null
