@@ -193,26 +193,26 @@ impl Admin {
             info!("Hit-rate: {:.2} %", hit_rate);
 
             if let Some(ref heatmap) = self.connect_heatmap {
-                let p25 = heatmap.percentile(0.25).unwrap_or(0);
-                let p50 = heatmap.percentile(0.50).unwrap_or(0);
-                let p75 = heatmap.percentile(0.75).unwrap_or(0);
-                let p90 = heatmap.percentile(0.90).unwrap_or(0);
-                let p99 = heatmap.percentile(0.99).unwrap_or(0);
-                let p999 = heatmap.percentile(0.999).unwrap_or(0);
-                let p9999 = heatmap.percentile(0.9999).unwrap_or(0);
+                let p25 = heatmap.percentile(25.0).unwrap_or(0);
+                let p50 = heatmap.percentile(50.0).unwrap_or(0);
+                let p75 = heatmap.percentile(75.0).unwrap_or(0);
+                let p90 = heatmap.percentile(90.0).unwrap_or(0);
+                let p99 = heatmap.percentile(99.0).unwrap_or(0);
+                let p999 = heatmap.percentile(99.9).unwrap_or(0);
+                let p9999 = heatmap.percentile(99.99).unwrap_or(0);
                 info!("Connect Latency (us): p25: {} p50: {} p75: {} p90: {} p99: {} p999: {} p9999: {}",
                     p25, p50, p75, p90, p99, p999, p9999
                 );
             }
 
             if let Some(ref heatmap) = self.request_heatmap {
-                let p25 = heatmap.percentile(0.25).unwrap_or(0);
-                let p50 = heatmap.percentile(0.50).unwrap_or(0);
-                let p75 = heatmap.percentile(0.75).unwrap_or(0);
-                let p90 = heatmap.percentile(0.90).unwrap_or(0);
-                let p99 = heatmap.percentile(0.99).unwrap_or(0);
-                let p999 = heatmap.percentile(0.999).unwrap_or(0);
-                let p9999 = heatmap.percentile(0.9999).unwrap_or(0);
+                let p25 = heatmap.percentile(25.0).unwrap_or(0);
+                let p50 = heatmap.percentile(50.0).unwrap_or(0);
+                let p75 = heatmap.percentile(75.0).unwrap_or(0);
+                let p90 = heatmap.percentile(90.0).unwrap_or(0);
+                let p99 = heatmap.percentile(99.0).unwrap_or(0);
+                let p999 = heatmap.percentile(99.9).unwrap_or(0);
+                let p9999 = heatmap.percentile(99.99).unwrap_or(0);
                 info!("Response Latency (us): p25: {} p50: {} p75: {} p90: {} p99: {} p999: {} p9999: {}",
                     p25, p50, p75, p90, p99, p999, p9999
                 );
@@ -264,13 +264,13 @@ impl Snapshot {
         }
 
         let percentiles = vec![
-            ("p25", 0.25),
-            ("p50", 0.50),
-            ("p75", 0.75),
-            ("p90", 0.90),
-            ("p99", 0.99),
-            ("p999", 0.999),
-            ("p9999", 0.9999),
+            ("p25", 25.0),
+            ("p50", 50.0),
+            ("p75", 75.0),
+            ("p90", 90.0),
+            ("p99", 99.0),
+            ("p999", 99.9),
+            ("p9999", 99.99),
         ];
 
         let mut connect_percentiles = Vec::new();
