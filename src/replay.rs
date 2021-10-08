@@ -80,6 +80,13 @@ fn main() {
                 .takes_value(true),
         )
         .arg(
+            Arg::with_name("rate")
+                .long("rate")
+                .value_name("INT")
+                .help("replay speed in requests/s")
+                .takes_value(true),
+        )
+        .arg(
             Arg::with_name("poolsize")
                 .long("poolsize")
                 .value_name("INT")
