@@ -7,7 +7,6 @@
 #[macro_use]
 extern crate rustcommon_logger;
 
-use rustcommon_ratelimiter::Ratelimiter;
 use boring::ssl::*;
 use bytes::BytesMut;
 use clap::{App, Arg};
@@ -16,6 +15,7 @@ use mpmc::Queue;
 use rand::{Rng, RngCore, SeedableRng};
 use rand_distr::Alphanumeric;
 use rustcommon_logger::{Level, Logger};
+use rustcommon_ratelimiter::Ratelimiter;
 use slab::Slab;
 use std::io::Read;
 use zstd::Decoder;
@@ -226,10 +226,7 @@ pub struct GeneratorStats {
 
 impl Default for GeneratorStats {
     fn default() -> Self {
-        Self {
-            sent: 0,
-            skip: 0,
-        }
+        Self { sent: 0, skip: 0 }
     }
 }
 
@@ -276,7 +273,7 @@ impl SpeedController {
             next: Instant::now(),
             speed,
         }
-    } 
+    }
 }
 
 impl Controller for SpeedController {
@@ -311,7 +308,12 @@ pub struct Generator {
 }
 
 impl Generator {
-    pub fn new(trace: &str, work: Queue<Request>, binary: bool, controller: Box<dyn Controller>) -> Self {
+    pub fn new(
+        trace: &str,
+        work: Queue<Request>,
+        binary: bool,
+        controller: Box<dyn Controller>,
+    ) -> Self {
         Self {
             stats: GeneratorStats::default(),
             controller,
@@ -343,8 +345,6 @@ impl Generator {
             let ts: u64 = parts[0].parse::<u64>().expect("invalid timestamp") + 1;
             let verb = parts[5];
 
-            self.controller.delay(ts);
-
             let key = parts[1].to_string();
             let vlen: usize = parts[3].parse().expect("failed to parse vlen");
             let ttl: u32 = parts[6].parse().expect("failed to parse ttl");
@@ -361,9 +361,13 @@ impl Generator {
                     continue;
                 }
             };
+
+            self.controller.delay(ts);
+
             while let Err(r) = self.work.push(request) {
                 request = r;
             }
+
             self.stats.sent += 1;
         }
     }
@@ -387,8 +391,6 @@ impl Generator {
             let klen = klen_vlen >> 22;
             let vlen: usize = (klen_vlen & 0x003F_FFFF) as usize;
 
-            self.controller.delay(ts);
-
             let key = format!("{:01$}", keyid, klen as usize);
 
             let mut request = match op {
@@ -403,9 +405,13 @@ impl Generator {
                     continue;
                 }
             };
+
+            self.controller.delay(ts);
+
             while let Err(r) = self.work.push(request) {
                 request = r;
             }
+
             self.stats.sent += 1;
         }
     }
