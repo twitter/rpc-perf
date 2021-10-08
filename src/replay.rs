@@ -7,6 +7,7 @@
 #[macro_use]
 extern crate rustcommon_logger;
 
+use rustcommon_ratelimiter::Ratelimiter;
 use boring::ssl::*;
 use bytes::BytesMut;
 use clap::{App, Arg};
@@ -115,14 +116,19 @@ fn main() {
         )
         .get_matches();
 
+    if matches.is_present("speed") && matches.is_present("rate") {
+        fatal!("invalid configuration: 'speed' and 'rate' cannot be used together");
+    }
+
     // config value parsing and defaults
     let trace = matches.value_of("trace").unwrap();
     let endpoint = matches.value_of("endpoint").unwrap();
-    let speed: f64 = matches
+    let speed: Option<f64> = matches
         .value_of("speed")
-        .unwrap_or("1.0")
-        .parse()
-        .expect("invalid value for 'speed'");
+        .map(|v| v.parse().expect("invalid value for 'speed'"));
+    let rate: Option<usize> = matches
+        .value_of("rate")
+        .map(|v| v.parse().expect("invalid value for 'rate'"));
     let poolsize: usize = matches
         .value_of("poolsize")
         .unwrap_or("1")
@@ -161,11 +167,6 @@ fn main() {
         fatal!("incomplete TLS config");
     };
 
-    // open files
-    let zlog = File::open(trace).expect("failed to open input zlog");
-    let zbuf = BufReader::new(zlog);
-    let mut log = Decoder::with_buffer(zbuf).expect("failed to init zstd decoder");
-
     // lookup socket address
     let sockaddr = endpoint.to_socket_addrs().unwrap().next().unwrap();
 
@@ -196,70 +197,138 @@ fn main() {
         std::thread::spawn(move || worker.run());
     }
 
-    // generator state
-    let mut ts_sec: u64 = 0;
-    let mut sent: usize = 0;
-    let mut skip: usize = 0;
-    let mut next = Instant::now();
-
-    info!("running...");
-
-    // read trace and generate work
-    if binary {
-        let mut tmp = [0_u8; 20];
-        while log.read_exact(&mut tmp).is_ok() {
-            let ts: u64 = u32::from_le_bytes([tmp[0], tmp[1], tmp[2], tmp[3]]) as u64;
-            let keyid: u64 = u64::from_le_bytes([
-                tmp[4], tmp[5], tmp[6], tmp[7], tmp[8], tmp[9], tmp[10], tmp[11],
-            ]);
-            let klen_vlen: u32 = u32::from_le_bytes([tmp[12], tmp[13], tmp[14], tmp[15]]);
-            let op_ttl: u32 = u32::from_le_bytes([tmp[16], tmp[17], tmp[18], tmp[19]]);
-            let op: u8 = (op_ttl >> 24) as u8;
-            let ttl: u32 = op_ttl & 0x00FF_FFFF;
-            let klen = klen_vlen >> 22;
-            let vlen: usize = (klen_vlen & 0x003F_FFFF) as usize;
-
-            // handle new timestamp in log
-            if ts > ts_sec {
-                let mut now = Instant::now();
-                // info!("ts: {} sent: {} skip: {}", ts, sent, skip);
-                if ts_sec != 0 {
-                    let log_dur = Duration::from_secs(ts - ts_sec).div_f64(speed);
-                    next += log_dur;
-                    if now > next {
-                        debug!("falling behind... try reducing replay rate");
-                    }
-                }
-                ts_sec = ts;
-                // delay if needed
-                while now < next {
-                    std::thread::sleep(Duration::from_micros(100));
-                    now = Instant::now();
-                }
-            }
-
-            let key = format!("{:01$}", keyid, klen as usize);
-
-            let mut request = match op {
-                1 => Request::Get { key },
-                2 => Request::Gets { key },
-                3 => Request::Set { key, vlen, ttl },
-                4 => Request::Add { key, vlen, ttl },
-                6 => Request::Replace { key, vlen, ttl },
-                9 => Request::Delete { key },
-                _ => {
-                    skip += 1;
-                    continue;
-                }
-            };
-            while let Err(r) = work.push(request) {
-                request = r;
-            }
-            sent += 1;
-        }
+    let controller: Box<dyn Controller> = if let Some(rate) = rate {
+        Box::new(RateController::new(rate as u64, workers as u64))
     } else {
-        let log = BufReader::new(log);
-        let mut lines = log.lines();
+        let speed = speed.unwrap_or(1.0);
+        Box::new(SpeedController::new(speed))
+    };
+
+    let mut generator = Generator::new(trace, work, binary, controller);
+    generator.run()
+}
+
+pub trait Controller {
+    fn delay(&mut self, ts: u64);
+}
+
+pub struct GeneratorStats {
+    sent: usize,
+    skip: usize,
+}
+
+impl Default for GeneratorStats {
+    fn default() -> Self {
+        Self {
+            sent: 0,
+            skip: 0,
+        }
+    }
+}
+
+pub struct RateController {
+    ratelimiter: Ratelimiter,
+}
+
+impl Default for RateController {
+    fn default() -> Self {
+        Self::new(0, 1)
+    }
+}
+
+impl RateController {
+    pub fn new(rate: u64, threads: u64) -> Self {
+        Self {
+            ratelimiter: Ratelimiter::new(threads, 1, rate),
+        }
+    }
+}
+
+impl Controller for RateController {
+    fn delay(&mut self, _ts: u64) {
+        self.ratelimiter.wait()
+    }
+}
+
+pub struct SpeedController {
+    ts_sec: u64,
+    next: Instant,
+    speed: f64,
+}
+
+impl Default for SpeedController {
+    fn default() -> Self {
+        Self::new(1.0)
+    }
+}
+
+impl SpeedController {
+    pub fn new(speed: f64) -> Self {
+        Self {
+            ts_sec: 0,
+            next: Instant::now(),
+            speed,
+        }
+    } 
+}
+
+impl Controller for SpeedController {
+    fn delay(&mut self, ts: u64) {
+        // handle new timestamp in log
+        if ts > self.ts_sec {
+            let mut now = Instant::now();
+            // info!("ts: {} sent: {} skip: {}", ts, sent, skip);
+            if self.ts_sec != 0 {
+                let log_dur = Duration::from_secs(ts - self.ts_sec).div_f64(self.speed);
+                self.next += log_dur;
+                if now > self.next {
+                    warn!("falling behind... try reducing replay rate");
+                }
+            }
+            self.ts_sec = ts;
+            // delay if needed
+            while now < self.next {
+                std::thread::sleep(Duration::from_micros(100));
+                now = Instant::now();
+            }
+        }
+    }
+}
+
+pub struct Generator {
+    stats: GeneratorStats,
+    controller: Box<dyn Controller>,
+    trace: String,
+    work: Queue<Request>,
+    binary: bool,
+}
+
+impl Generator {
+    pub fn new(trace: &str, work: Queue<Request>, binary: bool, controller: Box<dyn Controller>) -> Self {
+        Self {
+            stats: GeneratorStats::default(),
+            controller,
+            trace: trace.to_string(),
+            work,
+            binary,
+        }
+    }
+
+    pub fn run(&mut self) {
+        if self.binary {
+            self.binary()
+        } else {
+            self.ascii()
+        }
+    }
+
+    fn ascii(&mut self) {
+        // open files
+        let zlog = File::open(&self.trace).expect("failed to open input zlog");
+        let zbuf = BufReader::new(zlog);
+        let log = Decoder::with_buffer(zbuf).expect("failed to init zstd decoder");
+        let buf_log = BufReader::new(log);
+        let mut lines = buf_log.lines();
 
         while let Some(Ok(line)) = lines.next() {
             let parts: Vec<&str> = line.split(',').collect();
@@ -267,24 +336,7 @@ fn main() {
             let ts: u64 = parts[0].parse::<u64>().expect("invalid timestamp") + 1;
             let verb = parts[5];
 
-            // handle new timestamp in log
-            if ts > ts_sec {
-                let mut now = Instant::now();
-                info!("ts: {} sent: {} skip: {}", ts, sent, skip);
-                if ts_sec != 0 {
-                    let log_dur = Duration::from_secs(ts - ts_sec).div_f64(speed);
-                    next += log_dur;
-                    if now > next {
-                        warn!("falling behind... try reducing replay rate");
-                    }
-                }
-                ts_sec = ts;
-                // delay if needed
-                while now < next {
-                    std::thread::sleep(Duration::from_micros(100));
-                    now = Instant::now();
-                }
-            }
+            self.controller.delay(ts);
 
             let key = parts[1].to_string();
             let vlen: usize = parts[3].parse().expect("failed to parse vlen");
@@ -298,14 +350,56 @@ fn main() {
                 "replace" => Request::Replace { key, vlen, ttl },
                 "delete" => Request::Delete { key },
                 _ => {
-                    skip += 1;
+                    self.stats.skip += 1;
                     continue;
                 }
             };
-            while let Err(r) = work.push(request) {
+            while let Err(r) = self.work.push(request) {
                 request = r;
             }
-            sent += 1;
+            self.stats.sent += 1;
+        }
+    }
+
+    fn binary(&mut self) {
+        // open files
+        let zlog = File::open(&self.trace).expect("failed to open input zlog");
+        let zbuf = BufReader::new(zlog);
+        let mut log = Decoder::with_buffer(zbuf).expect("failed to init zstd decoder");
+
+        let mut tmp = [0_u8; 20];
+        while log.read_exact(&mut tmp).is_ok() {
+            let ts: u64 = u32::from_le_bytes([tmp[0], tmp[1], tmp[2], tmp[3]]) as u64;
+            let keyid: u64 = u64::from_le_bytes([
+                tmp[4], tmp[5], tmp[6], tmp[7], tmp[8], tmp[9], tmp[10], tmp[11],
+            ]);
+            let klen_vlen: u32 = u32::from_le_bytes([tmp[12], tmp[13], tmp[14], tmp[15]]);
+            let op_ttl: u32 = u32::from_le_bytes([tmp[16], tmp[17], tmp[18], tmp[19]]);
+            let op: u8 = (op_ttl >> 24) as u8;
+            let ttl: u32 = op_ttl & 0x00FF_FFFF;
+            let klen = klen_vlen >> 22;
+            let vlen: usize = (klen_vlen & 0x003F_FFFF) as usize;
+
+            self.controller.delay(ts);
+
+            let key = format!("{:01$}", keyid, klen as usize);
+
+            let mut request = match op {
+                1 => Request::Get { key },
+                2 => Request::Gets { key },
+                3 => Request::Set { key, vlen, ttl },
+                4 => Request::Add { key, vlen, ttl },
+                6 => Request::Replace { key, vlen, ttl },
+                9 => Request::Delete { key },
+                _ => {
+                    self.stats.skip += 1;
+                    continue;
+                }
+            };
+            while let Err(r) = self.work.push(request) {
+                request = r;
+            }
+            self.stats.sent += 1;
         }
     }
 }
