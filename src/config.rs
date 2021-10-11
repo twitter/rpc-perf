@@ -30,6 +30,7 @@ pub struct Keyspace {
     inner_key_dist: Option<WeightedAliasIndex<usize>>,
     values: Vec<Value>,
     value_dist: Option<WeightedAliasIndex<usize>>,
+    ttl: usize,
 }
 
 impl Keyspace {
@@ -47,6 +48,10 @@ impl Keyspace {
         } else {
             None
         }
+    }
+
+    pub fn ttl(&self) -> usize {
+        self.ttl
     }
 }
 
@@ -96,6 +101,7 @@ impl Config {
                 inner_key_dist,
                 values: k.values(),
                 value_dist,
+                ttl: k.ttl(),
             };
             keyspaces.push(keyspace);
         }

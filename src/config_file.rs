@@ -71,6 +71,10 @@ fn default_windows() -> usize {
     5
 }
 
+fn zero() -> usize {
+    0
+}
+
 fn one() -> usize {
     1
 }
@@ -197,6 +201,8 @@ pub struct Keyspace {
     inner_keys: Vec<InnerKey>,
     #[serde(default)]
     values: Vec<Value>,
+    #[serde(default = "zero")]
+    ttl: usize,
 }
 
 impl Keyspace {
@@ -218,6 +224,10 @@ impl Keyspace {
 
     pub fn values(&self) -> Vec<Value> {
         self.values.clone()
+    }
+
+    pub fn ttl(&self) -> usize {
+        self.ttl
     }
 }
 

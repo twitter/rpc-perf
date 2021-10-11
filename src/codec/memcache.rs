@@ -46,9 +46,10 @@ impl Memcache {
             .sample_iter(&Alphanumeric)
             .take(value_len)
             .collect::<Vec<u8>>();
+        let ttl = keyspace.ttl();
         buf.extend_from_slice(b"set ");
         buf.extend_from_slice(&key);
-        buf.extend_from_slice(format!(" 0 0 {}\r\n", value_len).as_bytes());
+        buf.extend_from_slice(format!(" 0 {} {}\r\n", ttl, value_len).as_bytes());
         buf.extend_from_slice(&value);
         buf.extend_from_slice(b"\r\n");
     }

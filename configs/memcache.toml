@@ -19,8 +19,9 @@ ratelimit = 50000
 
 [[keyspace]]
 commands = [
-	{ verb = "get" },
-	{ verb = "set" }
+	{ verb = "get", weight = 4 },
+	{ verb = "set", weight = 1 },
 ]
 length = 3
 values = [ { length = 16 } ]
+ttl = 0
