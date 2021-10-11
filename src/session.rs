@@ -182,8 +182,8 @@ impl Session {
         self.timestamp = Instant::now();
         SESSION_SEND.increment();
         let write_result = match &mut self.stream {
-            Some(Stream::Plain(s)) => s.write(&self.write_buffer.borrow()),
-            Some(Stream::Tls(s)) => s.write(&self.write_buffer.borrow()),
+            Some(Stream::Plain(s)) => s.write(self.write_buffer.borrow()),
+            Some(Stream::Tls(s)) => s.write(self.write_buffer.borrow()),
             Some(Stream::Handshaking(_)) => {
                 return Ok(None);
             }

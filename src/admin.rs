@@ -27,11 +27,10 @@ pub struct Admin {
 impl Admin {
     pub fn new(config: Arc<Config>) -> Self {
         let snapshot = Snapshot::new(None, None);
-        let server = if let Some(admin_addr) = config.general().admin() {
-            Some(Server::http(admin_addr).unwrap())
-        } else {
-            None
-        };
+        let server = config
+            .general()
+            .admin()
+            .map(|admin_addr| Server::http(admin_addr).unwrap());
 
         Self {
             config: Some(config),
@@ -274,7 +273,7 @@ impl Snapshot {
         ];
 
         let mut connect_percentiles = Vec::new();
-        if let Some(ref heatmap) = connect_heatmap {
+        if let Some(heatmap) = connect_heatmap {
             for (label, value) in &percentiles {
                 connect_percentiles
                     .push((label.to_string(), heatmap.percentile(*value).unwrap_or(0)));
@@ -282,7 +281,7 @@ impl Snapshot {
         }
 
         let mut request_percentiles = Vec::new();
-        if let Some(ref heatmap) = request_heatmap {
+        if let Some(heatmap) = request_heatmap {
             for (label, value) in &percentiles {
                 request_percentiles
                     .push((label.to_string(), heatmap.percentile(*value).unwrap_or(0)));

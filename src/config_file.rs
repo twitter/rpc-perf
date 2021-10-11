@@ -368,13 +368,13 @@ impl Target {
             let zk_endpoint_name = self.zk_endpoint_name.as_deref().unwrap();
             let mut ret = Vec::new();
             let zk = ZooKeeper::connect(
-                &self.zk_server.as_ref().unwrap(),
+                self.zk_server.as_ref().unwrap(),
                 Duration::from_secs(15),
                 ExitWatcher,
             )
             .unwrap();
             let children = zk
-                .get_children(&self.zk_path.as_ref().unwrap(), true)
+                .get_children(self.zk_path.as_ref().unwrap(), true)
                 .unwrap();
             for child in children {
                 let child_path = format!("{}/{}", self.zk_path.as_ref().unwrap(), child);

@@ -62,9 +62,9 @@ impl Codec for Memcache {
         match command.verb() {
             Verb::Get => {
                 metrics::REQUEST_GET.increment();
-                Memcache::get(&mut self.rng, keyspace, buf)
+                Self::get(&mut self.rng, keyspace, buf)
             }
-            Verb::Set => Memcache::set(&mut self.rng, keyspace, buf),
+            Verb::Set => Self::set(&mut self.rng, keyspace, buf),
             _ => {
                 unimplemented!()
             }
