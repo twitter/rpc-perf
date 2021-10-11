@@ -167,7 +167,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: Swatinem/rust-cache@v1
-        path: rpc-perf
+        with:
+          path: rpc-perf
       - name: Checkout Pelikan
         uses: actions/checkout@v2
         with:
