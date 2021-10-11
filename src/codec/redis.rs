@@ -139,9 +139,7 @@ impl Codec for Redis {
                             let _ = buffer.split_to(response_end);
                             Ok(())
                         }
-                        _ => {
-                            Err(ParseError::Unknown)
-                        }
+                        _ => Err(ParseError::Unknown),
                     }
                 }
             }
