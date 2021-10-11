@@ -8,8 +8,7 @@ use crate::config_file::Verb;
 use crate::*;
 
 use rand::rngs::SmallRng;
-use rand::{Rng, SeedableRng};
-use rand_distr::Alphanumeric;
+use rand::SeedableRng;
 
 use std::borrow::Borrow;
 
@@ -26,30 +25,20 @@ impl Memcache {
         }
     }
 
-    pub fn get(rng: &mut SmallRng, keyspace: &Keyspace, buf: &mut BytesMut) {
-        let key = rng
-            .sample_iter(&Alphanumeric)
-            .take(keyspace.length())
-            .collect::<Vec<u8>>();
+    fn get(rng: &mut SmallRng, keyspace: &Keyspace, buf: &mut BytesMut) {
+        let key = keyspace.generate_key(rng);
         buf.extend_from_slice(b"get ");
         buf.extend_from_slice(&key);
         buf.extend_from_slice(b"\r\n");
     }
 
-    pub fn set(rng: &mut SmallRng, keyspace: &Keyspace, buf: &mut BytesMut) {
-        let key = rng
-            .sample_iter(&Alphanumeric)
-            .take(keyspace.length())
-            .collect::<Vec<u8>>();
-        let value_len = keyspace.choose_value(rng).unwrap().length();
-        let value = rng
-            .sample_iter(&Alphanumeric)
-            .take(value_len)
-            .collect::<Vec<u8>>();
+    fn set(rng: &mut SmallRng, keyspace: &Keyspace, buf: &mut BytesMut) {
+        let key = keyspace.generate_key(rng);
+        let value = keyspace.generate_value(rng).unwrap_or_else(|| b"".to_vec());
         let ttl = keyspace.ttl();
         buf.extend_from_slice(b"set ");
         buf.extend_from_slice(&key);
-        buf.extend_from_slice(format!(" 0 {} {}\r\n", ttl, value_len).as_bytes());
+        buf.extend_from_slice(format!(" 0 {} {}\r\n", ttl, value.len()).as_bytes());
         buf.extend_from_slice(&value);
         buf.extend_from_slice(b"\r\n");
     }

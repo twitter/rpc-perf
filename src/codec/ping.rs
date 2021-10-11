@@ -14,7 +14,7 @@ impl Ping {
         Self
     }
 
-    pub fn ping(buf: &mut BytesMut) {
+    fn ping(buf: &mut BytesMut) {
         buf.extend_from_slice(b"PING\r\n");
     }
 }

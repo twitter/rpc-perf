@@ -66,35 +66,60 @@ impl Redis {
         }
     }
 
-    pub fn get(rng: &mut SmallRng, mode: &Mode, keyspace: &Keyspace, buf: &mut BytesMut) {
-        let key = rng
-            .sample_iter(&Alphanumeric)
-            .take(keyspace.length())
-            .collect::<Vec<u8>>();
+    fn get(rng: &mut SmallRng, mode: &Mode, keyspace: &Keyspace, buf: &mut BytesMut) {
+        let key = keyspace.generate_key(rng);
         Redis::command(buf, mode, "get", &[&key]);
     }
 
-    pub fn set(rng: &mut SmallRng, mode: &Mode, keyspace: &Keyspace, buf: &mut BytesMut) {
-        let key = rng
-            .sample_iter(&Alphanumeric)
-            .take(keyspace.length())
-            .collect::<Vec<u8>>();
-        let value_len = keyspace.choose_value(rng).unwrap().length();
-        let value = rng
-            .sample_iter(&Alphanumeric)
-            .take(value_len)
-            .collect::<Vec<u8>>();
+    fn set(rng: &mut SmallRng, mode: &Mode, keyspace: &Keyspace, buf: &mut BytesMut) {
+        let command = "set";
+        let key = keyspace.generate_key(rng);
+        let value = keyspace.generate_value(rng).unwrap_or_else(|| b"".to_vec());
         let ttl = keyspace.ttl();
         if ttl != 0 {
             Redis::command(
                 buf,
                 mode,
-                "set",
+                command,
                 &[&key, &value, b"EX", format!("{}", ttl).as_bytes()],
             );
         } else {
-            Redis::command(buf, mode, "set", &[&key, &value]);
+            Redis::command(buf, mode, command, &[&key, &value]);
         }
+    }
+
+    fn del(rng: &mut SmallRng, mode: &Mode, keyspace: &Keyspace, buf: &mut BytesMut) {
+        let key = keyspace.generate_key(rng);
+        Redis::command(buf, mode, "del", &[&key]);
+    }
+
+    fn hget(rng: &mut SmallRng, mode: &Mode, keyspace: &Keyspace, buf: &mut BytesMut) {
+        let command = "hget";
+        let key = keyspace.generate_key(rng);
+        let field = keyspace
+            .generate_inner_key(rng)
+            .unwrap_or_else(|| b"".to_vec());
+        Redis::command(buf, mode, command, &[&key, &field]);
+    }
+
+    fn hset(rng: &mut SmallRng, mode: &Mode, keyspace: &Keyspace, buf: &mut BytesMut) {
+        let command = "hset";
+        let key = keyspace.generate_key(rng);
+        let field = keyspace
+            .generate_inner_key(rng)
+            .unwrap_or_else(|| b"".to_vec());
+        let value = keyspace.generate_value(rng).unwrap_or_else(|| b"".to_vec());
+        Redis::command(buf, mode, command, &[&key, &field, &value]);
+    }
+
+    fn hsetnx(rng: &mut SmallRng, mode: &Mode, keyspace: &Keyspace, buf: &mut BytesMut) {
+        let command = "hsetnx";
+        let key = keyspace.generate_key(rng);
+        let field = keyspace
+            .generate_inner_key(rng)
+            .unwrap_or_else(|| b"".to_vec());
+        let value = keyspace.generate_value(rng).unwrap_or_else(|| b"".to_vec());
+        Redis::command(buf, mode, command, &[&key, &field, &value]);
     }
 }
 
@@ -108,6 +133,13 @@ impl Codec for Redis {
                 Self::get(&mut self.rng, &self.mode, keyspace, buf)
             }
             Verb::Set => Self::set(&mut self.rng, &self.mode, keyspace, buf),
+            Verb::Delete => Self::del(&mut self.rng, &self.mode, keyspace, buf),
+            Verb::Hget => {
+                metrics::REQUEST_GET.increment();
+                Self::hget(&mut self.rng, &self.mode, keyspace, buf)
+            }
+            Verb::Hset => Self::hset(&mut self.rng, &self.mode, keyspace, buf),
+            Verb::Hsetnx => Self::hsetnx(&mut self.rng, &self.mode, keyspace, buf),
             _ => {
                 unimplemented!()
             }

@@ -83,6 +83,17 @@ fn default_nodelay() -> bool {
     false
 }
 
+fn alphanumeric() -> FieldType {
+    FieldType::Alphanumeric
+}
+
+#[derive(Deserialize, Clone, Copy, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum FieldType {
+    Alphanumeric,
+    U32,
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
@@ -206,6 +217,8 @@ pub struct Keyspace {
     values: Vec<Value>,
     #[serde(default = "zero")]
     ttl: usize,
+    #[serde(default = "alphanumeric")]
+    key_type: FieldType,
 }
 
 impl Keyspace {
@@ -232,16 +245,33 @@ impl Keyspace {
     pub fn ttl(&self) -> usize {
         self.ttl
     }
+
+    pub fn key_type(&self) -> FieldType {
+        self.key_type
+    }
 }
 
 #[derive(Deserialize, Clone, Copy, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 pub enum Verb {
+    /// Sends a simple 'ping' to a pingserver.
     Ping,
+    /// Sends a payload with a CRC to an echo server and checks for corruption.
     Echo,
+    /// Simple key-value get which reads the value for a key.
     Get,
+    /// Simple key-value set which will overwrite the value for a key.
     Set,
+    /// Remove a key.
+    Delete,
+    /// Hash get, reads the value for a field within the hash stored at the key.
+    Hget,
+    /// Hash set, set the value for a field within the hash stored at the key.
+    Hset,
+    /// Hash set non-existing, set the value for a field within the hash stored
+    /// at the key only if the field does not exist.
+    Hsetnx,
 }
 
 #[derive(Deserialize, Copy, Clone)]
@@ -264,12 +294,23 @@ impl Command {
 #[derive(Deserialize, Clone)]
 pub struct InnerKey {
     length: usize,
+    #[serde(default = "one")]
     weight: usize,
+    #[serde(default = "alphanumeric")]
+    field_type: FieldType,
 }
 
 impl InnerKey {
     pub fn weight(&self) -> usize {
         self.weight
+    }
+
+    pub fn length(&self) -> usize {
+        self.length
+    }
+
+    pub fn field_type(&self) -> FieldType {
+        self.field_type
     }
 }
 
@@ -278,6 +319,8 @@ pub struct Value {
     length: usize,
     #[serde(default = "one")]
     weight: usize,
+    #[serde(default = "alphanumeric")]
+    field_type: FieldType,
 }
 
 impl Value {
@@ -287,6 +330,10 @@ impl Value {
 
     pub fn length(&self) -> usize {
         self.length
+    }
+
+    pub fn field_type(&self) -> FieldType {
+        self.field_type
     }
 }
 
