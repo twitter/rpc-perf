@@ -8,10 +8,12 @@ pub use bytes::BytesMut;
 mod echo;
 mod memcache;
 mod ping;
+mod redis;
 
 pub use echo::Echo;
 pub use memcache::Memcache;
 pub use ping::Ping;
+pub use redis::Redis;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ParseError {

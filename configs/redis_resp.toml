@@ -1,0 +1,27 @@
+[general]
+protocol = "redis_resp"
+interval = 60
+windows = 5
+service = false
+threads = 4
+admin = "127.0.0.1:9090"
+
+[target]
+endpoints = [
+	"127.0.0.1:6379"
+]
+
+[connection]
+poolsize = 25
+
+[request]
+ratelimit = 50000
+
+[[keyspace]]
+commands = [
+	{ verb = "get", weight = 4 },
+	{ verb = "set", weight = 1 },
+]
+length = 3
+values = [ { length = 16 } ]
+ttl = 0

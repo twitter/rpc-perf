@@ -105,6 +105,7 @@ jobs:
           - 11211:11211        
     steps:
       - uses: actions/checkout@v2
+      - uses: Swatinem/rust-cache@v1
       - name: Build
         run: cargo build --release
       - name: Smoketest
@@ -120,9 +121,43 @@ jobs:
           - 11211:11211
     steps:
       - uses: actions/checkout@v2
+      - uses: Swatinem/rust-cache@v1
       - name: Build
         run: cargo build --release
       - name: Run
         run: target/release/rpc-perf configs/memcache.toml &
       - name: Validate
         run: sleep 60 && curl -s http://localhost:9090/vars.json | jq '.' > /dev/null
+
+  redis-smoketest:
+    name: redis smoketest
+    runs-on: ubuntu-18.04
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+    steps:
+      - uses: actions/checkout@v2
+      - uses: Swatinem/rust-cache@v1
+      - name: Build
+        run: cargo build --release
+      - name: Smoketest
+        run: target/release/rpc-perf configs/redis.toml
+
+  redis-resp-smoketest:
+    name: redis resp smoketest
+    runs-on: ubuntu-18.04
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+    steps:
+      - uses: actions/checkout@v2
+      - uses: Swatinem/rust-cache@v1
+      - name: Build
+        run: cargo build --release
+      - name: Smoketest
+        run: target/release/rpc-perf configs/redis_resp.toml
+
