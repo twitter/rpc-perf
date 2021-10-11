@@ -181,5 +181,5 @@ jobs:
       - name: Run Pelikan Pingserver
         run: pelikan/target/release/pelikan_pingserver_rs &
       - name: Smoketest
-        run: rpc-perf/target/release/rpc-perf configs/ping.toml
+        run: rpc-perf/target/release/rpc-perf rpc-perf/configs/ping.toml
 
