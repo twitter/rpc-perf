@@ -134,8 +134,14 @@ impl Codec for Redis {
                 } else {
                     let msg = &buf[1..buf.len() - 2];
                     match str::from_utf8(msg) {
-                        Ok("OK") | Ok("PONG") => Ok(()),
-                        _ => Err(ParseError::Unknown),
+                        Ok("OK") | Ok("PONG") => {
+                            let response_end = buf.len();
+                            let _ = buffer.split_to(response_end);
+                            Ok(())
+                        }
+                        _ => {
+                            Err(ParseError::Unknown)
+                        }
                     }
                 }
             }
@@ -158,7 +164,11 @@ impl Codec for Redis {
                 // bulk string
                 let msg = &buf[1..buf.len() - 2];
                 match str::from_utf8(msg) {
-                    Ok("-1") => Ok(()),
+                    Ok("-1") => {
+                        let response_end = buf.len();
+                        let _ = buffer.split_to(response_end);
+                        Ok(())
+                    }
                     Ok(_) => {
                         let reader = BufReader::new(buf);
                         let mut lines = reader.lines();
@@ -171,6 +181,8 @@ impl Codec for Redis {
                                 match have.cmp(&expected) {
                                     Ordering::Less => Err(ParseError::Incomplete),
                                     Ordering::Equal => {
+                                        let response_end = buf.len();
+                                        let _ = buffer.split_to(response_end);
                                         metrics::RESPONSE_HIT.increment();
                                         Ok(())
                                     }
@@ -187,7 +199,11 @@ impl Codec for Redis {
                 // arrays
                 let msg = &buf[1..buf.len() - 2];
                 match str::from_utf8(msg) {
-                    Ok("-1") => Ok(()),
+                    Ok("-1") => {
+                        let response_end = buf.len();
+                        let _ = buffer.split_to(response_end);
+                        Ok(())
+                    }
                     Ok(_) => {
                         // TODO: implement array parsing
                         Err(ParseError::Unknown)
