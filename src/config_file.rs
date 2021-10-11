@@ -83,13 +83,16 @@ fn default_nodelay() -> bool {
     false
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 pub enum Protocol {
     Ping,
     Echo,
     Memcache,
+    Redis,
+    RedisInline,
+    RedisResp,
 }
 
 #[derive(Deserialize, Clone)]
