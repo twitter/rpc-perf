@@ -134,6 +134,8 @@ jobs:
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
+        with:
+          path: main
       - uses: Swatinem/rust-cache@v1
       - name: Checkout Pelikan
         uses: actions/checkout@v2
