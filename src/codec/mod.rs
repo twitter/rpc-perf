@@ -7,11 +7,13 @@ pub use bytes::BytesMut;
 
 mod echo;
 mod memcache;
+mod pelikan_rds;
 mod ping;
 mod redis;
 
 pub use echo::Echo;
 pub use memcache::Memcache;
+pub use pelikan_rds::PelikanRds;
 pub use ping::Ping;
 pub use redis::Redis;
 

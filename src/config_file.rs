@@ -90,6 +90,7 @@ pub enum Protocol {
     Ping,
     Echo,
     Memcache,
+    PelikanRds,
     Redis,
     RedisInline,
     RedisResp,

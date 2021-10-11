@@ -129,6 +129,26 @@ jobs:
       - name: Validate
         run: sleep 60 && curl -s http://localhost:9090/vars.json | jq '.' > /dev/null
 
+  pelikan-rds-smoketest:
+    name: pelikan rds smoketest
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: Swatinem/rust-cache@v1
+      - name: Checkout Pelikan
+        uses: actions/checkout@v2
+        with:
+          repository: twitter/pelikan
+        path: pelikan
+      - name: Build Pelikan
+        run: mkdir -p pelikan/_build && cd pelikan/_build && cmake .. && make
+      - name: Build rpc-perf
+        run: cargo build --release
+      - name: Run Pelikan Rds
+        run: pelikan/_build/_bin/pelikan_rds &
+      - name: Smoketest
+        run: target/release/rpc-perf configs/pelikan_rds.toml
+
   redis-smoketest:
     name: redis smoketest
     runs-on: ubuntu-18.04

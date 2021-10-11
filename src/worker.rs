@@ -82,6 +82,7 @@ impl Worker {
             Protocol::Ping => Box::new(Ping::new(config.clone())) as Box<dyn Codec>,
             Protocol::Echo => Box::new(Echo::new(config.clone())) as Box<dyn Codec>,
             Protocol::Memcache => Box::new(Memcache::new(config.clone())) as Box<dyn Codec>,
+            Protocol::PelikanRds => Box::new(PelikanRds::new(config.clone())) as Box<dyn Codec>,
             Protocol::Redis | Protocol::RedisInline | Protocol::RedisResp => {
                 Box::new(Redis::new(config.clone())) as Box<dyn Codec>
             }
