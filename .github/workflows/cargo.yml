@@ -105,6 +105,7 @@ jobs:
           - 11211:11211        
     steps:
       - uses: actions/checkout@v2
+      - uses: Swatinem/rust-cache@v1
       - name: Build
         run: cargo build --release
       - name: Smoketest
@@ -120,6 +121,7 @@ jobs:
           - 11211:11211
     steps:
       - uses: actions/checkout@v2
+      - uses: Swatinem/rust-cache@v1
       - name: Build
         run: cargo build --release
       - name: Run
@@ -137,6 +139,7 @@ jobs:
           - 6379:6379
     steps:
       - uses: actions/checkout@v2
+      - uses: Swatinem/rust-cache@v1
       - name: Build
         run: cargo build --release
       - name: Smoketest
@@ -152,6 +155,7 @@ jobs:
           - 6379:6379
     steps:
       - uses: actions/checkout@v2
+      - uses: Swatinem/rust-cache@v1
       - name: Build
         run: cargo build --release
       - name: Smoketest
