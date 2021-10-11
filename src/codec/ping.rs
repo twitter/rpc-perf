@@ -14,14 +14,14 @@ impl Ping {
         Self
     }
 
-    pub fn ping(&self, buf: &mut BytesMut) {
+    pub fn ping(buf: &mut BytesMut) {
         buf.extend_from_slice(b"PING\r\n");
     }
 }
 
 impl Codec for Ping {
     fn encode(&mut self, buf: &mut BytesMut) {
-        self.ping(buf)
+        Self::ping(buf)
     }
 
     fn decode(&self, buffer: &mut BytesMut) -> Result<(), ParseError> {

@@ -105,9 +105,9 @@ impl Codec for Redis {
         match command.verb() {
             Verb::Get => {
                 metrics::REQUEST_GET.increment();
-                Redis::get(&mut self.rng, &self.mode, keyspace, buf)
+                Self::get(&mut self.rng, &self.mode, keyspace, buf)
             }
-            Verb::Set => Redis::set(&mut self.rng, &self.mode, keyspace, buf),
+            Verb::Set => Self::set(&mut self.rng, &self.mode, keyspace, buf),
             _ => {
                 unimplemented!()
             }

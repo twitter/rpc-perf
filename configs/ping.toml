@@ -1,15 +1,21 @@
 [general]
 protocol = "ping"
-interval = 1
-service = true
-threads = 2
+interval = 60
+windows = 5
+service = false
+threads = 4
+admin = "127.0.0.1:9090"
+
+[target]
+endpoints = [
+	"127.0.0.1:6379"
+]
 
 [connection]
-poolsize = 100
+poolsize = 25
 
 [request]
-ratelimit = 1000
-
+ratelimit = 50000
 
 [[keyspace]]
 commands = [

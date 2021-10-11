@@ -3,6 +3,7 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 use crate::codec::*;
+use crate::config::Keyspace;
 use crate::*;
 
 use rand::rngs::SmallRng;
@@ -24,9 +25,8 @@ impl Echo {
         }
     }
 
-    pub fn echo(&mut self, buf: &mut BytesMut) {
-        let keyspace = self.config.choose_keyspace(&mut self.rng);
-        let value = (&mut self.rng)
+    pub fn echo(rng: &mut SmallRng, keyspace: &Keyspace, buf: &mut BytesMut) {
+        let value = rng
             .sample_iter(&Alphanumeric)
             .take(keyspace.length())
             .collect::<Vec<u8>>();
@@ -39,7 +39,8 @@ impl Echo {
 
 impl Codec for Echo {
     fn encode(&mut self, buf: &mut BytesMut) {
-        self.echo(buf)
+        let keyspace = self.config.choose_keyspace(&mut self.rng);
+        Self::echo(&mut self.rng, keyspace, buf)
     }
 
     fn decode(&self, buffer: &mut BytesMut) -> Result<(), ParseError> {
@@ -54,7 +55,7 @@ impl Codec for Echo {
             } else {
                 let message = &buf[0..(response_end - 4)];
                 let crc = &buf[(response_end - 4)..response_end];
-                let crc_calc = crc::crc32::checksum_ieee(&message[..]);
+                let crc_calc = crc::crc32::checksum_ieee(message);
                 let crc_bytes: [u8; 4] = unsafe { std::mem::transmute(crc_calc.to_be()) };
                 if crc_bytes != crc[..] {
                     debug!("Response has bad CRC: {:?} != {:?}", crc, crc_bytes);
