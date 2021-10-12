@@ -25,3 +25,13 @@ commands = [
 length = 3
 values = [ { length = 16 } ]
 ttl = 0
+
+[[keyspace]]
+commands = [
+	{ verb = "hget", weight = 4 },
+	{ verb = "hset", weight = 2 },
+	{ verb = "delete", weight = 1 },
+]
+length = 2
+inner_keys = [ { length = 2 }]
+values = [ { length = 8 }]

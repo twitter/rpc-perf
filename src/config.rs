@@ -4,6 +4,8 @@
 
 use crate::config_file::*;
 use rand::rngs::SmallRng;
+use rand::Rng;
+use rand_distr::Alphanumeric;
 use rand_distr::{Distribution, WeightedAliasIndex};
 use std::net::SocketAddr;
 
@@ -31,11 +33,56 @@ pub struct Keyspace {
     values: Vec<Value>,
     value_dist: Option<WeightedAliasIndex<usize>>,
     ttl: usize,
+    key_type: FieldType,
 }
 
 impl Keyspace {
     pub fn length(&self) -> usize {
         self.length
+    }
+
+    pub fn generate_key(&self, rng: &mut SmallRng) -> Vec<u8> {
+        match self.key_type {
+            FieldType::Alphanumeric => rng
+                .sample_iter(&Alphanumeric)
+                .take(self.length())
+                .collect::<Vec<u8>>(),
+            FieldType::U32 => format!("{:010}", &rng.gen::<u32>()).as_bytes().to_vec(),
+        }
+    }
+
+    pub fn generate_inner_key(&self, rng: &mut SmallRng) -> Option<Vec<u8>> {
+        if let Some(ref dist) = self.inner_key_dist {
+            let idx = dist.sample(rng);
+            let conf = &self.inner_keys[idx];
+            let inner_key = match conf.field_type() {
+                FieldType::Alphanumeric => rng
+                    .sample_iter(&Alphanumeric)
+                    .take(conf.length())
+                    .collect::<Vec<u8>>(),
+                FieldType::U32 => format!("{:010}", &rng.gen::<u32>()).as_bytes().to_vec(),
+            };
+            Some(inner_key)
+        } else {
+            None
+        }
+    }
+
+    pub fn generate_value(&self, rng: &mut SmallRng) -> Option<Vec<u8>> {
+        if let Some(ref value_dist) = self.value_dist {
+            let value_idx = value_dist.sample(rng);
+            let value_conf = &self.values[value_idx];
+            let value = match value_conf.field_type() {
+                FieldType::Alphanumeric => rng
+                    .sample_iter(&Alphanumeric)
+                    .take(value_conf.length())
+                    .collect::<Vec<u8>>(),
+                FieldType::U32 => format!("{:010}", &rng.gen::<u32>()).as_bytes().to_vec(),
+            };
+            Some(value)
+        } else {
+            None
+        }
     }
 
     pub fn choose_command(&self, rng: &mut SmallRng) -> &Command {
@@ -102,6 +149,7 @@ impl Config {
                 values: k.values(),
                 value_dist,
                 ttl: k.ttl(),
+                key_type: k.key_type(),
             };
             keyspaces.push(keyspace);
         }
