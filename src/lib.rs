@@ -99,6 +99,7 @@ impl Builder {
 
         let mut admin = Admin::new(config);
         admin.set_connect_heatmap(connect_heatmap);
+        admin.set_reconnect_ratelimit(reconnect_ratelimit);
         admin.set_request_heatmap(request_heatmap);
         admin.set_request_ratelimit(request_ratelimit);
 
