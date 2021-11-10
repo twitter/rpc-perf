@@ -26,10 +26,10 @@ use rustcommon_atomics::{Atomic, AtomicBool, Ordering};
 use rustcommon_logger::Logger;
 use rustcommon_ratelimiter::Ratelimiter;
 
+use rustcommon_metrics::{Duration, Instant};
 use std::convert::TryInto;
 use std::sync::Arc;
 use std::thread;
-use std::time::{Duration, Instant};
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 

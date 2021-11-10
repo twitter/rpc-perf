@@ -163,7 +163,7 @@ impl Client {
             .take()
             .unwrap_or_else(|| Events::with_capacity(1024));
         self.poll
-            .poll(&mut events, Some(Duration::from_millis(1)))
+            .poll(&mut events, Some(std::time::Duration::from_millis(1)))
             .unwrap();
         for event in events.iter() {
             let token = event.token();
@@ -177,7 +177,7 @@ impl Client {
 
                 let write_status = if event.is_writable() {
                     trace!("handle write for: {}", token.0);
-                    session.set_timestamp(Instant::now());
+                    session.set_timestamp(rustcommon_metrics::Instant::now());
                     session.do_write()
                 } else {
                     Ok(None)
@@ -196,7 +196,7 @@ impl Client {
                             trace!("read: {:?}", content);
                             match self.codec.decode(content) {
                                 Ok(response) => {
-                                    let stop = Instant::now();
+                                    let stop = rustcommon_metrics::Instant::now();
 
                                     self.metrics.heatmap_increment(start, stop);
                                     self.metrics.time_interval(
@@ -228,7 +228,7 @@ impl Client {
 
                                     match error {
                                         Error::ChecksumMismatch(a, b) => {
-                                            let stop = Instant::now();
+                                            let stop = rustcommon_metrics::Instant::now();
                                             let start = session.timestamp();
                                             self.metrics.heatmap_increment(start, stop);
                                             self.metrics.time_interval(
@@ -290,7 +290,7 @@ impl Client {
 
                 if session.state() == State::Connecting && !session.is_handshaking() {
                     // increment time interval
-                    let stop = Instant::now();
+                    let stop = rustcommon_metrics::Instant::now();
                     let start = session.timestamp();
                     self.metrics
                         .time_interval(&Stat::ConnectionsLatency, start, stop);
@@ -312,7 +312,7 @@ impl Client {
     fn send_request(&mut self, rng: &mut ThreadRng, token: usize) {
         if let Some(session) = self.sessions.get_mut(token) {
             trace!("send request: {}", token);
-            session.set_timestamp(Instant::now());
+            session.set_timestamp(rustcommon_metrics::Instant::now());
             self.metrics.increment(&Stat::RequestsEnqueued);
             self.codec.encode(&mut session.buffer, rng);
             session.set_state(State::Writing);
@@ -369,15 +369,18 @@ impl Client {
         } else {
             None
         };
-        let start = Instant::now();
+        let start = rustcommon_metrics::Instant::now();
         if let Ok(mut s) = Session::new(addr, Token(session.key()), tls) {
             s.set_nodelay(self.config.tcp_nodelay());
             self.metrics.increment(&Stat::ConnectionsTotal);
             if self.tls_config.is_some() {
                 s.register(&self.poll);
             } else {
-                self.metrics
-                    .time_interval(&Stat::ConnectionsLatency, start, Instant::now());
+                self.metrics.time_interval(
+                    &Stat::ConnectionsLatency,
+                    start,
+                    rustcommon_metrics::Instant::now(),
+                );
                 self.metrics.increment(&Stat::ConnectionsOpened);
                 s.register(&self.poll);
                 self.ready_queue.push_back(session.key());

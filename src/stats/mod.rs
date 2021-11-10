@@ -17,11 +17,11 @@ pub use snapshot::MetricsSnapshot;
 pub use stat::Stat;
 use strum::IntoEnumIterator;
 
+use rustcommon_metrics::Duration;
+use rustcommon_metrics::Instant;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::sync::Arc;
-use std::time::Duration;
-use std::time::Instant;
 
 pub struct StandardOut {
     previous: HashMap<Stat, u64>,
@@ -224,11 +224,11 @@ impl Metrics {
                 Some(Arc::new(AtomicHeatmap::new(
                     SECOND as u64,
                     3,
-                    Duration::new(
+                    rustcommon_metrics::Duration::new(
                         (windows as usize * config.interval()).try_into().unwrap(),
                         0,
                     ),
-                    Duration::new(1, 0),
+                    rustcommon_metrics::Duration::new(1, 0),
                 )))
             } else {
                 warn!("Unable to initialize waterfall output without fixed duration");

@@ -2,8 +2,8 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
+use rustcommon_metrics::Instant;
 use std::net::SocketAddr;
-use std::time::Instant;
 
 use mio::net::TcpStream;
 use mio::{Interest, Poll, Token};
