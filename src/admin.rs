@@ -19,6 +19,7 @@ pub struct Admin {
     config: Option<Arc<Config>>,
     snapshot: Snapshot,
     connect_heatmap: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>,
+    reconnect_ratelimit: Option<Arc<Ratelimiter>>,
     request_heatmap: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>,
     request_ratelimit: Option<Arc<Ratelimiter>>,
     server: Option<Server>,
@@ -36,6 +37,7 @@ impl Admin {
             config: Some(config),
             snapshot,
             connect_heatmap: None,
+            reconnect_ratelimit: None,
             request_heatmap: None,
             request_ratelimit: None,
             server,
@@ -50,6 +52,7 @@ impl Admin {
             config: None,
             snapshot,
             connect_heatmap: None,
+            reconnect_ratelimit: None,
             request_heatmap: None,
             request_ratelimit: None,
             server,
@@ -58,6 +61,10 @@ impl Admin {
 
     pub fn set_connect_heatmap(&mut self, heatmap: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>) {
         self.connect_heatmap = heatmap;
+    }
+
+    pub fn set_reconnect_ratelimit(&mut self, ratelimiter: Option<Arc<Ratelimiter>>) {
+        self.reconnect_ratelimit = ratelimiter;
     }
 
     pub fn set_request_heatmap(&mut self, heatmap: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>) {
@@ -119,6 +126,20 @@ impl Admin {
                                 }
                             },
                             Method::Put => match request.url() {
+                                "/ratelimit/reconnect" => {
+                                    let mut content = String::new();
+                                    request.as_reader().read_to_string(&mut content).unwrap();
+                                    if let Ok(rate) = content.parse() {
+                                        if let Some(ref ratelimiter) = self.reconnect_ratelimit {
+                                            ratelimiter.set_rate(rate);
+                                            let _ = request.respond(Response::empty(200));
+                                        } else {
+                                            let _ = request.respond(Response::empty(400));
+                                        }
+                                    } else {
+                                        let _ = request.respond(Response::empty(400));
+                                    }
+                                }
                                 "/ratelimit/request" => {
                                     let mut content = String::new();
                                     request.as_reader().read_to_string(&mut content).unwrap();
