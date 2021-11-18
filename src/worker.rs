@@ -280,7 +280,6 @@ impl Worker {
 
             if let Some(token) = self.ready_queue.pop_front() {
                 let reconnect = if let Some(r) = &self.reconnect_ratelimit {
-                    info!("should reconnect?");
                     r.try_wait().is_ok()
                 } else {
                     false

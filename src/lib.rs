@@ -53,7 +53,6 @@ impl Builder {
         };
 
         let reconnect_ratelimit = if let Some(r) = config.connection().reconnect() {
-            println!("reconnect ratelimit: {}", r);
             let r = Ratelimiter::new(threads, 1, r as u64);
             r.set_strategy(config.connection().ratelimit_model());
             Some(Arc::new(r))
