@@ -34,6 +34,7 @@ pub struct Keyspace {
     value_dist: Option<WeightedAliasIndex<usize>>,
     ttl: usize,
     key_type: FieldType,
+    batch_size: usize,
 }
 
 impl Keyspace {
@@ -100,6 +101,10 @@ impl Keyspace {
     pub fn ttl(&self) -> usize {
         self.ttl
     }
+
+    pub fn batch_size(&self) -> usize {
+        self.batch_size
+    }
 }
 
 impl Config {
@@ -150,6 +155,7 @@ impl Config {
                 value_dist,
                 ttl: k.ttl(),
                 key_type: k.key_type(),
+                batch_size: k.batch_size(),
             };
             keyspaces.push(keyspace);
         }

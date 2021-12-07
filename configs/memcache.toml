@@ -26,3 +26,4 @@ commands = [
 length = 3
 values = [ { length = 16 } ]
 ttl = 0
+batch_size = 3

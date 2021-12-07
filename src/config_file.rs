@@ -219,6 +219,8 @@ pub struct Keyspace {
     ttl: usize,
     #[serde(default = "alphanumeric")]
     key_type: FieldType,
+    #[serde(default = "one")]
+    batch_size: usize,
 }
 
 impl Keyspace {
@@ -249,6 +251,10 @@ impl Keyspace {
     pub fn key_type(&self) -> FieldType {
         self.key_type
     }
+
+    pub fn batch_size(&self) -> usize {
+        self.batch_size
+    }
 }
 
 #[derive(Deserialize, Clone, Copy, Eq, PartialEq)]
@@ -259,7 +265,8 @@ pub enum Verb {
     Ping,
     /// Sends a payload with a CRC to an echo server and checks for corruption.
     Echo,
-    /// Simple key-value get which reads the value for a key.
+    /// Simple key-value get which reads the value for one or more keys
+    /// depending on the batch size.
     Get,
     /// Simple key-value set which will overwrite the value for a key.
     Set,
