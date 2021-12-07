@@ -17,6 +17,7 @@ name = "rpc-replay"
 path = "src/replay.rs"
 
 [dependencies]
+backtrace = "0.3.56"
 boring = "~1.0.3"
 bytes = "1.0.0"
 chrono = "0.4.19"
