@@ -11,6 +11,7 @@ use std::net::ToSocketAddrs;
 use zookeeper::*;
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ConfigFile {
     general: General,
     target: Target,
@@ -89,6 +90,7 @@ fn alphanumeric() -> FieldType {
 
 #[derive(Deserialize, Clone, Copy, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
+#[serde(deny_unknown_fields)]
 pub enum FieldType {
     Alphanumeric,
     U32,
@@ -107,6 +109,7 @@ pub enum Protocol {
 }
 
 #[derive(Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct General {
     protocol: Protocol,
     #[serde(default = "default_interval")]
@@ -147,6 +150,7 @@ impl General {
 }
 
 #[derive(Deserialize, Copy, Clone)]
+#[serde(deny_unknown_fields)]
 pub enum RatelimitModel {
     Smooth,
     Uniform,
@@ -154,6 +158,7 @@ pub enum RatelimitModel {
 }
 
 #[derive(Deserialize, Copy, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct Connection {
     #[serde(default = "one")]
     poolsize: usize,
@@ -205,6 +210,7 @@ impl Connection {
 }
 
 #[derive(Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct Keyspace {
     #[serde(default = "one")]
     length: usize,
@@ -282,6 +288,7 @@ pub enum Verb {
 }
 
 #[derive(Deserialize, Copy, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct Command {
     verb: Verb,
     #[serde(default = "one")]
@@ -299,6 +306,7 @@ impl Command {
 }
 
 #[derive(Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct InnerKey {
     length: usize,
     #[serde(default = "one")]
@@ -322,6 +330,7 @@ impl InnerKey {
 }
 
 #[derive(Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct Value {
     length: usize,
     #[serde(default = "one")]
@@ -345,6 +354,7 @@ impl Value {
 }
 
 #[derive(Deserialize, Copy, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct Request {
     timeout: Option<usize>,
     ratelimit: Option<usize>,
@@ -376,6 +386,7 @@ impl Request {
 }
 
 #[derive(Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct Tls {
     ca: String,
     cert: String,
@@ -409,6 +420,7 @@ impl Watcher for ExitWatcher {
 }
 
 #[derive(Deserialize, Default, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct Target {
     endpoints: Vec<String>,
     zk_path: Option<String>,
