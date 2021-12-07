@@ -21,7 +21,7 @@ boring = "~1.0.3"
 bytes = "1.0.0"
 chrono = "0.4.19"
 clap = "2.33.3"
-crc = "1.8.1"
+crc = "2.1.0"
 json = "0.12.4"
 mio = { version = "0.7.0", features = ["os-poll", "tcp"] }
 mpmc = "0.1.6"

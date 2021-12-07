@@ -5,12 +5,15 @@
 use crate::codec::*;
 use crate::config::Keyspace;
 use crate::*;
+use crc::{Crc, CRC_32_ISO_HDLC};
 
 use rand::rngs::SmallRng;
 use rand::{Rng, SeedableRng};
 use rand_distr::Alphanumeric;
 
 use std::borrow::Borrow;
+
+const CRC: Crc<u32> = Crc::<u32>::new(&CRC_32_ISO_HDLC);
 
 pub struct Echo {
     config: Arc<Config>,
@@ -30,9 +33,11 @@ impl Echo {
             .sample_iter(&Alphanumeric)
             .take(keyspace.length())
             .collect::<Vec<u8>>();
-        let crc = crc::crc32::checksum_ieee(&value);
+
+        let mut digest = CRC.digest();
+        digest.update(&value);
         buf.extend_from_slice(&value);
-        buf.put_u32(crc);
+        buf.put_u32(digest.finalize());
         buf.extend_from_slice(b"\r\n");
     }
 }
@@ -54,11 +59,17 @@ impl Codec for Echo {
                 Err(ParseError::Unknown)
             } else {
                 let message = &buf[0..(response_end - 4)];
-                let crc = &buf[(response_end - 4)..response_end];
-                let crc_calc = crc::crc32::checksum_ieee(message);
-                let crc_bytes: [u8; 4] = unsafe { std::mem::transmute(crc_calc.to_be()) };
-                if crc_bytes != crc[..] {
-                    debug!("Response has bad CRC: {:?} != {:?}", crc, crc_bytes);
+                let crc_received = &buf[(response_end - 4)..response_end];
+                let mut digest = CRC.digest();
+                digest.update(message);
+                let crc_calculated = digest.finalize();
+                let crc_calculated: [u8; 4] =
+                    unsafe { std::mem::transmute(crc_calculated.to_be()) };
+                if crc_calculated != crc_received[..] {
+                    debug!(
+                        "Response has bad CRC: {:?} != {:?}",
+                        crc_received, crc_calculated
+                    );
                     metrics::RESPONSE_EX.increment();
                     Err(ParseError::Error)
                 } else {
