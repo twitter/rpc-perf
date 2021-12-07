@@ -26,9 +26,16 @@ impl Memcache {
     }
 
     fn get(rng: &mut SmallRng, keyspace: &Keyspace, buf: &mut BytesMut) {
-        let key = keyspace.generate_key(rng);
         buf.extend_from_slice(b"get ");
-        buf.extend_from_slice(&key);
+
+        for i in 0..keyspace.batch_size() {
+            let key = keyspace.generate_key(rng);
+            buf.extend_from_slice(&key);
+            if i + 1 < keyspace.batch_size() {
+                buf.extend_from_slice(b" ");
+            }
+        }
+
         buf.extend_from_slice(b"\r\n");
     }
 
