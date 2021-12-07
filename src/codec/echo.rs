@@ -2,10 +2,10 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use crc::{Crc, CRC_32_ISO_HDLC};
 use crate::codec::*;
 use crate::config::Keyspace;
 use crate::*;
+use crc::{Crc, CRC_32_ISO_HDLC};
 
 use rand::rngs::SmallRng;
 use rand::{Rng, SeedableRng};
@@ -63,9 +63,13 @@ impl Codec for Echo {
                 let mut digest = CRC.digest();
                 digest.update(message);
                 let crc_calculated = digest.finalize();
-                let crc_calculated: [u8; 4] = unsafe { std::mem::transmute(crc_calculated.to_be()) };
+                let crc_calculated: [u8; 4] =
+                    unsafe { std::mem::transmute(crc_calculated.to_be()) };
                 if crc_calculated != crc_received[..] {
-                    debug!("Response has bad CRC: {:?} != {:?}", crc_received, crc_calculated);
+                    debug!(
+                        "Response has bad CRC: {:?} != {:?}",
+                        crc_received, crc_calculated
+                    );
                     metrics::RESPONSE_EX.increment();
                     Err(ParseError::Error)
                 } else {
