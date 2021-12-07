@@ -21,7 +21,6 @@ ratelimit = 50000
 commands = [
 	{ verb = "get", weight = 12 },
 	{ verb = "set", weight = 3 },
-	{ verb = "delete", weight = 1 },
 ]
 length = 3
 values = [ { length = 16 } ]
