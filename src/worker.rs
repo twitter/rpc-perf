@@ -2,11 +2,9 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use crate::session::TcpStream;
-use std::io::{BufRead, Write};
-use std::net::SocketAddr;
 use crate::codec::*;
 use crate::metrics::*;
+use crate::session::TcpStream;
 use crate::*;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
@@ -14,6 +12,8 @@ use rustcommon_heatmap::AtomicHeatmap;
 use rustcommon_heatmap::AtomicU64;
 use rustcommon_ratelimiter::Ratelimiter;
 use rustcommon_time::Instant;
+use std::io::{BufRead, Write};
+use std::net::SocketAddr;
 
 use crate::config_file::Protocol;
 
@@ -143,9 +143,7 @@ impl Worker {
         let stream = TcpStream::connect(addr)?;
         let mut session = if let Some(tls) = &self.tls {
             match tls.connect("localhost", stream) {
-                Ok(stream) => {
-                    Session::tls_with_capacity(stream, 1024, 1024)
-                }
+                Ok(stream) => Session::tls_with_capacity(stream, 1024, 1024),
                 Err(HandshakeError::WouldBlock(stream)) => {
                     Session::handshaking_with_capacity(stream, 1024, 1024)
                 }

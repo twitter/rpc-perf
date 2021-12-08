@@ -21,10 +21,10 @@ pub use crate::admin::Admin;
 pub use crate::config::Config;
 pub use crate::metrics::*;
 pub use crate::session::{Session, TcpStream};
-use rustcommon_time::Duration;
 use rustcommon_heatmap::AtomicHeatmap;
 use rustcommon_heatmap::AtomicU64;
 use rustcommon_ratelimiter::Ratelimiter;
+use rustcommon_time::Duration;
 
 use std::sync::Arc;
 use std::thread::JoinHandle;

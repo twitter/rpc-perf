@@ -2,12 +2,12 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use std::io::BufRead;
-use std::io::Write;
 use crate::codec::*;
 use crate::config::*;
 use crate::config_file::Verb;
 use crate::*;
+use std::io::BufRead;
+use std::io::Write;
 
 use rand::rngs::SmallRng;
 use rand::SeedableRng;

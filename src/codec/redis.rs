@@ -2,11 +2,11 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use std::io::Write;
 use crate::codec::*;
 use crate::config::*;
 use crate::config_file::{Protocol, Verb};
 use crate::*;
+use std::io::Write;
 use std::io::{BufRead, BufReader};
 
 use rand::rngs::SmallRng;
