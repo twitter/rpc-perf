@@ -517,7 +517,8 @@ impl Worker {
                     .sample_iter(&Alphanumeric)
                     .take(vlen)
                     .collect::<Vec<u8>>();
-                let _ = session.write_all(format!("replace {} 0 {} {}\r\n", key, ttl, vlen).as_bytes());
+                let _ =
+                    session.write_all(format!("replace {} 0 {} {}\r\n", key, ttl, vlen).as_bytes());
                 let _ = session.write_all(&value);
                 let _ = session.write_all(b"\r\n");
                 debug!("replace {} 0 {} {}", key, ttl, vlen);

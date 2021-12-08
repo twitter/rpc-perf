@@ -18,9 +18,7 @@ pub struct TcpStream {
 impl TcpStream {
     pub fn connect(addr: SocketAddr) -> Result<Self, std::io::Error> {
         let stream = mio::net::TcpStream::connect(addr)?;
-        Ok(Self {
-            inner: stream,
-        })
+        Ok(Self { inner: stream })
     }
 
     pub fn shutdown(&self, how: std::net::Shutdown) -> Result<(), std::io::Error> {

@@ -299,7 +299,6 @@ impl Worker {
                             self.register(token).unwrap();
                         }
                         Err(e) => {
-
                             println!("connect error: {:?} {}", addr, e);
                         }
                     }
