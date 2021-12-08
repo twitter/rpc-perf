@@ -356,10 +356,10 @@ impl Snapshot {
             data.push(format!("{}: {}", counter, value));
         }
         for (label, value) in &self.connect_percentiles {
-            data.push(format!("connect/latency/{}: {}", label, value));
+            data.push(format!("connect_latency/{}: {}", label, value));
         }
         for (label, value) in &self.request_percentiles {
-            data.push(format!("response/latency/{}: {}", label, value));
+            data.push(format!("response_latency/{}: {}", label, value));
         }
         data.sort();
         let mut content = data.join("\n");
@@ -375,10 +375,10 @@ impl Snapshot {
             data.push(format!("\"{}\": {}", label, value));
         }
         for (label, value) in &self.connect_percentiles {
-            data.push(format!("\"connect/latency/{}\": {}", label, value));
+            data.push(format!("\"connect_latency/{}\": {}", label, value));
         }
         for (label, value) in &self.request_percentiles {
-            data.push(format!("\"response/latency/{}\": {}", label, value));
+            data.push(format!("\"response_latency/{}\": {}", label, value));
         }
         data.sort();
         let body = data.join(",");
@@ -391,13 +391,21 @@ impl Snapshot {
     pub fn prometheus(&self) -> String {
         let mut data = Vec::new();
         for (counter, value) in &self.counters {
-            data.push(format!("{} {}", counter, value));
+            data.push(format!("# TYPE {} counter\n{} {}", counter, counter, value));
         }
-        for (label, value) in &self.connect_percentiles {
-            data.push(format!("connect/latency/{}: {}", label, value));
+        for (percentile, value) in &self.connect_percentiles {
+            let label = "connect_latency";
+            data.push(format!(
+                "# TYPE {} gauge\n{}{{percentile=\"{}\"}} {}",
+                label, label, percentile, value
+            ));
         }
-        for (label, value) in &self.request_percentiles {
-            data.push(format!("response/latency/{}: {}", label, value));
+        for (percentile, value) in &self.request_percentiles {
+            let label = "response_latency";
+            data.push(format!(
+                "# TYPE {} gauge\n{}{{percentile=\"{}\"}} {}",
+                label, label, percentile, value
+            ));
         }
         data.sort();
         let mut content = data.join("\n");
