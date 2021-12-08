@@ -6,12 +6,12 @@ use crate::codec::*;
 use crate::config::Keyspace;
 use crate::*;
 use crc::{Crc, CRC_32_ISO_HDLC};
+use std::io::BufRead;
+use std::io::Write;
 
 use rand::rngs::SmallRng;
 use rand::{Rng, SeedableRng};
 use rand_distr::Alphanumeric;
-
-use std::borrow::Borrow;
 
 const CRC: Crc<u32> = Crc::<u32>::new(&CRC_32_ISO_HDLC);
 
@@ -28,7 +28,7 @@ impl Echo {
         }
     }
 
-    pub fn echo(rng: &mut SmallRng, keyspace: &Keyspace, buf: &mut BytesMut) {
+    pub fn echo(rng: &mut SmallRng, keyspace: &Keyspace, buf: &mut Session) {
         let value = rng
             .sample_iter(&Alphanumeric)
             .take(keyspace.length())
@@ -36,21 +36,21 @@ impl Echo {
 
         let mut digest = CRC.digest();
         digest.update(&value);
-        buf.extend_from_slice(&value);
-        buf.put_u32(digest.finalize());
-        buf.extend_from_slice(b"\r\n");
+        buf.write_all(&value);
+        buf.write_all(&digest.finalize().to_be_bytes());
+        buf.write_all(b"\r\n");
     }
 }
 
 impl Codec for Echo {
-    fn encode(&mut self, buf: &mut BytesMut) {
+    fn encode(&mut self, buf: &mut Session) {
         let keyspace = self.config.choose_keyspace(&mut self.rng);
         Self::echo(&mut self.rng, keyspace, buf)
     }
 
-    fn decode(&self, buffer: &mut BytesMut) -> Result<(), ParseError> {
+    fn decode(&self, buffer: &mut Session) -> Result<(), ParseError> {
         // no-copy borrow as a slice
-        let buf: &[u8] = (*buffer).borrow();
+        let buf: &[u8] = (*buffer).buffer();
 
         // check if we got a CRLF
         let mut double_byte_windows = buf.windows(2);
@@ -73,7 +73,7 @@ impl Codec for Echo {
                     metrics::RESPONSE_EX.increment();
                     Err(ParseError::Error)
                 } else {
-                    let _ = buffer.split_to(response_end + 2);
+                    let _ = buffer.consume(response_end + 2);
                     Ok(())
                 }
             }

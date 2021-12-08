@@ -4,13 +4,16 @@
 
 use crate::codec::*;
 use crate::metrics::*;
+use crate::session::TcpStream;
 use crate::*;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use rustcommon_heatmap::AtomicHeatmap;
 use rustcommon_heatmap::AtomicU64;
 use rustcommon_ratelimiter::Ratelimiter;
-use std::time::Instant;
+use rustcommon_time::Instant;
+use std::io::{BufRead, Write};
+use std::net::SocketAddr;
 
 use crate::config_file::Protocol;
 
@@ -25,7 +28,7 @@ use std::sync::Arc;
 pub struct Worker {
     codec: Box<dyn Codec>,
     config: Arc<Config>,
-    connect_queue: VecDeque<Token>,
+    connect_queue: VecDeque<SocketAddr>,
     connect_ratelimit: Option<Arc<Ratelimiter>>,
     poll: Poll,
     ready_queue: VecDeque<Token>,
@@ -42,24 +45,24 @@ impl Worker {
         let poll = mio::Poll::new().unwrap();
 
         let connections = config.connection().poolsize() * config.endpoints().len();
-        let mut sessions = Slab::with_capacity(connections);
+        let sessions = Slab::with_capacity(connections);
         let mut connect_queue = VecDeque::with_capacity(connections);
         let ready_queue = VecDeque::with_capacity(connections);
 
         // initialize sessions
         for endpoint in config.endpoints() {
             for _ in 0..config.connection().poolsize() {
-                let mut session = Session::new(endpoint);
-                let entry = sessions.vacant_entry();
-                let token = Token(entry.key());
-                session.set_token(token);
-                entry.insert(session);
-                connect_queue.push_back(token);
+                // let mut session = Session::with_capacity(endpoint);
+                // let entry = sessions.vacant_entry();
+                // let token = Token(entry.key());
+                // session.set_token(token);
+                // entry.insert(session);
+                connect_queue.push_back(endpoint);
             }
         }
 
         // shuffle connect queue
-        let mut tmp: Vec<Token> = connect_queue.drain(0..).collect();
+        let mut tmp: Vec<SocketAddr> = connect_queue.drain(0..).collect();
         let mut rng = thread_rng();
         tmp.shuffle(&mut rng);
         for addr in tmp {
@@ -67,7 +70,7 @@ impl Worker {
         }
 
         // configure tls connector
-        let tls = if let Some(ref tls_config) = config.tls() {
+        let tls = if let Some(tls_config) = config.tls() {
             let mut builder = SslConnector::builder(SslMethod::tls_client())?;
             if !tls_config.verify() {
                 builder.set_verify(SslVerifyMode::NONE);
@@ -136,26 +139,38 @@ impl Worker {
     }
 
     /// Internal function to connect the session
-    fn connect(&mut self, token: Token) -> Result<(), std::io::Error> {
-        let session = get_session_mut!(self, token)?;
-        match session.connect(self.tls.as_ref(), self.config.connection().tcp_nodelay()) {
-            Ok(()) => {
-                CONNECT.increment();
-                Ok(())
+    fn connect(&mut self, addr: SocketAddr) -> Result<Token, std::io::Error> {
+        let stream = TcpStream::connect(addr)?;
+        let mut session = if let Some(tls) = &self.tls {
+            match tls.connect("localhost", stream) {
+                Ok(stream) => Session::tls_with_capacity(stream, 1024, 1024),
+                Err(HandshakeError::WouldBlock(stream)) => {
+                    Session::handshaking_with_capacity(stream, 1024, 1024)
+                }
+                Err(_) => {
+                    return Err(Error::new(ErrorKind::Other, "tls failure"));
+                }
             }
-            Err(e) => {
-                CONNECT_EX.increment();
-                Err(e)
-            }
-        }
+        } else {
+            Session::plain_with_capacity(stream, 1024, 1024)
+        };
+
+        let entry = self.sessions.vacant_entry();
+        let token = Token(entry.key());
+        session.set_token(token);
+        entry.insert(session);
+        Ok(token)
     }
 
     /// Internal function to disconnect the session
     fn disconnect(&mut self, token: Token) -> Result<(), std::io::Error> {
         let session = get_session_mut!(self, token)?;
         let _ = session.deregister(&self.poll);
+        let peer_addr = session.peer_addr();
         session.close();
-        self.connect_queue.push_back(token);
+        if let Ok(addr) = peer_addr {
+            self.connect_queue.push_back(addr);
+        }
         Ok(())
     }
 
@@ -206,7 +221,7 @@ impl Worker {
     fn send_request(&mut self, token: Token) -> Result<(), Error> {
         let session = get_session_mut!(self, token)?;
         REQUEST.increment();
-        self.codec.encode(&mut session.write_buffer);
+        self.codec.encode(session);
         self.reregister(token)
     }
 
@@ -214,14 +229,14 @@ impl Worker {
     fn do_read(&mut self, token: Token) -> Result<(), Error> {
         let session = get_session_mut!(self, token)?;
 
-        match session.read()? {
-            Some(0) => {
+        match session.fill_buf().map(|b| b.len()) {
+            Ok(0) => {
                 // server hangup
                 Err(Error::new(ErrorKind::Other, "server hangup"))
             }
-            Some(_) => {
+            Ok(_) => {
                 // request parsing
-                let response = self.codec.decode(&mut session.read_buffer);
+                let response = self.codec.decode(session);
                 match response {
                     Ok(()) => {
                         RESPONSE.increment();
@@ -240,14 +255,27 @@ impl Worker {
                     },
                 }
             }
-            None => Ok(()),
+            Err(e) => {
+                match e.kind() {
+                    ErrorKind::WouldBlock => {
+                        // spurious read
+                        let _ = self.reregister(token);
+                        Ok(())
+                    }
+                    ErrorKind::Interrupted => self.do_read(token),
+                    _ => {
+                        trace!("error reading for session: {:?} {:?}", session, e);
+                        Err(e)
+                    }
+                }
+            }
         }
     }
 
     /// Handle writing to the session
     fn do_write(&mut self, token: Token) -> Result<(), Error> {
         let session = get_session_mut!(self, token)?;
-        if !session.write_buffer.is_empty() {
+        if !session.write_pending() > 0 {
             session.flush()?;
         }
         Ok(())
@@ -258,23 +286,23 @@ impl Worker {
         let mut events = Events::with_capacity(1024);
 
         loop {
-            if let Some(token) = self.connect_queue.pop_front() {
+            if let Some(addr) = self.connect_queue.pop_front() {
                 let connect = if let Some(r) = &self.connect_ratelimit {
                     r.try_wait().is_ok()
                 } else {
                     true
                 };
                 if connect {
-                    match self.connect(token) {
-                        Ok(()) => {
+                    match self.connect(addr) {
+                        Ok(token) => {
                             self.register(token).unwrap();
                         }
                         Err(e) => {
-                            println!("connect error: {:?} {}", token, e);
+                            println!("connect error: {:?} {}", addr, e);
                         }
                     }
                 } else {
-                    self.connect_queue.push_front(token);
+                    self.connect_queue.push_front(addr);
                 }
             }
 

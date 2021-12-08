@@ -9,6 +9,7 @@ extern crate rustcommon_logger;
 mod macros;
 
 mod admin;
+// mod buffer;
 mod codec;
 mod config;
 mod config_file;
@@ -19,11 +20,11 @@ mod worker;
 pub use crate::admin::Admin;
 pub use crate::config::Config;
 pub use crate::metrics::*;
-pub use crate::session::Session;
-use core::time::Duration;
+pub use crate::session::{Session, TcpStream};
 use rustcommon_heatmap::AtomicHeatmap;
 use rustcommon_heatmap::AtomicU64;
 use rustcommon_ratelimiter::Ratelimiter;
+use rustcommon_time::Duration;
 
 use std::sync::Arc;
 use std::thread::JoinHandle;
@@ -71,14 +72,14 @@ impl Builder {
         let connect_heatmap = Some(Arc::new(AtomicHeatmap::<u64, AtomicU64>::new(
             1_000_000,
             3,
-            config.general().interval(),
+            Duration::from_secs(config.general().interval().as_secs()),
             Duration::from_millis(1000),
         )));
 
         let request_heatmap = Some(Arc::new(AtomicHeatmap::<u64, AtomicU64>::new(
             1_000_000,
             3,
-            config.general().interval(),
+            Duration::from_secs(config.general().interval().as_secs()),
             Duration::from_millis(1000),
         )));
 

@@ -6,6 +6,8 @@ use crate::codec::*;
 use crate::config::*;
 use crate::config_file::Verb;
 use crate::*;
+use std::io::BufRead;
+use std::io::Write;
 
 use rand::rngs::SmallRng;
 use rand::SeedableRng;
@@ -25,34 +27,34 @@ impl Memcache {
         }
     }
 
-    fn get(rng: &mut SmallRng, keyspace: &Keyspace, buf: &mut BytesMut) {
-        buf.extend_from_slice(b"get ");
+    fn get(rng: &mut SmallRng, keyspace: &Keyspace, buf: &mut Session) {
+        buf.write_all(b"get ");
 
         for i in 0..keyspace.batch_size() {
             let key = keyspace.generate_key(rng);
-            buf.extend_from_slice(&key);
+            buf.write_all(&key);
             if i + 1 < keyspace.batch_size() {
-                buf.extend_from_slice(b" ");
+                buf.write_all(b" ");
             }
         }
 
-        buf.extend_from_slice(b"\r\n");
+        buf.write_all(b"\r\n");
     }
 
-    fn set(rng: &mut SmallRng, keyspace: &Keyspace, buf: &mut BytesMut) {
+    fn set(rng: &mut SmallRng, keyspace: &Keyspace, buf: &mut Session) {
         let key = keyspace.generate_key(rng);
         let value = keyspace.generate_value(rng).unwrap_or_else(|| b"".to_vec());
         let ttl = keyspace.ttl();
-        buf.extend_from_slice(b"set ");
-        buf.extend_from_slice(&key);
-        buf.extend_from_slice(format!(" 0 {} {}\r\n", ttl, value.len()).as_bytes());
-        buf.extend_from_slice(&value);
-        buf.extend_from_slice(b"\r\n");
+        buf.write_all(b"set ");
+        buf.write_all(&key);
+        buf.write_all(format!(" 0 {} {}\r\n", ttl, value.len()).as_bytes());
+        buf.write_all(&value);
+        buf.write_all(b"\r\n");
     }
 }
 
 impl Codec for Memcache {
-    fn encode(&mut self, buf: &mut BytesMut) {
+    fn encode(&mut self, buf: &mut Session) {
         let keyspace = self.config.choose_keyspace(&mut self.rng);
         let command = keyspace.choose_command(&mut self.rng);
         match command.verb() {
@@ -67,9 +69,9 @@ impl Codec for Memcache {
         }
     }
 
-    fn decode(&self, buffer: &mut BytesMut) -> Result<(), ParseError> {
+    fn decode(&self, buffer: &mut Session) -> Result<(), ParseError> {
         // no-copy borrow as a slice
-        let buf: &[u8] = (*buffer).borrow();
+        let buf: &[u8] = (*buffer).buffer();
 
         for response in &[
             "STORED\r\n",
@@ -81,23 +83,23 @@ impl Codec for Memcache {
         ] {
             let bytes = response.as_bytes();
             if buf.len() >= bytes.len() && &buf[0..bytes.len()] == bytes {
-                let _ = buffer.split_to(bytes.len());
+                let _ = buffer.consume(bytes.len());
                 return Ok(());
             }
         }
 
         let mut windows = buf.windows(5);
         if let Some(response_end) = windows.position(|w| w == b"END\r\n") {
-            let response = buffer.split_to(response_end + 5);
-            let response_buf: &[u8] = response.borrow();
+            let response = &buf[0..(response_end + 5)];
             let mut start = 0;
-            let mut lines = response_buf.windows(2);
+            let mut lines = response.windows(2);
             while let Some(line_end) = lines.position(|w| w == b"\r\n") {
-                if response_buf.len() >= 5 && &response_buf[start..(start + 5)] == b"VALUE" {
+                if response.len() >= 5 && &response[start..(start + 5)] == b"VALUE" {
                     metrics::RESPONSE_HIT.increment();
                 }
                 start = line_end + 2;
             }
+            buffer.consume(response_end + 5);
             return Ok(());
         }
 

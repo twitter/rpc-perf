@@ -3,9 +3,9 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 use crate::codec::*;
+use crate::Session;
 use crate::*;
-
-use std::borrow::Borrow;
+use std::io::{BufRead, Write};
 
 pub struct Ping;
 
@@ -14,26 +14,26 @@ impl Ping {
         Self
     }
 
-    fn ping(buf: &mut BytesMut) {
-        buf.extend_from_slice(b"PING\r\n");
+    fn ping(buf: &mut Session) {
+        buf.write_all(b"PING\r\n");
     }
 }
 
 impl Codec for Ping {
-    fn encode(&mut self, buf: &mut BytesMut) {
+    fn encode(&mut self, buf: &mut Session) {
         Self::ping(buf)
     }
 
-    fn decode(&self, buffer: &mut BytesMut) -> Result<(), ParseError> {
+    fn decode(&self, buffer: &mut Session) -> Result<(), ParseError> {
         // no-copy borrow as a slice
-        let buf: &[u8] = (*buffer).borrow();
+        let buf: &[u8] = (*buffer).buffer();
 
         // check if we got a CRLF
         let mut double_byte_windows = buf.windows(2);
         if let Some(response_end) = double_byte_windows.position(|w| w == b"\r\n") {
             match &buf[0..response_end] {
                 b"pong" | b"PONG" => {
-                    let _ = buffer.split_to(response_end + 2);
+                    let _ = buffer.consume(response_end + 2);
                     Ok(())
                 }
                 _ => Err(ParseError::Unknown),

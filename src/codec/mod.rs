@@ -2,14 +2,12 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-pub use bytes::BufMut;
-pub use bytes::BytesMut;
-
 mod echo;
 mod memcache;
 mod ping;
 mod redis;
 
+use crate::Session;
 pub use echo::Echo;
 pub use memcache::Memcache;
 pub use ping::Ping;
@@ -23,6 +21,6 @@ pub enum ParseError {
 }
 
 pub trait Codec: Send {
-    fn decode(&self, buf: &mut BytesMut) -> Result<(), ParseError>;
-    fn encode(&mut self, buf: &mut BytesMut);
+    fn decode(&self, buf: &mut Session) -> Result<(), ParseError>;
+    fn encode(&mut self, buf: &mut Session);
 }

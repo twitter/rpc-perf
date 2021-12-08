@@ -16,8 +16,10 @@ use rand::{Rng, RngCore, SeedableRng};
 use rand_distr::Alphanumeric;
 use rustcommon_logger::{Level, Logger};
 use rustcommon_ratelimiter::Ratelimiter;
+use rustcommon_time::{Duration, Instant};
 use slab::Slab;
 use std::io::Read;
+use std::io::Write;
 use zstd::Decoder;
 
 use std::borrow::Borrow;
@@ -25,7 +27,7 @@ use std::collections::VecDeque;
 use std::fs::File;
 use std::io::{BufRead, BufReader, ErrorKind};
 use std::net::{SocketAddr, ToSocketAddrs};
-use std::time::{Duration, Instant};
+// use std::time::{Duration, Instant};
 
 use rpc_perf::*;
 
@@ -292,7 +294,7 @@ impl Controller for SpeedController {
             self.ts_sec = ts;
             // delay if needed
             while now < self.next {
-                std::thread::sleep(Duration::from_micros(100));
+                std::thread::sleep(core::time::Duration::from_micros(100));
                 now = Instant::now();
             }
         }
@@ -446,10 +448,20 @@ impl Worker {
         let mut ready_queue: VecDeque<Token> = VecDeque::with_capacity(poolsize);
 
         for _ in 0..poolsize {
-            let mut session = Session::new(addr);
-            session
-                .connect(tls.as_ref(), false)
-                .expect("failed to connect");
+            let stream = TcpStream::connect(addr).expect("failed to connect");
+            let mut session = if let Some(tls) = tls.as_ref() {
+                match tls.connect("localhost", stream) {
+                    Ok(stream) => Session::tls_with_capacity(stream, 1024, 1024),
+                    Err(HandshakeError::WouldBlock(stream)) => {
+                        Session::handshaking_with_capacity(stream, 1024, 1024)
+                    }
+                    Err(_) => {
+                        panic!("tls failure");
+                    }
+                }
+            } else {
+                Session::plain_with_capacity(stream, 1024, 1024)
+            };
             let entry = sessions.vacant_entry();
             let token = Token(entry.key());
             ready_queue.push_back(token);
@@ -474,16 +486,12 @@ impl Worker {
         match request {
             Request::Get { key } => {
                 REQUEST_GET.increment();
-                session
-                    .write_buffer
-                    .extend_from_slice(format!("get {}\r\n", key).as_bytes());
+                session.write_all(format!("get {}\r\n", key).as_bytes());
                 debug!("get {}", key);
             }
             Request::Gets { key } => {
                 REQUEST_GET.increment();
-                session
-                    .write_buffer
-                    .extend_from_slice(format!("gets {}\r\n", key).as_bytes());
+                session.write_all(format!("gets {}\r\n", key).as_bytes());
                 debug!("get {}", key);
             }
             Request::Set { key, vlen, ttl } => {
@@ -491,11 +499,9 @@ impl Worker {
                     .sample_iter(&Alphanumeric)
                     .take(vlen)
                     .collect::<Vec<u8>>();
-                session
-                    .write_buffer
-                    .extend_from_slice(format!("set {} 0 {} {}\r\n", key, ttl, vlen).as_bytes());
-                session.write_buffer.extend_from_slice(&value);
-                session.write_buffer.extend_from_slice(b"\r\n");
+                session.write_all(format!("set {} 0 {} {}\r\n", key, ttl, vlen).as_bytes());
+                session.write_all(&value);
+                session.write_all(b"\r\n");
                 debug!("set {} 0 {} {}", key, ttl, vlen);
             }
             Request::Add { key, vlen, ttl } => {
@@ -503,11 +509,9 @@ impl Worker {
                     .sample_iter(&Alphanumeric)
                     .take(vlen)
                     .collect::<Vec<u8>>();
-                session
-                    .write_buffer
-                    .extend_from_slice(format!("add {} 0 {} {}\r\n", key, ttl, vlen).as_bytes());
-                session.write_buffer.extend_from_slice(&value);
-                session.write_buffer.extend_from_slice(b"\r\n");
+                session.write_all(format!("add {} 0 {} {}\r\n", key, ttl, vlen).as_bytes());
+                session.write_all(&value);
+                session.write_all(b"\r\n");
                 debug!("add {} 0 {} {}", key, ttl, vlen);
             }
             Request::Replace { key, vlen, ttl } => {
@@ -515,17 +519,13 @@ impl Worker {
                     .sample_iter(&Alphanumeric)
                     .take(vlen)
                     .collect::<Vec<u8>>();
-                session.write_buffer.extend_from_slice(
-                    format!("replace {} 0 {} {}\r\n", key, ttl, vlen).as_bytes(),
-                );
-                session.write_buffer.extend_from_slice(&value);
-                session.write_buffer.extend_from_slice(b"\r\n");
+                session.write_all(format!("replace {} 0 {} {}\r\n", key, ttl, vlen).as_bytes());
+                session.write_all(&value);
+                session.write_all(b"\r\n");
                 debug!("replace {} 0 {} {}", key, ttl, vlen);
             }
             Request::Delete { key } => {
-                session
-                    .write_buffer
-                    .extend_from_slice(format!("delete {}\r\n", key).as_bytes());
+                session.write_all(format!("delete {}\r\n", key).as_bytes());
                 debug!("delete {}", key);
             }
         }
@@ -578,16 +578,13 @@ impl Worker {
 
                 // handle reads
                 if event.is_readable() {
-                    match session.read() {
-                        Ok(None) => {
-                            continue;
-                        }
-                        Ok(Some(0)) => {
+                    match session.fill_buf().map(|b| b.len()) {
+                        Ok(0) => {
                             let _ = session.deregister(&self.poll);
                             session.close();
                             warn!("server hangup");
                         }
-                        Ok(Some(_)) => match decode(&mut session.read_buffer) {
+                        Ok(_) => match decode(session) {
                             Ok(_) => {
                                 RESPONSE.increment();
                                 if let Some(ref heatmap) = self.request_heatmap {
@@ -622,7 +619,7 @@ impl Worker {
                 }
 
                 // handle writes
-                if event.is_writable() && !session.write_buffer.is_empty() {
+                if event.is_writable() && session.write_pending() > 0 {
                     session.flush().expect("flush failed");
                     if session.write_pending() > 0 {
                         let _ = session.reregister(&self.poll);
@@ -650,9 +647,9 @@ pub enum ParseError {
 }
 
 // this is a very barebones memcache parser
-fn decode(buffer: &mut BytesMut) -> Result<(), ParseError> {
+fn decode(buffer: &mut Session) -> Result<(), ParseError> {
     // no-copy borrow as a slice
-    let buf: &[u8] = (*buffer).borrow();
+    let buf: &[u8] = (*buffer).buffer();
 
     for response in &[
         "STORED\r\n",
@@ -664,7 +661,7 @@ fn decode(buffer: &mut BytesMut) -> Result<(), ParseError> {
     ] {
         let bytes = response.as_bytes();
         if buf.len() >= bytes.len() && &buf[0..bytes.len()] == bytes {
-            let _ = buffer.split_to(bytes.len());
+            let _ = buffer.consume(bytes.len());
             return Ok(());
         }
     }
@@ -674,7 +671,7 @@ fn decode(buffer: &mut BytesMut) -> Result<(), ParseError> {
         if response_end > 0 {
             RESPONSE_HIT.increment();
         }
-        let _ = buffer.split_to(response_end + 5);
+        let _ = buffer.consume(response_end + 5);
         return Ok(());
     }
 
