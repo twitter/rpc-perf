@@ -142,7 +142,7 @@ impl Session {
             write_buffer: Buffer::with_capacity(min_capacity),
             min_capacity,
             max_capacity,
-            interest: Interest::READABLE,
+            interest: Interest::WRITABLE,
             timestamp: Instant::now(),
             pending_responses: [0; 256],
             pending_head: 0,
@@ -165,7 +165,11 @@ impl Session {
 
     /// Register the `Session` with the event loop
     pub fn register(&mut self, poll: &Poll) -> Result<(), std::io::Error> {
-        let interest = self.readiness();
+        let interest = if self.is_connecting() {
+            Interest::WRITABLE
+        } else {
+            self.readiness()
+        };
         self.stream.register(poll.registry(), self.token, interest)
     }
 
@@ -295,8 +299,8 @@ impl Session {
                 // requests which specify `NOREPLY`. Since there are no pending
                 // bytes for a zero-length response, we can determine the
                 // latency now.
-                let now = Instant::now();
-                let latency = (now - self.timestamp()).as_nanos() as u64;
+                // let now = Instant::now();
+                // let latency = (now - self.timestamp()).as_nanos() as u64;
                 // REQUEST_LATENCY.increment(now, latency, 1);
             }
             Ordering::Less => {
@@ -398,79 +402,79 @@ impl Write for Session {
         SESSION_SEND.increment();
         match self.stream.write((self.write_buffer).borrow()) {
             Ok(0) => Ok(()),
-            Ok(mut bytes) => {
-                let flushed_bytes = bytes;
+            Ok(bytes) => {
+                // let flushed_bytes = bytes;
                 SESSION_SEND_BYTE.add(bytes as _);
                 self.write_buffer.consume(bytes);
 
                 // NOTE: we expect that the stream flush is essentially a no-op
                 // based on the implementation for `TcpStream`
 
-                let now = Instant::now();
-                let latency = (now - self.timestamp()).as_nanos() as u64;
-                let mut completed = 0;
+                // let now = Instant::now();
+                // let latency = (now - self.timestamp()).as_nanos() as u64;
+                // let mut completed = 0;
 
                 // iterate through the pending response lengths and perform the
                 // bookkeeping to calculate how many have been flushed to the
                 // `TcpStream` in this call of `flush()`
-                while bytes > 0 && self.pending_count > 0 {
-                    // first response out of the buffer
-                    let head = &mut self.pending_responses[self.pending_head];
+                // while bytes > 0 && self.pending_count > 0 {
+                //     // first response out of the buffer
+                //     let head = &mut self.pending_responses[self.pending_head];
 
-                    if bytes >= *head {
-                        // we flushed all (or more) than the first response
-                        bytes -= *head;
-                        *head = 0;
-                        completed += 1;
-                        self.pending_count -= 1;
+                //     if bytes >= *head {
+                //         // we flushed all (or more) than the first response
+                //         bytes -= *head;
+                //         *head = 0;
+                //         completed += 1;
+                //         self.pending_count -= 1;
 
-                        // move the head pointer forward
-                        if self.pending_head + 1 < self.pending_responses.len() {
-                            self.pending_head += 1;
-                        } else {
-                            self.pending_head = 0;
-                        }
-                    } else {
-                        // we only flushed part of the first response
-                        *head -= bytes;
-                        bytes = 0;
-                    }
-                }
+                //         // move the head pointer forward
+                //         if self.pending_head + 1 < self.pending_responses.len() {
+                //             self.pending_head += 1;
+                //         } else {
+                //             self.pending_head = 0;
+                //         }
+                //     } else {
+                //         // we only flushed part of the first response
+                //         *head -= bytes;
+                //         bytes = 0;
+                //     }
+                // }
 
-                match flushed_bytes.cmp(&self.pending_bytes) {
-                    Ordering::Less => {
-                        // The buffer is not completely flushed to the
-                        // underlying stream, we will still have more pending
-                        // bytes.
-                        self.pending_bytes -= flushed_bytes;
-                    }
-                    Ordering::Equal => {
-                        // The buffer is completely flushed. We have no more
-                        // pending bytes.
-                        self.pending_bytes = 0;
-                    }
-                    Ordering::Greater => {
-                        // This indicates that the tracking is off. Potentially
-                        // due to a protocol implementation that failed to
-                        // finalize some response.
-                        //
-                        // NOTE: this does not indicate corruption of the buffer
-                        // and only indicates some issue with the pending
-                        // response tracking used to calculate latencies. This
-                        // path is an attempt to recover and resume tracking by
-                        // setting the pending bytes to the current write buffer
-                        // length.
-                        error!(
-                            "Session flushed {} bytes, but only had {} pending bytes to track",
-                            flushed_bytes, self.pending_bytes
-                        );
-                        self.pending_bytes = self.write_pending();
+                // match flushed_bytes.cmp(&self.pending_bytes) {
+                //     Ordering::Less => {
+                //         // The buffer is not completely flushed to the
+                //         // underlying stream, we will still have more pending
+                //         // bytes.
+                //         self.pending_bytes -= flushed_bytes;
+                //     }
+                //     Ordering::Equal => {
+                //         // The buffer is completely flushed. We have no more
+                //         // pending bytes.
+                //         self.pending_bytes = 0;
+                //     }
+                //     Ordering::Greater => {
+                //         // This indicates that the tracking is off. Potentially
+                //         // due to a protocol implementation that failed to
+                //         // finalize some response.
+                //         //
+                //         // NOTE: this does not indicate corruption of the buffer
+                //         // and only indicates some issue with the pending
+                //         // response tracking used to calculate latencies. This
+                //         // path is an attempt to recover and resume tracking by
+                //         // setting the pending bytes to the current write buffer
+                //         // length.
+                //         // error!(
+                //         //     "Session flushed {} bytes, but only had {} pending bytes to track",
+                //         //     flushed_bytes, self.pending_bytes
+                //         // );
+                //         self.pending_bytes = self.write_pending();
 
-                        // If it's a debug build, we will also assert that this
-                        // is unexpected.
-                        debug_assert!(false);
-                    }
-                }
+                //         // If it's a debug build, we will also assert that this
+                //         // is unexpected.
+                //         // debug_assert!(false);
+                //     }
+                // }
 
                 // Increment the histogram with the calculated latency.
                 // REQUEST_LATENCY.increment(now, latency, completed);

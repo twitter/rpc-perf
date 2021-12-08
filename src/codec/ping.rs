@@ -15,7 +15,7 @@ impl Ping {
     }
 
     fn ping(buf: &mut Session) {
-        buf.write_all(b"PING\r\n");
+        let _ = buf.write_all(b"PING\r\n");
     }
 }
 

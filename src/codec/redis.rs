@@ -46,22 +46,22 @@ impl Redis {
     fn command(buf: &mut Session, mode: &Mode, command: &str, args: &[&[u8]]) {
         match mode {
             Mode::Inline => {
-                buf.write_all(command.to_string().as_bytes());
+                let _ = buf.write_all(command.to_string().as_bytes());
                 for arg in args {
-                    buf.write_all(b" ");
-                    buf.write_all(arg);
+                    let _ = buf.write_all(b" ");
+                    let _ = buf.write_all(arg);
                 }
-                buf.write_all(b"\r\n");
+                let _ = buf.write_all(b"\r\n");
             }
             Mode::Resp => {
-                buf.write_all(
+                let _ = buf.write_all(
                     format!("*{}\r\n${}\r\n{}", 1 + args.len(), command.len(), command).as_bytes(),
                 );
                 for arg in args {
-                    buf.write_all(format!("\r\n${}\r\n", arg.len()).as_bytes());
-                    buf.write_all(arg);
+                    let _ = buf.write_all(format!("\r\n${}\r\n", arg.len()).as_bytes());
+                    let _ = buf.write_all(arg);
                 }
-                buf.write_all(b"\r\n");
+                let _ = buf.write_all(b"\r\n");
             }
         }
     }

@@ -19,12 +19,11 @@ path = "src/replay.rs"
 [dependencies]
 backtrace = "0.3.56"
 boring = "~1.0.3"
-bytes = "1.0.0"
 chrono = "0.4.19"
 clap = "2.33.3"
 crc = "2.1.0"
 json = "0.12.4"
-mio = { version = "0.7.0", features = ["os-poll", "tcp"] }
+mio = { version = "0.8.0", features = ["os-poll", "net"] }
 mpmc = "0.1.6"
 rand = { version = "0.8.0", features = ["small_rng"] }
 rand_xoshiro = { version = "0.6.0" }

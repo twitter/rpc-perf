@@ -140,6 +140,7 @@ impl Worker {
 
     /// Internal function to connect the session
     fn connect(&mut self, addr: SocketAddr) -> Result<Token, std::io::Error> {
+        CONNECT.increment();
         let stream = TcpStream::connect(addr)?;
         let mut session = if let Some(tls) = &self.tls {
             match tls.connect("localhost", stream) {
@@ -298,6 +299,7 @@ impl Worker {
                             self.register(token).unwrap();
                         }
                         Err(e) => {
+
                             println!("connect error: {:?} {}", addr, e);
                         }
                     }
@@ -381,8 +383,11 @@ impl Worker {
                 }
 
                 if event.is_writable() {
+                    trace!("got writable for token: {:?}", token);
                     if self.is_connecting(token).unwrap() {
                         self.connected(token).unwrap();
+                        OPEN.increment();
+                        SESSION.increment();
                         if let Ok(prev) = self.timestamp(token) {
                             if let Some(ref heatmap) = self.connect_heatmap {
                                 let now = Instant::now();
