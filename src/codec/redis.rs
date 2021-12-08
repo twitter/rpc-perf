@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
+use std::io::Write;
 use crate::codec::*;
 use crate::config::*;
 use crate::config_file::{Protocol, Verb};
@@ -9,10 +10,9 @@ use crate::*;
 use std::io::{BufRead, BufReader};
 
 use rand::rngs::SmallRng;
-use rand::{Rng, SeedableRng};
-use rand_distr::Alphanumeric;
+use rand::SeedableRng;
+// use rand_distr::Alphanumeric;
 
-use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::str;
 
@@ -43,35 +43,35 @@ impl Redis {
         }
     }
 
-    fn command(buf: &mut BytesMut, mode: &Mode, command: &str, args: &[&[u8]]) {
+    fn command(buf: &mut Session, mode: &Mode, command: &str, args: &[&[u8]]) {
         match mode {
             Mode::Inline => {
-                buf.extend_from_slice(command.to_string().as_bytes());
+                buf.write_all(command.to_string().as_bytes());
                 for arg in args {
-                    buf.extend_from_slice(b" ");
-                    buf.extend_from_slice(arg);
+                    buf.write_all(b" ");
+                    buf.write_all(arg);
                 }
-                buf.extend_from_slice(b"\r\n");
+                buf.write_all(b"\r\n");
             }
             Mode::Resp => {
-                buf.extend_from_slice(
+                buf.write_all(
                     format!("*{}\r\n${}\r\n{}", 1 + args.len(), command.len(), command).as_bytes(),
                 );
                 for arg in args {
-                    buf.extend_from_slice(format!("\r\n${}\r\n", arg.len()).as_bytes());
-                    buf.extend_from_slice(arg);
+                    buf.write_all(format!("\r\n${}\r\n", arg.len()).as_bytes());
+                    buf.write_all(arg);
                 }
-                buf.extend_from_slice(b"\r\n");
+                buf.write_all(b"\r\n");
             }
         }
     }
 
-    fn get(rng: &mut SmallRng, mode: &Mode, keyspace: &Keyspace, buf: &mut BytesMut) {
+    fn get(rng: &mut SmallRng, mode: &Mode, keyspace: &Keyspace, buf: &mut Session) {
         let key = keyspace.generate_key(rng);
         Redis::command(buf, mode, "get", &[&key]);
     }
 
-    fn set(rng: &mut SmallRng, mode: &Mode, keyspace: &Keyspace, buf: &mut BytesMut) {
+    fn set(rng: &mut SmallRng, mode: &Mode, keyspace: &Keyspace, buf: &mut Session) {
         let command = "set";
         let key = keyspace.generate_key(rng);
         let value = keyspace.generate_value(rng).unwrap_or_else(|| b"".to_vec());
@@ -88,12 +88,12 @@ impl Redis {
         }
     }
 
-    fn del(rng: &mut SmallRng, mode: &Mode, keyspace: &Keyspace, buf: &mut BytesMut) {
+    fn del(rng: &mut SmallRng, mode: &Mode, keyspace: &Keyspace, buf: &mut Session) {
         let key = keyspace.generate_key(rng);
         Redis::command(buf, mode, "del", &[&key]);
     }
 
-    fn hget(rng: &mut SmallRng, mode: &Mode, keyspace: &Keyspace, buf: &mut BytesMut) {
+    fn hget(rng: &mut SmallRng, mode: &Mode, keyspace: &Keyspace, buf: &mut Session) {
         let command = "hget";
         let key = keyspace.generate_key(rng);
         let field = keyspace
@@ -102,7 +102,7 @@ impl Redis {
         Redis::command(buf, mode, command, &[&key, &field]);
     }
 
-    fn hset(rng: &mut SmallRng, mode: &Mode, keyspace: &Keyspace, buf: &mut BytesMut) {
+    fn hset(rng: &mut SmallRng, mode: &Mode, keyspace: &Keyspace, buf: &mut Session) {
         let command = "hset";
         let key = keyspace.generate_key(rng);
         let field = keyspace
@@ -112,7 +112,7 @@ impl Redis {
         Redis::command(buf, mode, command, &[&key, &field, &value]);
     }
 
-    fn hsetnx(rng: &mut SmallRng, mode: &Mode, keyspace: &Keyspace, buf: &mut BytesMut) {
+    fn hsetnx(rng: &mut SmallRng, mode: &Mode, keyspace: &Keyspace, buf: &mut Session) {
         let command = "hsetnx";
         let key = keyspace.generate_key(rng);
         let field = keyspace
@@ -124,7 +124,7 @@ impl Redis {
 }
 
 impl Codec for Redis {
-    fn encode(&mut self, buf: &mut BytesMut) {
+    fn encode(&mut self, buf: &mut Session) {
         let keyspace = self.config.choose_keyspace(&mut self.rng);
         let command = keyspace.choose_command(&mut self.rng);
         match command.verb() {
@@ -146,9 +146,9 @@ impl Codec for Redis {
         }
     }
 
-    fn decode(&self, buffer: &mut BytesMut) -> Result<(), ParseError> {
+    fn decode(&self, buffer: &mut Session) -> Result<(), ParseError> {
         // no-copy borrow as a slice
-        let buf: &[u8] = (*buffer).borrow();
+        let buf: &[u8] = (*buffer).buffer();
 
         let end = &buf[buf.len() - 2..buf.len()];
 
@@ -168,7 +168,7 @@ impl Codec for Redis {
                     match str::from_utf8(msg) {
                         Ok("OK") | Ok("PONG") => {
                             let response_end = buf.len();
-                            let _ = buffer.split_to(response_end);
+                            let _ = buffer.consume(response_end);
                             Ok(())
                         }
                         _ => Err(ParseError::Unknown),
@@ -196,7 +196,7 @@ impl Codec for Redis {
                 match str::from_utf8(msg) {
                     Ok("-1") => {
                         let response_end = buf.len();
-                        let _ = buffer.split_to(response_end);
+                        let _ = buffer.consume(response_end);
                         Ok(())
                     }
                     Ok(_) => {
@@ -212,7 +212,7 @@ impl Codec for Redis {
                                     Ordering::Less => Err(ParseError::Incomplete),
                                     Ordering::Equal => {
                                         let response_end = buf.len();
-                                        let _ = buffer.split_to(response_end);
+                                        let _ = buffer.consume(response_end);
                                         metrics::RESPONSE_HIT.increment();
                                         Ok(())
                                     }
@@ -231,7 +231,7 @@ impl Codec for Redis {
                 match str::from_utf8(msg) {
                     Ok("-1") => {
                         let response_end = buf.len();
-                        let _ = buffer.split_to(response_end);
+                        let _ = buffer.consume(response_end);
                         Ok(())
                     }
                     Ok(_) => {
