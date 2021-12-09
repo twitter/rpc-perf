@@ -2,10 +2,10 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use rustcommon_metrics::Duration;
-use rustcommon_metrics::Relaxed;
-use rustcommon_metrics::Heatmap;
 use rustcommon_metrics::metric;
+use rustcommon_metrics::Duration;
+use rustcommon_metrics::Heatmap;
+use rustcommon_metrics::Relaxed;
 
 pub use rustcommon_metrics::{Counter, Gauge};
 
