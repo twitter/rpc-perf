@@ -131,16 +131,16 @@ impl Worker {
         let stream = TcpStream::connect(addr)?;
         let mut session = if let Some(tls) = &self.tls {
             match tls.connect("localhost", stream) {
-                Ok(stream) => Session::tls_with_capacity(stream, 1024, 512*1024),
+                Ok(stream) => Session::tls_with_capacity(stream, 1024, 512 * 1024),
                 Err(HandshakeError::WouldBlock(stream)) => {
-                    Session::handshaking_with_capacity(stream, 1024, 512*1024)
+                    Session::handshaking_with_capacity(stream, 1024, 512 * 1024)
                 }
                 Err(_) => {
                     return Err(Error::new(ErrorKind::Other, "tls failure"));
                 }
             }
         } else {
-            Session::plain_with_capacity(stream, 1024, 512*1024)
+            Session::plain_with_capacity(stream, 1024, 512 * 1024)
         };
 
         let entry = self.sessions.vacant_entry();

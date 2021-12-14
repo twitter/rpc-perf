@@ -454,16 +454,16 @@ impl Worker {
             let stream = TcpStream::connect(addr).expect("failed to connect");
             let mut session = if let Some(tls) = tls.as_ref() {
                 match tls.connect("localhost", stream) {
-                    Ok(stream) => Session::tls_with_capacity(stream, 1024, 512*1024),
+                    Ok(stream) => Session::tls_with_capacity(stream, 1024, 512 * 1024),
                     Err(HandshakeError::WouldBlock(stream)) => {
-                        Session::handshaking_with_capacity(stream, 1024, 512*1024)
+                        Session::handshaking_with_capacity(stream, 1024, 512 * 1024)
                     }
                     Err(_) => {
                         panic!("tls failure");
                     }
                 }
             } else {
-                Session::plain_with_capacity(stream, 1024, 512*1024)
+                Session::plain_with_capacity(stream, 1024, 512 * 1024)
             };
             let entry = sessions.vacant_entry();
             let token = Token(entry.key());
