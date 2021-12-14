@@ -8,6 +8,7 @@
 extern crate rustcommon_logger;
 
 use boring::ssl::*;
+use boring::x509::X509;
 use clap::{App, Arg};
 use mio::{Events, Poll, Token};
 use mpmc::Queue;
@@ -104,7 +105,7 @@ fn main() {
             Arg::with_name("tls-chain")
                 .long("tls-chain")
                 .value_name("FILE")
-                .help("TLS root cert chain")
+                .help("TLS certificate chain")
                 .takes_value(true),
         )
         .arg(
@@ -158,11 +159,15 @@ fn main() {
             .expect("failed to initialize TLS client");
         builder.set_verify(SslVerifyMode::NONE);
         builder
-            .set_ca_file(chain.unwrap())
-            .expect("failed to set TLS CA chain");
-        builder
             .set_certificate_file(cert.unwrap(), SslFiletype::PEM)
             .expect("failed to set TLS cert");
+        let pem = std::fs::read(chain.unwrap()).expect("failed to read certificate chain");
+        let chain = X509::stack_from_pem(&pem).expect("bad certificate chain");
+        for cert in chain {
+            builder
+                .add_extra_chain_cert(cert)
+                .expect("bad certificate in chain");
+        }
         builder
             .set_private_key_file(key.unwrap(), SslFiletype::PEM)
             .expect("failed to set TLS key");
@@ -449,16 +454,16 @@ impl Worker {
             let stream = TcpStream::connect(addr).expect("failed to connect");
             let mut session = if let Some(tls) = tls.as_ref() {
                 match tls.connect("localhost", stream) {
-                    Ok(stream) => Session::tls_with_capacity(stream, 1024, 1024),
+                    Ok(stream) => Session::tls_with_capacity(stream, 1024, 512 * 1024),
                     Err(HandshakeError::WouldBlock(stream)) => {
-                        Session::handshaking_with_capacity(stream, 1024, 1024)
+                        Session::handshaking_with_capacity(stream, 1024, 512 * 1024)
                     }
                     Err(_) => {
                         panic!("tls failure");
                     }
                 }
             } else {
-                Session::plain_with_capacity(stream, 1024, 1024)
+                Session::plain_with_capacity(stream, 1024, 512 * 1024)
             };
             let entry = sessions.vacant_entry();
             let token = Token(entry.key());
@@ -529,9 +534,7 @@ impl Worker {
             }
         }
         let _ = session.flush();
-        if session.write_pending() > 0 {
-            let _ = session.reregister(&self.poll);
-        }
+        let _ = session.reregister(&self.poll);
     }
 
     pub fn run(&mut self) {
@@ -609,10 +612,10 @@ impl Worker {
                                 warn!("parse error");
                             }
                         },
-                        Err(_) => {
+                        Err(e) => {
                             let _ = session.deregister(&self.poll);
                             session.close();
-                            warn!("read error");
+                            warn!("read error: {}", e);
                         }
                     }
                 }
@@ -649,6 +652,8 @@ pub enum ParseError {
 fn decode(buffer: &mut Session) -> Result<(), ParseError> {
     // no-copy borrow as a slice
     let buf: &[u8] = (*buffer).buffer();
+
+    debug!("buffer content: {:?}", buf);
 
     for response in &[
         "STORED\r\n",

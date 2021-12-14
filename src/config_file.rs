@@ -388,23 +388,28 @@ impl Request {
 #[derive(Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct Tls {
-    ca: String,
-    cert: String,
-    key: String,
+    ca_file: Option<String>,
+    certificate: Option<String>,
+    certificate_chain: Option<String>,
+    private_key: Option<String>,
     verify: bool,
 }
 
 impl Tls {
-    pub fn ca(&self) -> String {
-        self.ca.clone()
+    pub fn ca_file(&self) -> Option<String> {
+        self.ca_file.clone()
     }
 
-    pub fn cert(&self) -> String {
-        self.cert.clone()
+    pub fn certificate(&self) -> Option<String> {
+        self.certificate.clone()
     }
 
-    pub fn key(&self) -> String {
-        self.key.clone()
+    pub fn certificate_chain(&self) -> Option<String> {
+        self.certificate_chain.clone()
+    }
+
+    pub fn private_key(&self) -> Option<String> {
+        self.private_key.clone()
     }
 
     pub fn verify(&self) -> bool {

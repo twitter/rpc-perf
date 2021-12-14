@@ -3,9 +3,11 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 use crate::codec::*;
+use crate::config_file::Tls;
 use crate::metrics::*;
 use crate::session::TcpStream;
 use crate::*;
+use boring::x509::X509;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use rustcommon_heatmap::AtomicHeatmap;
@@ -27,7 +29,6 @@ use std::sync::Arc;
 
 pub struct Worker {
     codec: Box<dyn Codec>,
-    config: Arc<Config>,
     connect_queue: VecDeque<SocketAddr>,
     connect_ratelimit: Option<Arc<Ratelimiter>>,
     poll: Poll,
@@ -52,11 +53,6 @@ impl Worker {
         // initialize sessions
         for endpoint in config.endpoints() {
             for _ in 0..config.connection().poolsize() {
-                // let mut session = Session::with_capacity(endpoint);
-                // let entry = sessions.vacant_entry();
-                // let token = Token(entry.key());
-                // session.set_token(token);
-                // entry.insert(session);
                 connect_queue.push_back(endpoint);
             }
         }
@@ -71,15 +67,7 @@ impl Worker {
 
         // configure tls connector
         let tls = if let Some(tls_config) = config.tls() {
-            let mut builder = SslConnector::builder(SslMethod::tls_client())?;
-            if !tls_config.verify() {
-                builder.set_verify(SslVerifyMode::NONE);
-            }
-            builder.set_ca_file(tls_config.ca())?;
-            builder.set_certificate_file(tls_config.cert(), SslFiletype::PEM)?;
-            builder.set_private_key_file(tls_config.key(), SslFiletype::PEM)?;
-            let connector = builder.build();
-            Some(connector)
+            ssl_connector(tls_config).expect("bad tls config")
         } else {
             None
         };
@@ -96,7 +84,6 @@ impl Worker {
 
         // return the worker
         Ok(Worker {
-            config,
             poll,
             connect_queue,
             connect_ratelimit: None,
@@ -144,16 +131,16 @@ impl Worker {
         let stream = TcpStream::connect(addr)?;
         let mut session = if let Some(tls) = &self.tls {
             match tls.connect("localhost", stream) {
-                Ok(stream) => Session::tls_with_capacity(stream, 1024, 1024),
+                Ok(stream) => Session::tls_with_capacity(stream, 1024, 512 * 1024),
                 Err(HandshakeError::WouldBlock(stream)) => {
-                    Session::handshaking_with_capacity(stream, 1024, 1024)
+                    Session::handshaking_with_capacity(stream, 1024, 512 * 1024)
                 }
                 Err(_) => {
                     return Err(Error::new(ErrorKind::Other, "tls failure"));
                 }
             }
         } else {
-            Session::plain_with_capacity(stream, 1024, 1024)
+            Session::plain_with_capacity(stream, 1024, 512 * 1024)
         };
 
         let entry = self.sessions.vacant_entry();
@@ -226,7 +213,7 @@ impl Worker {
         REQUEST.increment();
         self.codec.encode(session);
         session.set_timestamp(now_precise());
-        session.flush();
+        let _ = session.flush();
         if session.write_pending() > 0 {
             self.reregister(token)
         } else {
@@ -419,4 +406,84 @@ impl Worker {
             }
         }
     }
+}
+
+pub fn ssl_connector(config: &Tls) -> Result<Option<SslConnector>, std::io::Error> {
+    let mut builder = SslConnector::builder(SslMethod::tls_client())?;
+    if !config.verify() {
+        builder.set_verify(SslVerifyMode::NONE);
+    }
+
+    // we use xor here to check if we have an under-specified tls configuration
+    if config.private_key().is_some()
+        ^ (config.certificate_chain().is_some() || config.certificate().is_some())
+    {
+        return Err(Error::new(ErrorKind::Other, "incomplete tls configuration"));
+    }
+
+    // load the private key
+    //
+    // NOTE: this is required, so we return `Ok(None)` if it is not specified
+    if let Some(f) = config.private_key() {
+        builder
+            .set_private_key_file(f, SslFiletype::PEM)
+            .map_err(|_| Error::new(ErrorKind::Other, "bad private key"))?;
+    } else {
+        return Ok(None);
+    }
+
+    // load the ca file
+    //
+    // NOTE: this is optional, so we do not return `Ok(None)` when it has not
+    // been specified
+    if let Some(f) = config.ca_file() {
+        builder
+            .set_ca_file(f)
+            .map_err(|_| Error::new(ErrorKind::Other, "bad ca file"))?;
+    }
+
+    match (config.certificate_chain(), config.certificate()) {
+        (Some(chain), Some(cert)) => {
+            // assume we have the leaf in a standalone file, and the
+            // intermediates + root in another file
+
+            // first load the leaf
+            builder
+                .set_certificate_file(cert, SslFiletype::PEM)
+                .map_err(|_| Error::new(ErrorKind::Other, "bad certificate file"))?;
+
+            // append the rest of the chain
+            let pem = std::fs::read(chain)
+                .map_err(|_| Error::new(ErrorKind::Other, "failed to read certificate chain"))?;
+            let chain = X509::stack_from_pem(&pem)
+                .map_err(|_| Error::new(ErrorKind::Other, "bad certificate chain"))?;
+            for cert in chain {
+                builder
+                    .add_extra_chain_cert(cert)
+                    .map_err(|_| Error::new(ErrorKind::Other, "bad certificate in chain"))?;
+            }
+        }
+        (Some(chain), None) => {
+            // assume we have a complete chain: leaf + intermediates + root in
+            // one file
+
+            // load the entire chain
+            builder
+                .set_certificate_chain_file(chain)
+                .map_err(|_| Error::new(ErrorKind::Other, "bad certificate chain"))?;
+        }
+        (None, Some(cert)) => {
+            // this will just load the leaf certificate from the file
+            builder
+                .set_certificate_file(cert, SslFiletype::PEM)
+                .map_err(|_| Error::new(ErrorKind::Other, "bad certificate file"))?;
+        }
+        (None, None) => {
+            // if we have neither a chain nor a leaf cert to load, we return no
+            // ssl context
+            return Ok(None);
+        }
+    }
+
+    Ok(Some(builder.build()))
 }
