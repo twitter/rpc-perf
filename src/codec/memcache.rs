@@ -12,8 +12,6 @@ use std::io::Write;
 use rand::rngs::SmallRng;
 use rand::SeedableRng;
 
-use std::borrow::Borrow;
-
 pub struct Memcache {
     config: Arc<Config>,
     rng: SmallRng,
@@ -28,28 +26,28 @@ impl Memcache {
     }
 
     fn get(rng: &mut SmallRng, keyspace: &Keyspace, buf: &mut Session) {
-        buf.write_all(b"get ");
+        let _ = buf.write_all(b"get ");
 
         for i in 0..keyspace.batch_size() {
             let key = keyspace.generate_key(rng);
-            buf.write_all(&key);
+            let _ = buf.write_all(&key);
             if i + 1 < keyspace.batch_size() {
-                buf.write_all(b" ");
+                let _ = buf.write_all(b" ");
             }
         }
 
-        buf.write_all(b"\r\n");
+        let _ = buf.write_all(b"\r\n");
     }
 
     fn set(rng: &mut SmallRng, keyspace: &Keyspace, buf: &mut Session) {
         let key = keyspace.generate_key(rng);
         let value = keyspace.generate_value(rng).unwrap_or_else(|| b"".to_vec());
         let ttl = keyspace.ttl();
-        buf.write_all(b"set ");
-        buf.write_all(&key);
-        buf.write_all(format!(" 0 {} {}\r\n", ttl, value.len()).as_bytes());
-        buf.write_all(&value);
-        buf.write_all(b"\r\n");
+        let _ = buf.write_all(b"set ");
+        let _ = buf.write_all(&key);
+        let _ = buf.write_all(format!(" 0 {} {}\r\n", ttl, value.len()).as_bytes());
+        let _ = buf.write_all(&value);
+        let _ = buf.write_all(b"\r\n");
     }
 }
 

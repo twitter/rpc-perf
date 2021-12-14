@@ -20,7 +20,7 @@ fn main() {
     // initialize logging
     Logger::new()
         .label("rpc-perf")
-        .level(Level::Debug)
+        .level(Level::Info)
         .init()
         .expect("Failed to initialize logger");
 

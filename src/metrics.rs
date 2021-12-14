@@ -3,6 +3,9 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 use rustcommon_metrics::metric;
+use rustcommon_metrics::Duration;
+use rustcommon_metrics::Heatmap;
+use rustcommon_metrics::Relaxed;
 
 pub use rustcommon_metrics::{Counter, Gauge};
 
@@ -41,6 +44,12 @@ pub static RESPONSE_EX: Counter = Counter::new();
 /// 'hit' responses for hitrate calculations
 #[metric(name = "response_hit")]
 pub static RESPONSE_HIT: Counter = Counter::new();
+
+/// distribution of response latencies
+// #[metric(name = "response_latency")]
+// pub static RESPONSE_LATENCY: Relaxed<Heatmap> = Relaxed::new(||
+//     Heatmap::new(1_000_000_000, 3, Duration::from_secs(60), Duration::from_secs(1))
+// );
 
 /// Number of closed connections.
 #[metric(name = "close")]

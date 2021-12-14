@@ -8,7 +8,6 @@
 extern crate rustcommon_logger;
 
 use boring::ssl::*;
-use bytes::BytesMut;
 use clap::{App, Arg};
 use mio::{Events, Poll, Token};
 use mpmc::Queue;
@@ -22,7 +21,6 @@ use std::io::Read;
 use std::io::Write;
 use zstd::Decoder;
 
-use std::borrow::Borrow;
 use std::collections::VecDeque;
 use std::fs::File;
 use std::io::{BufRead, BufReader, ErrorKind};
@@ -486,12 +484,12 @@ impl Worker {
         match request {
             Request::Get { key } => {
                 REQUEST_GET.increment();
-                session.write_all(format!("get {}\r\n", key).as_bytes());
+                let _ = session.write_all(format!("get {}\r\n", key).as_bytes());
                 debug!("get {}", key);
             }
             Request::Gets { key } => {
                 REQUEST_GET.increment();
-                session.write_all(format!("gets {}\r\n", key).as_bytes());
+                let _ = session.write_all(format!("gets {}\r\n", key).as_bytes());
                 debug!("get {}", key);
             }
             Request::Set { key, vlen, ttl } => {
@@ -499,9 +497,9 @@ impl Worker {
                     .sample_iter(&Alphanumeric)
                     .take(vlen)
                     .collect::<Vec<u8>>();
-                session.write_all(format!("set {} 0 {} {}\r\n", key, ttl, vlen).as_bytes());
-                session.write_all(&value);
-                session.write_all(b"\r\n");
+                let _ = session.write_all(format!("set {} 0 {} {}\r\n", key, ttl, vlen).as_bytes());
+                let _ = session.write_all(&value);
+                let _ = session.write_all(b"\r\n");
                 debug!("set {} 0 {} {}", key, ttl, vlen);
             }
             Request::Add { key, vlen, ttl } => {
@@ -509,9 +507,9 @@ impl Worker {
                     .sample_iter(&Alphanumeric)
                     .take(vlen)
                     .collect::<Vec<u8>>();
-                session.write_all(format!("add {} 0 {} {}\r\n", key, ttl, vlen).as_bytes());
-                session.write_all(&value);
-                session.write_all(b"\r\n");
+                let _ = session.write_all(format!("add {} 0 {} {}\r\n", key, ttl, vlen).as_bytes());
+                let _ = session.write_all(&value);
+                let _ = session.write_all(b"\r\n");
                 debug!("add {} 0 {} {}", key, ttl, vlen);
             }
             Request::Replace { key, vlen, ttl } => {
@@ -519,13 +517,14 @@ impl Worker {
                     .sample_iter(&Alphanumeric)
                     .take(vlen)
                     .collect::<Vec<u8>>();
-                session.write_all(format!("replace {} 0 {} {}\r\n", key, ttl, vlen).as_bytes());
-                session.write_all(&value);
-                session.write_all(b"\r\n");
+                let _ =
+                    session.write_all(format!("replace {} 0 {} {}\r\n", key, ttl, vlen).as_bytes());
+                let _ = session.write_all(&value);
+                let _ = session.write_all(b"\r\n");
                 debug!("replace {} 0 {} {}", key, ttl, vlen);
             }
             Request::Delete { key } => {
-                session.write_all(format!("delete {}\r\n", key).as_bytes());
+                let _ = session.write_all(format!("delete {}\r\n", key).as_bytes());
                 debug!("delete {}", key);
             }
         }

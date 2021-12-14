@@ -36,9 +36,9 @@ impl Echo {
 
         let mut digest = CRC.digest();
         digest.update(&value);
-        buf.write_all(&value);
-        buf.write_all(&digest.finalize().to_be_bytes());
-        buf.write_all(b"\r\n");
+        let _ = buf.write_all(&value);
+        let _ = buf.write_all(&digest.finalize().to_be_bytes());
+        let _ = buf.write_all(b"\r\n");
     }
 }
 

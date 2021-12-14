@@ -58,7 +58,7 @@ impl Buffer {
     /// space than requested to avoid frequent allocations. If the buffer
     /// already has sufficient available capacity, this is a no-op.
     pub fn reserve(&mut self, additional: usize) {
-        let old_cap = self.buffer.capacity();
+        // let old_cap = self.buffer.capacity();
         let needed = additional.saturating_sub(self.available_capacity());
         if needed > 0 {
             let current = self.buffer.len();
@@ -78,7 +78,7 @@ impl Buffer {
     /// Mark that `amt` bytes have been consumed and should not be returned in
     /// future reads from the buffer.
     pub fn consume(&mut self, bytes: usize) {
-        let old_capacity = self.buffer.capacity();
+        // let old_capacity = self.buffer.capacity();
         self.read_offset = std::cmp::min(self.read_offset + bytes, self.write_offset);
 
         // if we have content, before shrinking we must shift content left

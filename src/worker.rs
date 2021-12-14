@@ -11,7 +11,7 @@ use rand::thread_rng;
 use rustcommon_heatmap::AtomicHeatmap;
 use rustcommon_heatmap::AtomicU64;
 use rustcommon_ratelimiter::Ratelimiter;
-use rustcommon_time::Instant;
+use rustcommon_time::*;
 use std::io::{BufRead, Write};
 use std::net::SocketAddr;
 
@@ -140,6 +140,7 @@ impl Worker {
 
     /// Internal function to connect the session
     fn connect(&mut self, addr: SocketAddr) -> Result<Token, std::io::Error> {
+        CONNECT.increment();
         let stream = TcpStream::connect(addr)?;
         let mut session = if let Some(tls) = &self.tls {
             match tls.connect("localhost", stream) {
@@ -158,12 +159,14 @@ impl Worker {
         let entry = self.sessions.vacant_entry();
         let token = Token(entry.key());
         session.set_token(token);
+        session.set_timestamp(now_precise());
         entry.insert(session);
         Ok(token)
     }
 
     /// Internal function to disconnect the session
     fn disconnect(&mut self, token: Token) -> Result<(), std::io::Error> {
+        OPEN.decrement();
         let session = get_session_mut!(self, token)?;
         let _ = session.deregister(&self.poll);
         let peer_addr = session.peer_addr();
@@ -222,7 +225,13 @@ impl Worker {
         let session = get_session_mut!(self, token)?;
         REQUEST.increment();
         self.codec.encode(session);
-        self.reregister(token)
+        session.set_timestamp(now_precise());
+        session.flush();
+        if session.write_pending() > 0 {
+            self.reregister(token)
+        } else {
+            Ok(())
+        }
     }
 
     /// Handle reading from the session
@@ -240,10 +249,14 @@ impl Worker {
                 match response {
                     Ok(()) => {
                         RESPONSE.increment();
+                        // let now = now_precise();
+                        // let elapsed = now - session.timestamp();
+                        // let us = elapsed.as_nanos() as u64 / 1_000;
+                        // RESPONSE_LATENCY.increment(now, us, 1);
                         if let Some(ref heatmap) = self.request_heatmap {
                             let now = Instant::now();
                             let elapsed = now - session.timestamp();
-                            let us = (elapsed.as_secs_f64() * 1_000_000.0) as u64;
+                            let us = elapsed.as_nanos() as u64 / 1_000;
                             heatmap.increment(now, us, 1);
                         }
                         self.ready_queue.push_back(token);
@@ -381,13 +394,16 @@ impl Worker {
                 }
 
                 if event.is_writable() {
+                    trace!("got writable for token: {:?}", token);
                     if self.is_connecting(token).unwrap() {
                         self.connected(token).unwrap();
+                        OPEN.increment();
+                        SESSION.increment();
                         if let Ok(prev) = self.timestamp(token) {
                             if let Some(ref heatmap) = self.connect_heatmap {
                                 let now = Instant::now();
                                 let elapsed = now - prev;
-                                let us = (elapsed.as_secs_f64() * 1_000_000.0) as u64;
+                                let us = elapsed.as_nanos() as u64 / 1_000;
                                 heatmap.increment(now, us, 1);
                             }
                         }

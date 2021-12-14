@@ -18,8 +18,9 @@ pub struct TcpStream {
 impl TcpStream {
     pub fn connect(addr: SocketAddr) -> Result<Self, std::io::Error> {
         let stream = mio::net::TcpStream::connect(addr)?;
-        Self::try_from(stream)
+        Ok(Self { inner: stream })
     }
+
     pub fn shutdown(&self, how: std::net::Shutdown) -> Result<(), std::io::Error> {
         self.inner.shutdown(how)
     }
@@ -40,11 +41,11 @@ impl TryFrom<mio::net::TcpStream> for TcpStream {
 
 impl Read for TcpStream {
     fn read(&mut self, buf: &mut [u8]) -> std::result::Result<usize, std::io::Error> {
-        let result = self.inner.read(buf);
-        if let Ok(bytes) = result {
-            // TCP_RECV_BYTE.add(bytes as _);
-        }
-        result
+        self.inner.read(buf)
+        // if let Ok(bytes) = result {
+        //     // TCP_RECV_BYTE.add(bytes as _);
+        // }
+        // result
     }
 }
 
