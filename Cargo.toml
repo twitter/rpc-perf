@@ -18,7 +18,7 @@ path = "src/replay.rs"
 
 [dependencies]
 backtrace = "0.3.56"
-boring = "~1.0.3"
+boring = "2.0.0"
 chrono = "0.4.19"
 clap = "2.33.3"
 crc = "2.1.0"

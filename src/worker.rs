@@ -13,7 +13,6 @@ use rand::thread_rng;
 use rustcommon_heatmap::AtomicHeatmap;
 use rustcommon_heatmap::AtomicU64;
 use rustcommon_ratelimiter::Ratelimiter;
-use rustcommon_time::*;
 use std::io::{BufRead, Write};
 use std::net::SocketAddr;
 
@@ -146,7 +145,7 @@ impl Worker {
         let entry = self.sessions.vacant_entry();
         let token = Token(entry.key());
         session.set_token(token);
-        session.set_timestamp(now_precise());
+        session.set_timestamp(Instant::now());
         entry.insert(session);
         Ok(token)
     }
@@ -212,7 +211,7 @@ impl Worker {
         let session = get_session_mut!(self, token)?;
         REQUEST.increment();
         self.codec.encode(session);
-        session.set_timestamp(now_precise());
+        session.set_timestamp(Instant::now());
         let _ = session.flush();
         if session.write_pending() > 0 {
             self.reregister(token)

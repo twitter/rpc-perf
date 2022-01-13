@@ -4,8 +4,6 @@
 
 //! A very simple buffer type that can be replaced in the future.
 
-// use crate::SESSION_BUFFER_BYTE;
-
 use core::borrow::{Borrow, BorrowMut};
 
 /// A growable byte buffer

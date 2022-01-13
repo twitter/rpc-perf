@@ -16,7 +16,6 @@ use rand::{Rng, RngCore, SeedableRng};
 use rand_distr::Alphanumeric;
 use rustcommon_logger::{Level, Logger};
 use rustcommon_ratelimiter::Ratelimiter;
-use rustcommon_time::{Duration, Instant};
 use slab::Slab;
 use std::io::Read;
 use std::io::Write;
@@ -26,7 +25,6 @@ use std::collections::VecDeque;
 use std::fs::File;
 use std::io::{BufRead, BufReader, ErrorKind};
 use std::net::{SocketAddr, ToSocketAddrs};
-// use std::time::{Duration, Instant};
 
 use rpc_perf::*;
 
@@ -288,7 +286,7 @@ impl Controller for SpeedController {
             let mut now = Instant::now();
             // info!("ts: {} sent: {} skip: {}", ts, sent, skip);
             if self.ts_sec != 0 {
-                let log_dur = Duration::from_secs(ts - self.ts_sec).div_f64(self.speed);
+                let log_dur = Duration::from_nanos((((ts - self.ts_sec) * 1_000_000_000) as f64 / self.speed) as u64);
                 self.next += log_dur;
                 if now > self.next {
                     warn!("falling behind... try reducing replay rate");
