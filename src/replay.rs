@@ -286,7 +286,9 @@ impl Controller for SpeedController {
             let mut now = Instant::now();
             // info!("ts: {} sent: {} skip: {}", ts, sent, skip);
             if self.ts_sec != 0 {
-                let log_dur = Duration::from_nanos((((ts - self.ts_sec) * 1_000_000_000) as f64 / self.speed) as u64);
+                let log_dur = Duration::from_nanos(
+                    (((ts - self.ts_sec) * 1_000_000_000) as f64 / self.speed) as u64,
+                );
                 self.next += log_dur;
                 if now > self.next {
                     warn!("falling behind... try reducing replay rate");

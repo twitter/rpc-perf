@@ -10,8 +10,8 @@ mod buffer;
 mod stream;
 mod tcp_stream;
 
-use crate::*;
 use crate::metrics::*;
+use crate::*;
 
 use std::borrow::{Borrow, BorrowMut};
 use std::io::{BufRead, ErrorKind, Read, Write};
