@@ -188,3 +188,24 @@ jobs:
       - name: Smoketest
         run: rpc-perf/target/release/rpc-perf rpc-perf/configs/ping.toml
 
+  pelikan-segcache-smoketest:
+    name: pelikan segcache smoketest
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+            path: rpc-perf
+      - uses: Swatinem/rust-cache@v1
+      - name: Checkout Pelikan
+        uses: actions/checkout@v2
+        with:
+          repository: twitter/pelikan
+          path: pelikan
+      - name: Build Pelikan
+        run: cd pelikan && cargo build --release
+      - name: Build rpc-perf
+        run: cd rpc-perf && cargo build --release
+      - name: Run Pelikan Segcache
+        run: pelikan/target/release/pelikan_segcache_rs &
+      - name: Smoketest
+        run: rpc-perf/target/release/rpc-perf rpc-perf/configs/pelikan.toml

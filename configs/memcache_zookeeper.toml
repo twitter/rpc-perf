@@ -34,8 +34,9 @@ ratelimit = 50000
 [[keyspace]]
 # controls what commands will be used in this keyspace
 commands = [
-	{ verb = "get", weight = 4 },
-	{ verb = "set", weight = 1 },
+	{ verb = "get", weight = 8 },
+	{ verb = "set", weight = 2 },
+	{ verb = "delete", weight = 1 },
 ]
 # the length of the key in bytes, keyspace will be: 52^N keys
 length = 3

@@ -32,8 +32,8 @@ ratelimit = 50000
 [[keyspace]]
 # controls what commands will be used in this keyspace
 commands = [
-	{ verb = "hget", weight = 4 },
-	{ verb = "hset", weight = 1 },
+	{ verb = "hget", weight = 8 },
+	{ verb = "hset", weight = 2 },
 	{ verb = "hdel", weight = 1 },
 ]
 # the length of the key in bytes, keyspace will be: 52^N keys
