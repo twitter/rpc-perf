@@ -209,7 +209,11 @@ impl Codec for Redis {
                 let msg = &buf[1..buf.len() - 2];
                 match str::from_utf8(msg) {
                     Ok(msg) => match msg.parse::<i64>() {
-                        Ok(_) => Ok(()),
+                        Ok(_) => {
+                            let response_end = buf.len();
+                            let _ = buffer.consume(response_end);
+                            Ok(())
+                        }
                         Err(_) => Err(ParseError::Unknown),
                     },
                     Err(_) => Err(ParseError::Unknown),

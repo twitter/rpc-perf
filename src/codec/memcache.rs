@@ -49,6 +49,13 @@ impl Memcache {
         let _ = buf.write_all(&value);
         let _ = buf.write_all(b"\r\n");
     }
+
+    fn delete(rng: &mut SmallRng, keyspace: &Keyspace, buf: &mut Session) {
+        let key = keyspace.generate_key(rng);
+        let _ = buf.write_all(b"delete ");
+        let _ = buf.write_all(&key);
+        let _ = buf.write_all(b"\r\n");
+    }
 }
 
 impl Codec for Memcache {
@@ -61,6 +68,7 @@ impl Codec for Memcache {
                 Self::get(&mut self.rng, keyspace, buf)
             }
             Verb::Set => Self::set(&mut self.rng, keyspace, buf),
+            Verb::Delete => Self::delete(&mut self.rng, keyspace, buf),
             _ => {
                 unimplemented!()
             }
