@@ -1,26 +1,49 @@
 [general]
+# specify the protocol to be used
 protocol = "memcache"
-interval = 1
-service = true
+# the interval for stats integration and reporting
+interval = 60
+# the number of intervals to run the test for
+windows = 5
+# when service is true, the runtime is unlimited
+service = false
+# controls the number of worker threads to launch, each worker thread maintains
+# its own event loop and connection pool to each endpoint
 threads = 4
+# run the admin thread with a HTTP listener at the address provided, this allows
+# stats exposition via HTTP
+admin = "127.0.0.1:9090"
 
 [target]
+# connect to the provided zookeeper server
 zk_server = "zookeeper"
+# the path of the service nodes in zookeeper
 zk_path = "service/role/env/job"
+# the name of the endpoint within the node
 zk_endpoint_name = "serviceEndpoint"
 
 [connection]
+# the number of connections to each endpoint from each thread, the total number
+# of connections to each endpoint is: poolsize * threads
 poolsize = 25
 
 [request]
+# set a global ratelimit for requests
 ratelimit = 50000
 
-
 [[keyspace]]
+# controls what commands will be used in this keyspace
 commands = [
 	{ verb = "get", weight = 4 },
 	{ verb = "set", weight = 1 },
 ]
+# the length of the key in bytes, keyspace will be: 52^N keys
 length = 3
+# controls how values will be generated, multiple lengths with varying weights
+# can be specified here
 values = [ { length = 16 } ]
+# provide a time-to-live for items in this keyspace
 ttl = 0
+# controls the cardinality of commands which operate on more than one item in
+# a single request, eg: the number of keys in a `get` request
+batch_size = 1

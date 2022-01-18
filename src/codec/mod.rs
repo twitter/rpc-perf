@@ -6,12 +6,15 @@ mod echo;
 mod memcache;
 mod ping;
 mod redis;
+mod thrift;
+mod thrift_cache;
 
 use crate::Session;
 pub use echo::Echo;
 pub use memcache::Memcache;
 pub use ping::Ping;
 pub use redis::Redis;
+pub use thrift_cache::ThriftCache;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ParseError {
