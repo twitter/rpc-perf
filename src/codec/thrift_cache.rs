@@ -162,7 +162,11 @@ impl ThriftCache {
         let key = keyspace.generate_key(rng);
         let mut fields = Vec::new();
         for _ in 0..keyspace.batch_size() {
-            fields.push(keyspace.generate_inner_key(rng).unwrap_or_else(|| b"".to_vec()));
+            fields.push(
+                keyspace
+                    .generate_inner_key(rng)
+                    .unwrap_or_else(|| b"".to_vec()),
+            );
         }
         let timeout = None;
 
@@ -215,7 +219,11 @@ impl ThriftCache {
         let key = keyspace.generate_key(rng);
         let mut fields = Vec::new();
         for _ in 0..keyspace.batch_size() {
-            fields.push(keyspace.generate_inner_key(rng).unwrap_or_else(|| b"".to_vec()));
+            fields.push(
+                keyspace
+                    .generate_inner_key(rng)
+                    .unwrap_or_else(|| b"".to_vec()),
+            );
         }
         let mut values = Vec::new();
         for _ in 0..keyspace.batch_size() {
@@ -296,7 +304,11 @@ impl ThriftCache {
         let key = keyspace.generate_key(rng);
         let mut fields = Vec::new();
         for _ in 0..keyspace.batch_size() {
-            fields.push(keyspace.generate_inner_key(rng).unwrap_or_else(|| b"".to_vec()));
+            fields.push(
+                keyspace
+                    .generate_inner_key(rng)
+                    .unwrap_or_else(|| b"".to_vec()),
+            );
         }
         let timeout = None;
         let timestamp = None;
@@ -363,7 +375,11 @@ impl ThriftCache {
         let key = keyspace.generate_key(rng);
         let mut fields = Vec::new();
         for _ in 0..keyspace.batch_size() {
-            fields.push(keyspace.generate_inner_key(rng).unwrap_or_else(|| b"".to_vec()));
+            fields.push(
+                keyspace
+                    .generate_inner_key(rng)
+                    .unwrap_or_else(|| b"".to_vec()),
+            );
         }
         let mut values = Vec::new();
         for _ in 0..keyspace.batch_size() {
@@ -536,30 +552,14 @@ impl Codec for ThriftCache {
         let keyspace = self.config.choose_keyspace(&mut self.rng);
         let command = keyspace.choose_command(&mut self.rng);
         match command.verb() {
-            Verb::Rpush => {
-                Self::append(&mut self.rng, keyspace, buf)
-            }
-            Verb::Rpushx => {
-                Self::appendx(&mut self.rng, keyspace, buf)
-            }
-            Verb::Count => {
-                Self::count(&mut self.rng, keyspace, buf)
-            }
-            Verb::Hget => {
-                Self::get(&mut self.rng, keyspace, buf)
-            }
-            Verb::Hset => {
-                Self::put(&mut self.rng, keyspace, buf)
-            }
-            Verb::Hdel => {
-                Self::remove(&mut self.rng, keyspace, buf)
-            }
-            Verb::Lrange => {
-                Self::range(&mut self.rng, keyspace, buf)
-            }
-            Verb::Ltrim => {
-                Self::trim(&mut self.rng, keyspace, buf)
-            }
+            Verb::Rpush => Self::append(&mut self.rng, keyspace, buf),
+            Verb::Rpushx => Self::appendx(&mut self.rng, keyspace, buf),
+            Verb::Count => Self::count(&mut self.rng, keyspace, buf),
+            Verb::Hget => Self::get(&mut self.rng, keyspace, buf),
+            Verb::Hset => Self::put(&mut self.rng, keyspace, buf),
+            Verb::Hdel => Self::remove(&mut self.rng, keyspace, buf),
+            Verb::Lrange => Self::range(&mut self.rng, keyspace, buf),
+            Verb::Ltrim => Self::trim(&mut self.rng, keyspace, buf),
             _ => {
                 unimplemented!()
             }
