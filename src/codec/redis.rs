@@ -213,7 +213,7 @@ impl Codec for Redis {
                             let response_end = buf.len();
                             let _ = buffer.consume(response_end);
                             Ok(())
-                        },
+                        }
                         Err(_) => Err(ParseError::Unknown),
                     },
                     Err(_) => Err(ParseError::Unknown),
