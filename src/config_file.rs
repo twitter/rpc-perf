@@ -106,6 +106,7 @@ pub enum Protocol {
     Redis,
     RedisInline,
     RedisResp,
+    ThriftCache,
 }
 
 #[derive(Deserialize, Clone)]
@@ -278,13 +279,30 @@ pub enum Verb {
     Set,
     /// Remove a key.
     Delete,
-    /// Hash get, reads the value for a field within the hash stored at the key.
+    /// Hash get, reads the value for one or more fields within the hash stored
+    /// at the key.
     Hget,
     /// Hash set, set the value for a field within the hash stored at the key.
     Hset,
     /// Hash set non-existing, set the value for a field within the hash stored
     /// at the key only if the field does not exist.
     Hsetnx,
+    /// Deletes one or more fields from the hash stored at the key
+    Hdel,
+    /// Insert all the specified values at the tail of the list stored at a key.
+    /// Creates a new key if the key does not exist. Returns an error if the key
+    /// contains a value which is not a list.
+    Rpush,
+    /// Insert all the specified values at the tail of the list stored at a key,
+    /// returns an error if the key does not exist or contains a value which is
+    /// not a list.
+    Rpushx,
+    /// Count the number of items stored at a key
+    Count,
+    /// Returns the elements of the list stored at the key
+    Lrange,
+    /// Trims the elements of the list sotred at the key
+    Ltrim,
 }
 
 #[derive(Deserialize, Copy, Clone)]

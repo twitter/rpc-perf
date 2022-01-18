@@ -79,6 +79,7 @@ impl Worker {
             Protocol::Redis | Protocol::RedisInline | Protocol::RedisResp => {
                 Box::new(Redis::new(config.clone())) as Box<dyn Codec>
             }
+            Protocol::ThriftCache => Box::new(ThriftCache::new(config.clone())) as Box<dyn Codec>,
         };
 
         // return the worker
