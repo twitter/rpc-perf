@@ -245,7 +245,7 @@ jobs:
           echo 'certificate_chain = \"intermediate_ca.crt\"' >> pelikan/config/segcache.toml
       - name: Run Pelikan Segcache
         run: pelikan/target/release/pelikan_segcache_rs &
-       - name: Configure rpc-perf
+      - name: Configure rpc-perf
         run: |
           echo '[TLS]' >> rpc-perf/configs/pelikan.toml
           echo 'certificate = \"server.crt\"' >> rpc-perf/configs/pelikan.toml
