@@ -411,6 +411,7 @@ pub struct Tls {
     certificate_chain: Option<String>,
     private_key: Option<String>,
     verify: bool,
+    session_cache: Option<u32>,
 }
 
 impl Tls {
@@ -432,6 +433,10 @@ impl Tls {
 
     pub fn verify(&self) -> bool {
         self.verify
+    }
+
+    pub fn session_cache(&self) -> Option<u32> {
+        self.session_cache
     }
 }
 

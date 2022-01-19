@@ -86,3 +86,7 @@ pub static SESSION_SEND_EX: Counter = Counter::new();
 /// Number of bytes sent.
 #[metric(name = "session_send_byte")]
 pub static SESSION_SEND_BYTE: Counter = Counter::new();
+
+/// Number of sessions which were reused.
+#[metric(name = "session_reuse")]
+pub static SESSION_REUSE: Counter = Counter::new();

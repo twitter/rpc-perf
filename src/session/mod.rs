@@ -10,6 +10,7 @@ mod buffer;
 mod stream;
 mod tcp_stream;
 
+use boring::ssl::SslSession;
 use crate::metrics::*;
 use crate::*;
 
@@ -217,6 +218,10 @@ impl Session {
 
     pub fn set_timestamp(&mut self, timestamp: Instant) {
         self.timestamp = timestamp;
+    }
+
+    pub fn ssl_session(&self) -> Option<SslSession> {
+        self.stream.ssl_session()
     }
 }
 

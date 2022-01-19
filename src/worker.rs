@@ -28,7 +28,7 @@ use std::sync::Arc;
 
 pub struct Worker {
     codec: Box<dyn Codec>,
-    connect_queue: VecDeque<SocketAddr>,
+    connect_queue: VecDeque<(SocketAddr, Option<SslSession>)>,
     connect_ratelimit: Option<Arc<Ratelimiter>>,
     poll: Poll,
     ready_queue: VecDeque<Token>,
@@ -52,12 +52,12 @@ impl Worker {
         // initialize sessions
         for endpoint in config.endpoints() {
             for _ in 0..config.connection().poolsize() {
-                connect_queue.push_back(endpoint);
+                connect_queue.push_back((endpoint, None));
             }
         }
 
         // shuffle connect queue
-        let mut tmp: Vec<SocketAddr> = connect_queue.drain(0..).collect();
+        let mut tmp: Vec<(SocketAddr, Option<SslSession>)> = connect_queue.drain(0..).collect();
         let mut rng = thread_rng();
         tmp.shuffle(&mut rng);
         for addr in tmp {
@@ -126,18 +126,36 @@ impl Worker {
     }
 
     /// Internal function to connect the session
-    fn connect(&mut self, addr: SocketAddr) -> Result<Token, std::io::Error> {
+    fn connect(&mut self, addr: SocketAddr, ssl_session: Option<SslSession>) -> Result<Token, std::io::Error> {
         CONNECT.increment();
         let stream = TcpStream::connect(addr)?;
         let mut session = if let Some(tls) = &self.tls {
-            match tls.connect("localhost", stream) {
-                Ok(stream) => Session::tls_with_capacity(stream, 1024, 512 * 1024),
-                Err(HandshakeError::WouldBlock(stream)) => {
-                    Session::handshaking_with_capacity(stream, 1024, 512 * 1024)
+            if let Ok(mut connect_config) = tls.configure() {
+                if let Some(ssl_session) = ssl_session {
+                    unsafe { if connect_config.set_session(&ssl_session).is_err() {
+                         return Err(Error::new(ErrorKind::Other, "tls session cache failure"));
+                    } }
                 }
-                Err(_) => {
-                    return Err(Error::new(ErrorKind::Other, "tls failure"));
+
+                match connect_config.connect("localhost", stream) {
+                    Ok(stream) => {
+                        if stream.ssl().session_reused() {
+                            SESSION_REUSE.increment();
+                        }
+                        Session::tls_with_capacity(stream, 1024, 512 * 1024)
+                    }
+                    Err(HandshakeError::WouldBlock(stream)) => {
+                        if stream.ssl().session_reused() {
+                            SESSION_REUSE.increment();
+                        }
+                        Session::handshaking_with_capacity(stream, 1024, 512 * 1024)
+                    }
+                    Err(_) => {
+                        return Err(Error::new(ErrorKind::Other, "tls failure"));
+                    }
                 }
+            } else {
+                return Err(Error::new(ErrorKind::Other, "tls connect config failure"));
             }
         } else {
             Session::plain_with_capacity(stream, 1024, 512 * 1024)
@@ -157,9 +175,10 @@ impl Worker {
         let session = get_session_mut!(self, token)?;
         let _ = session.deregister(&self.poll);
         let peer_addr = session.peer_addr();
+        let ssl_session = session.ssl_session();
         session.close();
         if let Ok(addr) = peer_addr {
-            self.connect_queue.push_back(addr);
+            self.connect_queue.push_back((addr, ssl_session));
         }
         Ok(())
     }
@@ -286,14 +305,14 @@ impl Worker {
         let mut events = Events::with_capacity(1024);
 
         loop {
-            if let Some(addr) = self.connect_queue.pop_front() {
+            if let Some((addr, ssl_session)) = self.connect_queue.pop_front() {
                 let connect = if let Some(r) = &self.connect_ratelimit {
                     r.try_wait().is_ok()
                 } else {
                     true
                 };
                 if connect {
-                    match self.connect(addr) {
+                    match self.connect(addr, ssl_session) {
                         Ok(token) => {
                             self.register(token).unwrap();
                         }
@@ -302,7 +321,7 @@ impl Worker {
                         }
                     }
                 } else {
-                    self.connect_queue.push_front(addr);
+                    self.connect_queue.push_front((addr, ssl_session));
                 }
             }
 
@@ -484,6 +503,12 @@ pub fn ssl_connector(config: &Tls) -> Result<Option<SslConnector>, std::io::Erro
             return Ok(None);
         }
     }
+
+    if let Some(size) = config.session_cache() {
+        builder.set_session_cache_mode(SslSessionCacheMode::CLIENT);
+        builder.set_session_cache_size(size);
+    }
+    
 
     Ok(Some(builder.build()))
 }

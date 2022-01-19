@@ -4,6 +4,7 @@
 
 //! Encapsulates plaintext and TLS TCP streams into a single type.
 
+use boring::ssl::SslSession;
 use std::io::{Error, ErrorKind};
 use std::io::{Read, Write};
 use std::net::SocketAddr;
@@ -114,6 +115,19 @@ impl Stream {
                 "session is not connected",
             ))
         }
+    }
+
+    pub fn ssl_session(&self) -> Option<SslSession> {
+        if let Some(StreamType::Tls(s)) = &self.inner {
+            if let Some(session) = s.ssl().session() {
+                if let Ok(der) = session.to_der().map(|d| d.to_owned()) {
+                    if let Ok(session) = SslSession::from_der(&der) {
+                        return Some(session);
+                    }
+                }
+            }
+        }
+        None
     }
 }
 
