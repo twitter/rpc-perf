@@ -227,27 +227,27 @@ jobs:
           run: |
             curl -O https://dl.step.sm/gh-release/cli/docs-cli-install/v0.18.0/step-cli_0.18.0_amd64.deb
             sudo dpkg -i step-cli_0.18.0_amd64.deb
-            step certificate create --profile root-ca "Root CA" root_ca.crt root_ca.key
-            step certificate install root_ca.crt
-            step certificate create "Intermediate CA" intermediate_ca.crt intermediate_ca.key --profile intermediate-ca --ca ./root_ca.crt --ca-key ./root_ca.key
-            step certificate create client client.crt client.key
-            step certificate verify client.crt
-            step certificate create server server.crt server.key
-            step certificate verify server.crt
-      - name: Build Pelikan
-        run: cd pelikan && cargo build --release
-      - name: Build rpc-perf
-        run: cd rpc-perf && cargo build --release
-      - name: Configure Pelikan Segcache
-        run: |
-          echo 'certificate = \"server.crt\"' >> pelikan/config/segcache.toml
-          echo 'private_key = \"server.key\"' >> pelikan/config/segcache.toml
-          echo 'certificate_chain = \"intermediate_ca.crt\"' >> pelikan/config/segcache.toml
-      - name: Run Pelikan Segcache
-        run: pelikan/target/release/pelikan_segcache_rs &
-      - name: Configure rpc-perf
-        run: |
-          echo '[TLS]' >> rpc-perf/configs/pelikan.toml
-          echo 'certificate = \"server.crt\"' >> rpc-perf/configs/pelikan.toml
-          echo 'private_key = \"server.key\"' >> rpc-perf/configs/pelikan.toml
-          echo 'certificate_chain = \"intermediate_ca.crt\"' >> rpc-perf/configs/pelikan.toml
+      #       step certificate create --profile root-ca "Root CA" root_ca.crt root_ca.key
+      #       step certificate install root_ca.crt
+      #       step certificate create "Intermediate CA" intermediate_ca.crt intermediate_ca.key --profile intermediate-ca --ca ./root_ca.crt --ca-key ./root_ca.key
+      #       step certificate create client client.crt client.key
+      #       step certificate verify client.crt
+      #       step certificate create server server.crt server.key
+      #       step certificate verify server.crt
+      # - name: Build Pelikan
+      #   run: cd pelikan && cargo build --release
+      # - name: Build rpc-perf
+      #   run: cd rpc-perf && cargo build --release
+      # - name: Configure Pelikan Segcache
+      #   run: |
+      #     echo 'certificate = \"server.crt\"' >> pelikan/config/segcache.toml
+      #     echo 'private_key = \"server.key\"' >> pelikan/config/segcache.toml
+      #     echo 'certificate_chain = \"intermediate_ca.crt\"' >> pelikan/config/segcache.toml
+      # - name: Run Pelikan Segcache
+      #   run: pelikan/target/release/pelikan_segcache_rs &
+      # - name: Configure rpc-perf
+      #   run: |
+      #     echo '[TLS]' >> rpc-perf/configs/pelikan.toml
+      #     echo 'certificate = \"server.crt\"' >> rpc-perf/configs/pelikan.toml
+      #     echo 'private_key = \"server.key\"' >> rpc-perf/configs/pelikan.toml
+      #     echo 'certificate_chain = \"intermediate_ca.crt\"' >> rpc-perf/configs/pelikan.toml
