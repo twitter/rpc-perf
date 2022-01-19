@@ -234,9 +234,9 @@ jobs:
       - name: Generate Intermediate CA
         run: step certificate create "Intermediate CA" intermediate_ca.crt intermediate_ca.key --profile intermediate-ca --ca ./root_ca.crt --ca-key ./root_ca.key --no-password --insecure
       - name: Generate Client Cert and Key
-        run: step certificate create client client.crt client.key --no-password --insecure
+        run: step certificate create client client.crt client.key --ca ./intermediate_ca.crt --ca-key ./intermediate_ca.key --bundle --no-password --insecure
       - name: Generate Server Cert and Key
-        run: step certificate create server server.crt server.key --no-password --insecure
+        run: step certificate create server server.crt server.key --ca ./intermediate_ca.crt --ca-key ./intermediate_ca.key --bundle --no-password --insecure
       # - name: Build Pelikan
       #   run: cd pelikan && cargo build --release
       # - name: Build rpc-perf
