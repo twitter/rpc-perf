@@ -225,7 +225,7 @@ jobs:
           path: pelikan
       - name: Generate certs and keys
         run: |
-          curl -O https://dl.step.sm/gh-release/cli/docs-cli-install/v0.18.0/step-cli_0.18.0_amd64.deb
+          curl -O -L https://dl.step.sm/gh-release/cli/docs-cli-install/v0.18.0/step-cli_0.18.0_amd64.deb
           sudo dpkg -i step-cli_0.18.0_amd64.deb
           step certificate create --profile root-ca "Root CA" root_ca.crt root_ca.key
           step certificate install root_ca.crt
