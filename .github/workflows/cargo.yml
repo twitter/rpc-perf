@@ -237,20 +237,20 @@ jobs:
         run: step certificate create client client.crt client.key --ca ./intermediate_ca.crt --ca-key ./intermediate_ca.key --bundle --no-password --insecure
       - name: Generate Server Cert and Key
         run: step certificate create server server.crt server.key --ca ./intermediate_ca.crt --ca-key ./intermediate_ca.key --bundle --no-password --insecure
-      # - name: Build Pelikan
-      #   run: cd pelikan && cargo build --release
-      # - name: Build rpc-perf
-      #   run: cd rpc-perf && cargo build --release
-      # - name: Configure Pelikan Segcache
-      #   run: |
-      #     echo 'certificate = \"server.crt\"' >> pelikan/config/segcache.toml
-      #     echo 'private_key = \"server.key\"' >> pelikan/config/segcache.toml
-      #     echo 'certificate_chain = \"intermediate_ca.crt\"' >> pelikan/config/segcache.toml
-      # - name: Run Pelikan Segcache
-      #   run: pelikan/target/release/pelikan_segcache_rs &
-      # - name: Configure rpc-perf
-      #   run: |
-      #     echo '[TLS]' >> rpc-perf/configs/pelikan.toml
-      #     echo 'certificate = \"server.crt\"' >> rpc-perf/configs/pelikan.toml
-      #     echo 'private_key = \"server.key\"' >> rpc-perf/configs/pelikan.toml
-      #     echo 'certificate_chain = \"intermediate_ca.crt\"' >> rpc-perf/configs/pelikan.toml
+      - name: Build Pelikan
+        run: cd pelikan && cargo build --release
+      - name: Build rpc-perf
+        run: cd rpc-perf && cargo build --release
+      - name: Configure Pelikan Segcache
+        run: |
+          echo 'certificate = \"server.crt\"' >> pelikan/config/segcache.toml
+          echo 'private_key = \"server.key\"' >> pelikan/config/segcache.toml
+      - name: Run Pelikan Segcache
+        run: pelikan/target/release/pelikan_segcache_rs &
+      - name: Configure rpc-perf
+        run: |
+          echo '[TLS]' >> rpc-perf/configs/pelikan.toml
+          echo 'certificate = \"client.crt\"' >> rpc-perf/configs/pelikan.toml
+          echo 'private_key = \"client.key\"' >> rpc-perf/configs/pelikan.toml
+      - name: Smoketest
+        run: rpc-perf/target/release/rpc-perf rpc-perf/configs/pelikan.toml
