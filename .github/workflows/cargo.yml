@@ -243,14 +243,14 @@ jobs:
         run: cd rpc-perf && cargo build --release
       - name: Configure Pelikan Segcache
         run: |
-          echo 'certificate = \"server.crt\"' >> pelikan/config/segcache.toml
-          echo 'private_key = \"server.key\"' >> pelikan/config/segcache.toml
+          echo 'certificate = "server.crt"' >> pelikan/config/segcache.toml
+          echo 'private_key = "server.key"' >> pelikan/config/segcache.toml
       - name: Run Pelikan Segcache
         run: pelikan/target/release/pelikan_segcache_rs &
       - name: Configure rpc-perf
         run: |
-          echo '[TLS]' >> rpc-perf/configs/pelikan.toml
-          echo 'certificate = \"client.crt\"' >> rpc-perf/configs/pelikan.toml
-          echo 'private_key = \"client.key\"' >> rpc-perf/configs/pelikan.toml
+          echo '[tls]' >> rpc-perf/configs/pelikan.toml
+          echo 'certificate = "client.crt"' >> rpc-perf/configs/pelikan.toml
+          echo 'private_key = "client.key"' >> rpc-perf/configs/pelikan.toml
       - name: Smoketest
         run: rpc-perf/target/release/rpc-perf rpc-perf/configs/pelikan.toml
