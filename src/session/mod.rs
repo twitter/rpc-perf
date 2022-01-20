@@ -110,7 +110,7 @@ impl Session {
     /// Register the `Session` with the event loop
     pub fn register(&mut self, poll: &Poll) -> Result<(), std::io::Error> {
         let interest = if self.is_connecting() {
-            Interest::WRITABLE
+            Interest::WRITABLE | Interest::READABLE
         } else {
             self.readiness()
         };
@@ -154,8 +154,8 @@ impl Session {
     // use-case that requires different handling, but it comes with complexity
     // of having to set the behavior for each session.
     fn readiness(&self) -> Interest {
-        if self.write_buffer.is_empty() {
-            Interest::READABLE
+        if self.is_handshaking() || self.write_buffer.is_empty() {
+            Interest::READABLE | Interest::WRITABLE
         } else {
             Interest::WRITABLE
         }
