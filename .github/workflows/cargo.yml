@@ -250,6 +250,7 @@ jobs:
       - name: Configure rpc-perf
         run: |
           echo '[tls]' >> rpc-perf/configs/pelikan.toml
+          echo 'verify = false' >> rpc-perf/configs/pelikan.toml
           echo 'certificate = "client.crt"' >> rpc-perf/configs/pelikan.toml
           echo 'private_key = "client.key"' >> rpc-perf/configs/pelikan.toml
       - name: Final rpc-perf config

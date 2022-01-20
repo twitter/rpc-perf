@@ -10,9 +10,9 @@ mod buffer;
 mod stream;
 mod tcp_stream;
 
-use boring::ssl::SslSession;
 use crate::metrics::*;
 use crate::*;
+use boring::ssl::SslSession;
 
 use std::borrow::{Borrow, BorrowMut};
 use std::io::{BufRead, ErrorKind, Read, Write};

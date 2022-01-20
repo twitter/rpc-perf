@@ -126,15 +126,21 @@ impl Worker {
     }
 
     /// Internal function to connect the session
-    fn connect(&mut self, addr: SocketAddr, ssl_session: Option<SslSession>) -> Result<Token, std::io::Error> {
+    fn connect(
+        &mut self,
+        addr: SocketAddr,
+        ssl_session: Option<SslSession>,
+    ) -> Result<Token, std::io::Error> {
         CONNECT.increment();
         let stream = TcpStream::connect(addr)?;
         let mut session = if let Some(tls) = &self.tls {
             if let Ok(mut connect_config) = tls.configure() {
                 if let Some(ssl_session) = ssl_session {
-                    unsafe { if connect_config.set_session(&ssl_session).is_err() {
-                         return Err(Error::new(ErrorKind::Other, "tls session cache failure"));
-                    } }
+                    unsafe {
+                        if connect_config.set_session(&ssl_session).is_err() {
+                            return Err(Error::new(ErrorKind::Other, "tls session cache failure"));
+                        }
+                    }
                 }
 
                 match connect_config.connect("localhost", stream) {
@@ -508,7 +514,6 @@ pub fn ssl_connector(config: &Tls) -> Result<Option<SslConnector>, std::io::Erro
         builder.set_session_cache_mode(SslSessionCacheMode::CLIENT);
         builder.set_session_cache_size(size);
     }
-    
 
     Ok(Some(builder.build()))
 }
