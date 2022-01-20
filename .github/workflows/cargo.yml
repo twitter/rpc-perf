@@ -252,5 +252,8 @@ jobs:
           echo '[tls]' >> rpc-perf/configs/pelikan.toml
           echo 'certificate = "client.crt"' >> rpc-perf/configs/pelikan.toml
           echo 'private_key = "client.key"' >> rpc-perf/configs/pelikan.toml
+      - name: Final rpc-perf config
+        run: cat rpc-perf/configs/pelikan.toml
       - name: Smoketest
         run: rpc-perf/target/release/rpc-perf rpc-perf/configs/pelikan.toml
+
