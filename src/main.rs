@@ -5,8 +5,8 @@
 #[macro_use]
 extern crate rustcommon_logger;
 
-use clap::{App, Arg};
 use backtrace::Backtrace;
+use clap::{App, Arg};
 use rpc_perf::Builder;
 use rustcommon_logger::{Level, Logger};
 
@@ -29,11 +29,7 @@ fn main() {
             Memcached and Redis protocols.",
         )
         .about("Measure RPC performance using synthetic traffic")
-        .arg(
-            Arg::with_name("CONFIG")
-                .help("Configuration file")
-                .index(1),
-        )
+        .arg(Arg::with_name("CONFIG").help("Configuration file").index(1))
         .get_matches();
 
     // initialize logging
