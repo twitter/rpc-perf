@@ -4,7 +4,7 @@
 
 #![allow(dead_code)]
 
-use crate::codec::{Error, Response};
+use crate::codec::ParseError;
 
 pub const STOP: u8 = 0;
 pub const VOID: u8 = 1;
@@ -124,7 +124,7 @@ impl ThriftBuffer {
     }
 }
 
-fn decode(buf: &[u8]) -> Result<Response, Error> {
+fn decode(buf: &[u8]) -> Result<(), ParseError> {
     let bytes = buf.len() as u32;
     if bytes > 4 {
         let length = u32::from_be_bytes([buf[0], buf[1], buf[2], buf[3]]);
@@ -132,15 +132,15 @@ fn decode(buf: &[u8]) -> Result<Response, Error> {
         match length.checked_add(4_u32) {
             Some(b) => {
                 if b == bytes {
-                    Ok(Response::Ok)
+                    Ok(())
                 } else {
-                    Err(Error::Incomplete)
+                    Err(ParseError::Incomplete)
                 }
             }
-            None => Err(Error::Unknown),
+            None => Err(ParseError::Unknown),
         }
     } else {
-        Err(Error::Incomplete)
+        Err(ParseError::Incomplete)
     }
 }
 
@@ -188,6 +188,6 @@ mod test {
             &[0, 0, 0, 17, 128, 1, 0, 1, 0, 0, 0, 4, 112, 105, 110, 103, 0, 0, 0, 0, 0]
         );
 
-        assert_eq!(decode(buffer.as_bytes()), Ok(Response::Ok));
+        assert_eq!(decode(buffer.as_bytes()), Ok(()));
     }
 }
