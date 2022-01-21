@@ -195,7 +195,16 @@ jobs:
       - uses: actions/checkout@v2
         with:
             path: rpc-perf
-      - uses: Swatinem/rust-cache@v1
+      - name: Build Cache for rpc-perf
+        uses: Swatinem/rust-cache@v1
+        with:
+          key: rpc-perf
+          working-directory: rpc-perf
+      - name: Build Cache for Pelikan
+        uses: Swatinem/rust-cache@v1
+        with:
+          key: pelikan
+          working-directory: pelikan
       - name: Checkout Pelikan
         uses: actions/checkout@v2
         with:
@@ -217,7 +226,16 @@ jobs:
       - uses: actions/checkout@v2
         with:
             path: rpc-perf
-      - uses: Swatinem/rust-cache@v1
+      - name: Build Cache for rpc-perf
+        uses: Swatinem/rust-cache@v1
+        with:
+          key: rpc-perf
+          working-directory: rpc-perf
+      - name: Build Cache for Pelikan
+        uses: Swatinem/rust-cache@v1
+        with:
+          key: pelikan
+          working-directory: pelikan
       - name: Checkout Pelikan
         uses: actions/checkout@v2
         with:
@@ -269,7 +287,16 @@ jobs:
       - uses: actions/checkout@v2
         with:
             path: rpc-perf
-      - uses: Swatinem/rust-cache@v1
+      - name: Build Cache for rpc-perf
+        uses: Swatinem/rust-cache@v1
+        with:
+          key: rpc-perf
+          working-directory: rpc-perf
+      - name: Build Cache for Pelikan
+        uses: Swatinem/rust-cache@v1
+        with:
+          key: pelikan
+          working-directory: pelikan
       - name: Checkout Pelikan
         uses: actions/checkout@v2
         with:
