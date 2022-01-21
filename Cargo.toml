@@ -1,47 +1,48 @@
 [package]
 name = "rpc-perf"
-version = "3.2.0-pre"
+version = "4.0.0-alpha.0"
 authors = ["Brian Martin <bmartin@twitter.com>"]
 edition = "2018"
-license = "Apache-2.0"
 description = "RPC Performance Testing"
 homepage = "https://github.com/twitter/rpc-perf"
 repository = "https://github.com/twitter/rpc-perf"
-readme = "README.md"
+license = "Apache-2.0"
+
+[[bin]]
+name = "rpc-perf"
+path = "src/main.rs"
+
+[[bin]]
+name = "rpc-replay"
+path = "src/replay.rs"
 
 [dependencies]
-byteorder = "1.4.3"
-bytes = "0.6.0"
+backtrace = "0.3.56"
+boring = "2.0.0"
+chrono = "0.4.19"
 clap = "2.33.3"
-crc = "1.8.1"
-mio = { version = "0.7.6", features = ["net", "os-poll"] }
-rand = "0.7.3"
-rustcommon-atomics = { git = "https://github.com/twitter/rustcommon", branch = "master" }
-rustcommon-buffer = { git = "https://github.com/twitter/rustcommon", branch = "master" }
+crc = "2.1.0"
+json = "0.12.4"
+mio = { version = "0.8.0", features = ["os-poll", "net"] }
+mpmc = "0.1.6"
+rand = { version = "0.8.0", features = ["small_rng"] }
+rand_xoshiro = { version = "0.6.0" }
+rand_distr = "0.4.0"
+rtrb = "0.2.0"
 rustcommon-heatmap = { git = "https://github.com/twitter/rustcommon", branch = "master" }
 rustcommon-logger = { git = "https://github.com/twitter/rustcommon", branch = "master" }
-rustcommon-metrics = { git = "https://github.com/twitter/rustcommon", branch = "master" }
 rustcommon-ratelimiter = { git = "https://github.com/twitter/rustcommon", branch = "master" }
-rustcommon-timer = { git = "https://github.com/twitter/rustcommon", branch = "master" }
-rustcommon-waterfall = { git = "https://github.com/twitter/rustcommon", branch = "master" }
-rustls = { version = "0.18.1", features = ["dangerous_configuration"] }
-serde = "1.0.116"
-serde_derive = "1.0.116"
+rustcommon-metrics = { git = "https://github.com/twitter/rustcommon", branch = "master", package = "rustcommon-metrics-v2", features = ["heatmap"] }
+rustcommon-time = { git = "https://github.com/twitter/rustcommon", branch = "master" }
+serde = "1.0.130"
+serde_derive = "1.0.130"
+serde_json = "1.0.72"
 slab = "0.4.2"
-strum = "0.19.2"
-strum_macros = "0.19.2"
-tiny_http = "0.8.2"
-toml = "0.5.6"
-webpki = "0.21.3"
-
-[profile.release]
-opt-level = 3
-debug = true
-rpath = false
-lto = true
-debug-assertions = false
-codegen-units = 1
-
-[profile.dev]
-debug = true
-opt-level = 0
+strum = "0.20.0"
+strum_macros = "0.20.1"
+sysconf = "0.3.4"
+thiserror = "1.0.23"
+tiny_http = "0.9.0"
+toml = "0.5.8"
+zookeeper = "0.6.0"
+zstd = "0.9.0"

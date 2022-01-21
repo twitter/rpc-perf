@@ -1,100 +1,45 @@
-// Copyright 2019 Twitter, Inc.
+// Copyright 2021 Twitter, Inc.
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
 use crate::codec::*;
+use crate::Session;
+use crate::*;
+use std::io::{BufRead, Write};
 
-#[derive(Default)]
-pub struct Ping {
-    common: Common,
-}
+pub struct Ping;
 
 impl Ping {
-    pub fn new() -> Ping {
-        Self {
-            common: Common::new(),
-        }
+    pub fn new(_config: Arc<Config>) -> Self {
+        Self
     }
 
-    pub fn ping(&self, buf: &mut Buffer) {
-        buf.extend_from_slice(b"PING\r\n");
+    fn ping(buf: &mut Session) {
+        let _ = buf.write_all(b"PING\r\n");
     }
 }
 
 impl Codec for Ping {
-    fn common(&self) -> &Common {
-        &self.common
+    fn encode(&mut self, buf: &mut Session) {
+        Self::ping(buf)
     }
 
-    fn common_mut(&mut self) -> &mut Common {
-        &mut self.common
-    }
+    fn decode(&self, buffer: &mut Session) -> Result<(), ParseError> {
+        // no-copy borrow as a slice
+        let buf: &[u8] = (*buffer).buffer();
 
-    fn decode(&self, buf: &[u8]) -> Result<Response, Error> {
-        if buf.len() < 6 || &buf[buf.len() - 2..buf.len()] != b"\r\n" {
-            // Shortest response is "PONG\r\n" at 4bytes
-            // All complete responses end in CRLF
-            Err(Error::Incomplete)
-        } else if (buf.len() == 6 && &buf[..] == b"PONG\r\n")
-            || (buf.len() == 7 && &buf[..] == b"+PONG\r\n")
-        {
-            Ok(Response::Ok)
+        // check if we got a CRLF
+        let mut double_byte_windows = buf.windows(2);
+        if let Some(response_end) = double_byte_windows.position(|w| w == b"\r\n") {
+            match &buf[0..response_end] {
+                b"pong" | b"PONG" => {
+                    let _ = buffer.consume(response_end + 2);
+                    Ok(())
+                }
+                _ => Err(ParseError::Unknown),
+            }
         } else {
-            Err(Error::Unknown)
+            Err(ParseError::Incomplete)
         }
-    }
-
-    fn encode(&mut self, buf: &mut Buffer, _rng: &mut ThreadRng) {
-        self.ping(buf);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use bytes::*;
-
-    fn decode_messages(messages: Vec<&'static [u8]>, response: Result<Response, Error>) {
-        for message in messages {
-            let decoder = Ping::new();
-            let mut buf = BytesMut::with_capacity(1024);
-            buf.extend_from_slice(&message);
-
-            let buf = buf.freeze();
-            let result = decoder.decode(&buf);
-            assert_eq!(result, response);
-        }
-    }
-
-    #[test]
-    fn decode_incomplete() {
-        let messages: Vec<&[u8]> = vec![b"", b"PONG", b"+PONG", b"P"];
-        decode_messages(messages, Err(Error::Incomplete));
-    }
-
-    #[test]
-    fn decode_ok() {
-        let messages: Vec<&[u8]> = vec![b"PONG\r\n", b"+PONG\r\n"];
-        decode_messages(messages, Ok(Response::Ok));
-    }
-
-    #[test]
-    fn decode_unknown() {
-        let messages: Vec<&[u8]> = vec![
-            b"HELLO WORLD\r\n",
-            b"+PONG\r\nDEADBEEF\r\n",
-            b"+PONG PONG\r\n",
-        ];
-        decode_messages(messages, Err(Error::Unknown));
-    }
-
-    #[test]
-    fn encode_ping() {
-        let mut buf = Buffer::new();
-        let mut test_case = Buffer::new();
-        test_case.extend_from_slice(b"PING\r\n");
-        let encoder = Ping::new();
-        encoder.ping(&mut buf);
-        assert_eq!(buf, test_case);
     }
 }

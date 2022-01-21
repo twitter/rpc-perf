@@ -1,6 +1,6 @@
 [general]
 # specify the protocol to be used
-protocol = "thrift_cache"
+protocol = "memcache"
 # the interval for stats integration and reporting
 interval = 60
 # the number of intervals to run the test for
@@ -17,13 +17,16 @@ admin = "127.0.0.1:9090"
 [target]
 # specify one or more endpoints as IP:PORT pairs
 endpoints = [
-	"127.0.0.1:11211"
+	"127.0.0.1:12321"
 ]
 
 [connection]
 # the number of connections to each endpoint from each thread, the total number
 # of connections to each endpoint is: poolsize * threads
 poolsize = 25
+# set a rate for reconnecting. existing sessions will be closed and reopened to
+# generate the reconnects
+reconnect = 5
 
 [request]
 # set a global ratelimit for requests
@@ -32,10 +35,9 @@ ratelimit = 50000
 [[keyspace]]
 # controls what commands will be used in this keyspace
 commands = [
-	{ verb = "lrange", weight = 4 },
-	{ verb = "rpush", weight = 1 },
-	{ verb = "rpushx", weight = 1 },
-	{ verb = "ltrim", weight = 1 },
+	{ verb = "get", weight = 8 },
+	{ verb = "set", weight = 2 },
+	{ verb = "delete", weight = 1 },
 ]
 # the length of the key in bytes, keyspace will be: 52^N keys
 length = 3
@@ -45,5 +47,5 @@ values = [ { length = 16 } ]
 # provide a time-to-live for items in this keyspace
 ttl = 0
 # controls the cardinality of commands which operate on more than one item in
-# a single request, eg: the number of field-value pairs in an `rpush` command
+# a single request, eg: the number of keys in a `get` request
 batch_size = 1
