@@ -957,7 +957,7 @@ checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
 [[package]]
 name = "rustcommon-atomics"
 version = "1.0.0"
-source = "git+https://github.com/twitter/rustcommon?branch=master#c8aeeb605b3bdc42c2c309ac8c096f17fed5380d"
+source = "git+https://github.com/twitter/rustcommon?rev=c8aeeb605b3bdc42c2c309ac8c096f17fed5380d#c8aeeb605b3bdc42c2c309ac8c096f17fed5380d"
 dependencies = [
  "serde",
 ]
@@ -965,7 +965,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-heatmap"
 version = "0.1.1"
-source = "git+https://github.com/twitter/rustcommon?branch=master#c8aeeb605b3bdc42c2c309ac8c096f17fed5380d"
+source = "git+https://github.com/twitter/rustcommon?rev=c8aeeb605b3bdc42c2c309ac8c096f17fed5380d#c8aeeb605b3bdc42c2c309ac8c096f17fed5380d"
 dependencies = [
  "rustcommon-atomics",
  "rustcommon-histogram",
@@ -976,7 +976,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-histogram"
 version = "1.0.0"
-source = "git+https://github.com/twitter/rustcommon?branch=master#c8aeeb605b3bdc42c2c309ac8c096f17fed5380d"
+source = "git+https://github.com/twitter/rustcommon?rev=c8aeeb605b3bdc42c2c309ac8c096f17fed5380d#c8aeeb605b3bdc42c2c309ac8c096f17fed5380d"
 dependencies = [
  "rustcommon-atomics",
  "thiserror",
@@ -985,7 +985,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-logger"
 version = "1.0.0"
-source = "git+https://github.com/twitter/rustcommon?branch=master#c8aeeb605b3bdc42c2c309ac8c096f17fed5380d"
+source = "git+https://github.com/twitter/rustcommon?rev=c8aeeb605b3bdc42c2c309ac8c096f17fed5380d#c8aeeb605b3bdc42c2c309ac8c096f17fed5380d"
 dependencies = [
  "log",
  "rustcommon-time",
@@ -994,7 +994,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-metrics-derive"
 version = "0.1.0"
-source = "git+https://github.com/twitter/rustcommon?branch=master#c8aeeb605b3bdc42c2c309ac8c096f17fed5380d"
+source = "git+https://github.com/twitter/rustcommon?rev=c8aeeb605b3bdc42c2c309ac8c096f17fed5380d#c8aeeb605b3bdc42c2c309ac8c096f17fed5380d"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -1005,7 +1005,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-metrics-v2"
 version = "0.1.0"
-source = "git+https://github.com/twitter/rustcommon?branch=master#c8aeeb605b3bdc42c2c309ac8c096f17fed5380d"
+source = "git+https://github.com/twitter/rustcommon?rev=c8aeeb605b3bdc42c2c309ac8c096f17fed5380d#c8aeeb605b3bdc42c2c309ac8c096f17fed5380d"
 dependencies = [
  "linkme",
  "once_cell",
@@ -1019,7 +1019,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-ratelimiter"
 version = "1.1.0"
-source = "git+https://github.com/twitter/rustcommon?branch=master#c8aeeb605b3bdc42c2c309ac8c096f17fed5380d"
+source = "git+https://github.com/twitter/rustcommon?rev=c8aeeb605b3bdc42c2c309ac8c096f17fed5380d#c8aeeb605b3bdc42c2c309ac8c096f17fed5380d"
 dependencies = [
  "rand 0.7.3",
  "rand_distr 0.2.2",
@@ -1029,7 +1029,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-time"
 version = "0.0.11"
-source = "git+https://github.com/twitter/rustcommon?branch=master#c8aeeb605b3bdc42c2c309ac8c096f17fed5380d"
+source = "git+https://github.com/twitter/rustcommon?rev=c8aeeb605b3bdc42c2c309ac8c096f17fed5380d#c8aeeb605b3bdc42c2c309ac8c096f17fed5380d"
 dependencies = [
  "lazy_static",
  "libc",
