@@ -12,6 +12,7 @@ mod tcp_stream;
 
 use crate::metrics::*;
 use crate::*;
+use boring::ssl::SslSession;
 
 use std::borrow::{Borrow, BorrowMut};
 use std::io::{BufRead, ErrorKind, Read, Write};
@@ -217,6 +218,10 @@ impl Session {
 
     pub fn set_timestamp(&mut self, timestamp: Instant) {
         self.timestamp = timestamp;
+    }
+
+    pub fn ssl_session(&self) -> Option<SslSession> {
+        self.stream.ssl_session()
     }
 }
 
