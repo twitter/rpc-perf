@@ -40,7 +40,7 @@ pub struct Builder {
 
 impl Builder {
     /// Create a new runtime builder from the given config
-    pub fn new(config: Option<String>) -> Self {
+    pub fn new(config: Option<&str>) -> Self {
         let config = Config::new(config);
 
         let config = Arc::new(config);

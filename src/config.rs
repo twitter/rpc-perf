@@ -108,9 +108,9 @@ impl Keyspace {
 }
 
 impl Config {
-    pub fn new(file: Option<String>) -> Self {
+    pub fn new(file: Option<&str>) -> Self {
         let config_file = if let Some(file) = file {
-            ConfigFile::load_from_file(&file)
+            ConfigFile::load_from_file(file)
         } else {
             fatal!("need a config file");
         };
