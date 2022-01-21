@@ -233,6 +233,8 @@ jobs:
         run: sudo step certificate install root_ca.crt
       - name: Generate Intermediate CA
         run: step certificate create "Intermediate CA" intermediate_ca.crt intermediate_ca.key --profile intermediate-ca --ca ./root_ca.crt --ca-key ./root_ca.key --no-password --insecure
+      - name: Generate Trust Chain
+        run: cat intermediate_ca.crt > trust.chain && cat root_ca.crt >> trust.chain
       - name: Generate Client Cert and Key
         run: step certificate create client client.crt client.key --ca ./intermediate_ca.crt --ca-key ./intermediate_ca.key --bundle --no-password --insecure
       - name: Generate Server Cert and Key
@@ -243,18 +245,18 @@ jobs:
         run: cd rpc-perf && cargo build --release
       - name: Configure Pelikan Segcache
         run: |
-          echo 'certificate_chain = "server.crt"' >> pelikan/config/segcache.toml
+          echo 'certificate_chain = "trust.chain"' >> pelikan/config/segcache.toml
+          echo 'certificate = "server.crt"' >> pelikan/config/segcache.toml
           echo 'private_key = "server.key"' >> pelikan/config/segcache.toml
-          echo 'ca_file = "root_ca.crt"' >> pelikan/config/segcache.toml
       - name: Run Pelikan Segcache
         run: pelikan/target/release/pelikan_segcache_rs &
       - name: Configure rpc-perf
         run: |
           echo '[tls]' >> rpc-perf/configs/pelikan.toml
           echo 'verify = false' >> rpc-perf/configs/pelikan.toml
-          echo 'certificate_chain = "client.crt"' >> rpc-perf/configs/pelikan.toml
+          echo 'certificate_chain = "trust.chain"' >> rpc-perf/configs/pelikan.toml
+          echo 'certificate = "client.crt"' >> rpc-perf/configs/pelikan.toml
           echo 'private_key = "client.key"' >> rpc-perf/configs/pelikan.toml
-          echo 'ca_file = "root_ca.crt"' >> rpc-perf/configs/pelikan.toml
       - name: Final rpc-perf config
         run: cat rpc-perf/configs/pelikan.toml
       - name: Smoketest
