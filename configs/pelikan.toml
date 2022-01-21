@@ -26,7 +26,7 @@ endpoints = [
 poolsize = 25
 # set a rate for reconnecting. existing sessions will be closed and reopened to
 # generate the reconnects
-reconnect = 100
+reconnect = 5
 
 [request]
 # set a global ratelimit for requests
