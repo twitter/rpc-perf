@@ -407,7 +407,9 @@ impl Worker {
 
                 if event.is_writable() {
                     trace!("got writable for token: {:?}", token);
-                    if self.is_connecting(token).unwrap() {
+                    let connecting = self.is_connecting(token).unwrap();
+                    let handshaking = self.is_handshaking(token).unwrap();
+                    if connecting && !handshaking {
                         self.connected(token).unwrap();
                         OPEN.increment();
                         SESSION.increment();
@@ -420,6 +422,8 @@ impl Worker {
                             }
                         }
                         self.ready_queue.push_back(token);
+                    } else if connecting {
+                        OPEN.increment();
                     }
                     if self.do_write(token).is_err() {
                         let _ = self.disconnect(token);
