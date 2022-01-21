@@ -135,7 +135,8 @@ impl Worker {
                 Err(HandshakeError::WouldBlock(stream)) => {
                     Session::handshaking_with_capacity(stream, 1024, 512 * 1024)
                 }
-                Err(_) => {
+                Err(e) => {
+                    error!("{}", e);
                     return Err(Error::new(ErrorKind::Other, "tls failure"));
                 }
             }
@@ -382,7 +383,9 @@ impl Worker {
 
                 if event.is_writable() {
                     trace!("got writable for token: {:?}", token);
-                    if self.is_connecting(token).unwrap() {
+                    let connecting = self.is_connecting(token).unwrap();
+                    let handshaking = self.is_handshaking(token).unwrap();
+                    if connecting && !handshaking {
                         self.connected(token).unwrap();
                         OPEN.increment();
                         SESSION.increment();
@@ -395,6 +398,8 @@ impl Worker {
                             }
                         }
                         self.ready_queue.push_back(token);
+                    } else if connecting {
+                        OPEN.increment();
                     }
                     if self.do_write(token).is_err() {
                         let _ = self.disconnect(token);
