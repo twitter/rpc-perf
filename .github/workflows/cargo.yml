@@ -173,12 +173,21 @@ jobs:
       - uses: actions/checkout@v2
         with:
             path: rpc-perf
-      - uses: Swatinem/rust-cache@v1
       - name: Checkout Pelikan
         uses: actions/checkout@v2
         with:
           repository: twitter/pelikan
           path: pelikan
+      - name: Build Cache for rpc-perf
+        uses: Swatinem/rust-cache@v1
+        with:
+          key: rpc-perf
+          working-directory: rpc-perf
+      - name: Build Cache for Pelikan
+        uses: Swatinem/rust-cache@v1
+        with:
+          key: pelikan
+          working-directory: pelikan
       - name: Build Pelikan
         run: cd pelikan && cargo build --release
       - name: Build rpc-perf
@@ -195,12 +204,21 @@ jobs:
       - uses: actions/checkout@v2
         with:
             path: rpc-perf
-      - uses: Swatinem/rust-cache@v1
       - name: Checkout Pelikan
         uses: actions/checkout@v2
         with:
           repository: twitter/pelikan
           path: pelikan
+      - name: Build Cache for rpc-perf
+        uses: Swatinem/rust-cache@v1
+        with:
+          key: rpc-perf
+          working-directory: rpc-perf
+      - name: Build Cache for Pelikan
+        uses: Swatinem/rust-cache@v1
+        with:
+          key: pelikan
+          working-directory: pelikan
       - name: Build Pelikan
         run: cd pelikan && cargo build --release
       - name: Build rpc-perf
@@ -217,12 +235,21 @@ jobs:
       - uses: actions/checkout@v2
         with:
             path: rpc-perf
-      - uses: Swatinem/rust-cache@v1
       - name: Checkout Pelikan
         uses: actions/checkout@v2
         with:
           repository: twitter/pelikan
           path: pelikan
+      - name: Build Cache for rpc-perf
+        uses: Swatinem/rust-cache@v1
+        with:
+          key: rpc-perf
+          working-directory: rpc-perf
+      - name: Build Cache for Pelikan
+        uses: Swatinem/rust-cache@v1
+        with:
+          key: pelikan
+          working-directory: pelikan
       - name: Fetch step-cli
         run: curl -O -L https://dl.step.sm/gh-release/cli/docs-cli-install/v0.18.0/step-cli_0.18.0_amd64.deb
       - name: Install step-cli
@@ -269,12 +296,21 @@ jobs:
       - uses: actions/checkout@v2
         with:
             path: rpc-perf
-      - uses: Swatinem/rust-cache@v1
       - name: Checkout Pelikan
         uses: actions/checkout@v2
         with:
           repository: twitter/pelikan
           path: pelikan
+      - name: Build Cache for rpc-perf
+        uses: Swatinem/rust-cache@v1
+        with:
+          key: rpc-perf
+          working-directory: rpc-perf
+      - name: Build Cache for Pelikan
+        uses: Swatinem/rust-cache@v1
+        with:
+          key: pelikan
+          working-directory: pelikan
       - name: Fetch step-cli
         run: curl -O -L https://dl.step.sm/gh-release/cli/docs-cli-install/v0.18.0/step-cli_0.18.0_amd64.deb
       - name: Install step-cli
