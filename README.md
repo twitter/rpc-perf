@@ -1,16 +1,12 @@
 # rpc-perf
 
-rpc-perf was created to help measure the performance of caching systems. We've
-found this tool to be useful for validating performance of cache backends,
-effects of kernel version and system tuning, as well as testing new hardware
-platforms and network changes.
+rpc-perf is a tool for measuring the performance of RPC services and is
+primarily used to benchmark caching systems.
 
-**BEWARE** rpc-perf can write to its target and can generate many requests
-* *run only* if data in the server can be lost/destroyed/corrupted/etc
-* *run only* if you understand the impact of sending high-levels of traffic
-  across your network
+[![License: Apache-2.0][license-badge]][license-url]
+[![Build Status: CI][ci-build-badge]][ci-build-url]
 
-**Contents**
+# Content
 * [Getting rpc-perf](#getting-rpc-perf)
 * [Configuration](#configuration)
 * [Sample Usage](#sample-usage)
@@ -20,7 +16,7 @@ platforms and network changes.
 * [Future Work](#future-work)
 * [Contributing](#contributing)
 
-## Getting rpc-perf
+# Getting rpc-perf
 
 rpc-perf is built through the `cargo` command which ships with rust. If you 
 don't have Rust installed, you can use [rustup][rustup] to manage your Rust
@@ -28,7 +24,7 @@ installation. Otherwise, follow the instructions on
 [rust-lang.org](https://rust-lang.org) to get Rust and Cargo installed. rpc-perf
 is developed and tested against the stable Rust toolchain.
 
-### Build from source
+## Build from source
 
 With Rust installed, clone this repo, and cd into this folder:
 
@@ -41,14 +37,17 @@ cargo build --release
 This will produce a binary at `target/release/rpc-perf` which can be run
 in-place or copied to a more convenient location on your system.
 
-## Configuration
+# Configuration
 
 rpc-perf takes a configuration file to define the test parameters and runtime
 options.
 
 ## Sample Usage
 
-**BEWARE** use caution when running rpc-perf
+**BEWARE** rpc-perf can write to its target and can generate many requests
+* *run only* if data in the server can be lost/destroyed/corrupted/etc
+* *run only* if you understand the impact of sending high-levels of traffic
+  across your network
 
 ```shell
 # run rpc-perf using the specified configuration file
@@ -108,6 +107,8 @@ https://www.apache.org/licenses/LICENSE-2.0
 Please report sensitive security issues via Twitter's bug-bounty program
 (https://hackerone.com/twitter) rather than GitHub.
 
+[ci-build-badge]: https://img.shields.io/github/workflow/status/twitter/rpc-perf/CI/master?label=CI
+[ci-build-url]: https://github.com/twitter/rpc-perf/actions/workflows/cargo.yml?query=branch%3Amaster+event%3Apush
 [contributors]: https://github.com/twitter/rpc-perf/graphs/contributors?type=a
 [mio]: https://github.com/carllerche/mio
 [Open Source Code of Conduct]: https://github.com/twitter/code-of-conduct/blob/master/code-of-conduct.md
