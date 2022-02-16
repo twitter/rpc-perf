@@ -110,6 +110,8 @@ Please report sensitive security issues via Twitter's bug-bounty program
 [ci-build-badge]: https://img.shields.io/github/workflow/status/twitter/rpc-perf/CI/master?label=CI
 [ci-build-url]: https://github.com/twitter/rpc-perf/actions/workflows/cargo.yml?query=branch%3Amaster+event%3Apush
 [contributors]: https://github.com/twitter/rpc-perf/graphs/contributors?type=a
+[license-badge]: https://img.shields.io/badge/license-Apache%202.0-blue.svg
+[license-url]: https://github.com/twitter/rpc-perf/blob/master/LICENSE
 [mio]: https://github.com/carllerche/mio
 [Open Source Code of Conduct]: https://github.com/twitter/code-of-conduct/blob/master/code-of-conduct.md
 [rustlang]: https://rust-lang.org/
