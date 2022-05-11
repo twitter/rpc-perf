@@ -5,40 +5,37 @@
 use rustcommon_metrics::metric;
 pub use rustcommon_metrics::{Counter, Gauge};
 
-/// Number of connect attempts.
-#[metric(name = "connect")]
+#[metric(name = "connect", description = "connect attempts")]
 pub static CONNECT: Counter = Counter::new();
 
-/// Number of connect errors.
-#[metric(name = "connect_ex")]
+#[metric(name = "connect_ex", description = "exceptions when calling connect")]
 pub static CONNECT_EX: Counter = Counter::new();
 
-/// Number of connect timeouts.
-#[metric(name = "connect_timeout")]
+#[metric(name = "connect_timeout", description = "connect timeouts")]
 pub static CONNECT_TIMEOUT: Counter = Counter::new();
 
-/// Number of requests sent.
-#[metric(name = "request")]
+#[metric(name = "request", description = "requests sent")]
 pub static REQUEST: Counter = Counter::new();
 
-/// Number of request errors.
-#[metric(name = "request_ex")]
+#[metric(name = "request_ex", description = "exceptions when sending a request")]
 pub static REQUEST_EX: Counter = Counter::new();
 
-/// 'get' requests for hitrate calculations.
-#[metric(name = "request_get")]
+#[metric(name = "request_get", description = "get requests sent")]
 pub static REQUEST_GET: Counter = Counter::new();
 
-/// 'ok' responses for success rate calculations
-#[metric(name = "response")]
+#[metric(name = "response", description = "responses received")]
 pub static RESPONSE: Counter = Counter::new();
 
-/// 'error' responses for success rate calculations
-#[metric(name = "response_ex")]
+#[metric(
+    name = "response_ex",
+    description = "responses that indicated an error"
+)]
 pub static RESPONSE_EX: Counter = Counter::new();
 
-/// 'hit' responses for hitrate calculations
-#[metric(name = "response_hit")]
+#[metric(
+    name = "response_hit",
+    description = "responses that indicated a cache hit"
+)]
 pub static RESPONSE_HIT: Counter = Counter::new();
 
 /// distribution of response latencies
@@ -47,46 +44,50 @@ pub static RESPONSE_HIT: Counter = Counter::new();
 //     Heatmap::new(1_000_000_000, 3, Duration::from_secs(60), Duration::from_secs(1))
 // );
 
-/// Number of closed connections.
-#[metric(name = "close")]
+#[metric(name = "close", description = "closed connections")]
 pub static CLOSE: Counter = Counter::new();
 
-/// Number of elapsed windows.
-#[metric(name = "window")]
+#[metric(name = "window", description = "elapsed windows")]
 pub static WINDOW: Counter = Counter::new();
 
-/// Number of sessions.
-#[metric(name = "session")]
+#[metric(name = "session", description = "sessions created")]
 pub static SESSION: Counter = Counter::new();
 
-/// Number of currently open connections.
-#[metric(name = "open")]
+#[metric(name = "open", description = "open connections")]
 pub static OPEN: Gauge = Gauge::new();
 
-/// Number of times recv has been called.
-#[metric(name = "session_recv")]
+#[metric(name = "session_recv", description = "session receive attempts")]
 pub static SESSION_RECV: Counter = Counter::new();
 
-/// Number of errors calling recv.
-#[metric(name = "session_recv_ex")]
+#[metric(
+    name = "session_recv_ex",
+    description = "exceptions when calling receive on session"
+)]
 pub static SESSION_RECV_EX: Counter = Counter::new();
 
-/// Number of bytes received.
-#[metric(name = "session_recv_byte")]
+#[metric(
+    name = "session_recv_byte",
+    description = "bytes received for all sessions"
+)]
 pub static SESSION_RECV_BYTE: Counter = Counter::new();
 
-/// Number of times send has been called.
-#[metric(name = "session_send")]
+#[metric(name = "session_send", description = "session send attempts")]
 pub static SESSION_SEND: Counter = Counter::new();
 
-/// Number of errors calling send.
-#[metric(name = "session_send_ex")]
+#[metric(
+    name = "session_send_ex",
+    description = "execptions when calling send on session"
+)]
 pub static SESSION_SEND_EX: Counter = Counter::new();
 
-/// Number of bytes sent.
-#[metric(name = "session_send_byte")]
+#[metric(
+    name = "session_send_byte",
+    description = "bytes sent for all sessions"
+)]
 pub static SESSION_SEND_BYTE: Counter = Counter::new();
 
-/// Number of sessions which were reused.
-#[metric(name = "session_reuse")]
+#[metric(
+    name = "session_reuse",
+    description = "session reused with abbreviated TLS handshake"
+)]
 pub static SESSION_REUSE: Counter = Counter::new();
