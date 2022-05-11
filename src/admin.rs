@@ -412,14 +412,23 @@ impl Snapshot {
         let mut data = Vec::new();
         for (counter, entry) in &self.counters {
             if let Some(description) = entry.description {
-                data.push(format!("# HELP {} {}\n# TYPE {} counter\n{} {}", counter, description, counter, counter, entry.value));
+                data.push(format!(
+                    "# HELP {} {}\n# TYPE {} counter\n{} {}",
+                    counter, description, counter, counter, entry.value
+                ));
             } else {
-                data.push(format!("# TYPE {} counter\n{} {}", counter, counter, entry.value));
+                data.push(format!(
+                    "# TYPE {} counter\n{} {}",
+                    counter, counter, entry.value
+                ));
             }
         }
         for (gauge, entry) in &self.counters {
             if let Some(description) = entry.description {
-                data.push(format!("# HELP {} {}\n# TYPE {} gauge\n{} {}", gauge, description, gauge, gauge, entry.value));
+                data.push(format!(
+                    "# HELP {} {}\n# TYPE {} gauge\n{} {}",
+                    gauge, description, gauge, gauge, entry.value
+                ));
             } else {
                 data.push(format!("# TYPE {} gauge\n{} {}", gauge, gauge, entry.value));
             }

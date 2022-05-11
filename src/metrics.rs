@@ -26,10 +26,16 @@ pub static REQUEST_GET: Counter = Counter::new();
 #[metric(name = "response", description = "responses received")]
 pub static RESPONSE: Counter = Counter::new();
 
-#[metric(name = "response_ex", description = "responses that indicated an error")]
+#[metric(
+    name = "response_ex",
+    description = "responses that indicated an error"
+)]
 pub static RESPONSE_EX: Counter = Counter::new();
 
-#[metric(name = "response_hit", description = "responses that indicated a cache hit")]
+#[metric(
+    name = "response_hit",
+    description = "responses that indicated a cache hit"
+)]
 pub static RESPONSE_HIT: Counter = Counter::new();
 
 /// distribution of response latencies
@@ -53,20 +59,35 @@ pub static OPEN: Gauge = Gauge::new();
 #[metric(name = "session_recv", description = "session receive attempts")]
 pub static SESSION_RECV: Counter = Counter::new();
 
-#[metric(name = "session_recv_ex", description = "exceptions when calling receive on session")]
+#[metric(
+    name = "session_recv_ex",
+    description = "exceptions when calling receive on session"
+)]
 pub static SESSION_RECV_EX: Counter = Counter::new();
 
-#[metric(name = "session_recv_byte", description = "bytes received for all sessions")]
+#[metric(
+    name = "session_recv_byte",
+    description = "bytes received for all sessions"
+)]
 pub static SESSION_RECV_BYTE: Counter = Counter::new();
 
 #[metric(name = "session_send", description = "session send attempts")]
 pub static SESSION_SEND: Counter = Counter::new();
 
-#[metric(name = "session_send_ex", description = "execptions when calling send on session")]
+#[metric(
+    name = "session_send_ex",
+    description = "execptions when calling send on session"
+)]
 pub static SESSION_SEND_EX: Counter = Counter::new();
 
-#[metric(name = "session_send_byte", description = "bytes sent for all sessions")]
+#[metric(
+    name = "session_send_byte",
+    description = "bytes sent for all sessions"
+)]
 pub static SESSION_SEND_BYTE: Counter = Counter::new();
 
-#[metric(name = "session_reuse", description = "session reused with abbreviated TLS handshake")]
+#[metric(
+    name = "session_reuse",
+    description = "session reused with abbreviated TLS handshake"
+)]
 pub static SESSION_REUSE: Counter = Counter::new();
