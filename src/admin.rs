@@ -256,11 +256,17 @@ impl Admin {
 
 #[derive(Clone)]
 pub struct Snapshot {
-    counters: HashMap<&'static str, u64>,
-    _gauges: HashMap<&'static str, i64>,
+    counters: HashMap<&'static str, SnapshotEntry<u64>>,
+    gauges: HashMap<&'static str, SnapshotEntry<i64>>,
     timestamp: Instant,
     connect_percentiles: Vec<(String, u64)>,
     request_percentiles: Vec<(String, u64)>,
+}
+
+#[derive(Clone)]
+pub struct SnapshotEntry<T> {
+    description: Option<&'static str>,
+    value: T,
 }
 
 impl Snapshot {
@@ -277,9 +283,17 @@ impl Snapshot {
             };
 
             if let Some(counter) = any.downcast_ref::<Counter>() {
-                counters.insert(metric.name(), counter.value());
+                let entry = SnapshotEntry {
+                    description: metric.description(),
+                    value: counter.value(),
+                };
+                counters.insert(metric.name(), entry);
             } else if let Some(gauge) = any.downcast_ref::<Gauge>() {
-                gauges.insert(metric.name(), gauge.value());
+                let entry = SnapshotEntry {
+                    description: metric.description(),
+                    value: gauge.value(),
+                };
+                gauges.insert(metric.name(), entry);
             }
         }
 
@@ -311,7 +325,7 @@ impl Snapshot {
 
         Self {
             counters,
-            _gauges: gauges,
+            gauges,
             timestamp: Instant::now(),
             connect_percentiles,
             request_percentiles,
@@ -319,8 +333,8 @@ impl Snapshot {
     }
 
     fn delta_count(&self, other: &Self, counter: &'static str) -> u64 {
-        let this = self.counters.get(&counter).unwrap_or(&0);
-        let other = other.counters.get(&counter).unwrap_or(&0);
+        let this = self.counters.get(&counter).map(|v| v.value).unwrap_or(0);
+        let other = other.counters.get(&counter).map(|v| v.value).unwrap_or(0);
         this - other
     }
 
@@ -352,14 +366,17 @@ impl Snapshot {
 
     pub fn human(&self) -> String {
         let mut data = Vec::new();
-        for (counter, value) in &self.counters {
-            data.push(format!("{}: {}", counter, value));
+        for (counter, entry) in &self.counters {
+            data.push(format!("{}: {}", counter, entry.value));
         }
-        for (label, value) in &self.connect_percentiles {
-            data.push(format!("connect_latency/{}: {}", label, value));
+        for (gauge, entry) in &self.gauges {
+            data.push(format!("{}: {}", gauge, entry.value));
         }
-        for (label, value) in &self.request_percentiles {
-            data.push(format!("response_latency/{}: {}", label, value));
+        for (label, entry) in &self.connect_percentiles {
+            data.push(format!("connect_latency/{}: {}", label, entry));
+        }
+        for (label, entry) in &self.request_percentiles {
+            data.push(format!("response_latency/{}: {}", label, entry));
         }
         data.sort();
         let mut content = data.join("\n");
@@ -371,14 +388,17 @@ impl Snapshot {
         let head = "{".to_owned();
 
         let mut data = Vec::new();
-        for (label, value) in &self.counters {
-            data.push(format!("\"{}\": {}", label, value));
+        for (label, entry) in &self.counters {
+            data.push(format!("\"{}\": {}", label, entry.value));
         }
-        for (label, value) in &self.connect_percentiles {
-            data.push(format!("\"connect_latency/{}\": {}", label, value));
+        for (label, entry) in &self.gauges {
+            data.push(format!("\"{}\": {}", label, entry.value));
         }
-        for (label, value) in &self.request_percentiles {
-            data.push(format!("\"response_latency/{}\": {}", label, value));
+        for (label, entry) in &self.connect_percentiles {
+            data.push(format!("\"connect_latency/{}\": {}", label, entry));
+        }
+        for (label, entry) in &self.request_percentiles {
+            data.push(format!("\"response_latency/{}\": {}", label, entry));
         }
         data.sort();
         let body = data.join(",");
@@ -390,21 +410,32 @@ impl Snapshot {
 
     pub fn prometheus(&self) -> String {
         let mut data = Vec::new();
-        for (counter, value) in &self.counters {
-            data.push(format!("# TYPE {} counter\n{} {}", counter, counter, value));
+        for (counter, entry) in &self.counters {
+            if let Some(description) = entry.description {
+                data.push(format!("# HELP {} {}\n# TYPE {} counter\n{} {}", counter, description, counter, counter, entry.value));
+            } else {
+                data.push(format!("# TYPE {} counter\n{} {}", counter, counter, entry.value));
+            }
         }
-        for (percentile, value) in &self.connect_percentiles {
+        for (gauge, entry) in &self.counters {
+            if let Some(description) = entry.description {
+                data.push(format!("# HELP {} {}\n# TYPE {} gauge\n{} {}", gauge, description, gauge, gauge, entry.value));
+            } else {
+                data.push(format!("# TYPE {} gauge\n{} {}", gauge, gauge, entry.value));
+            }
+        }
+        for (percentile, entry) in &self.connect_percentiles {
             let label = "connect_latency";
             data.push(format!(
                 "# TYPE {} gauge\n{}{{percentile=\"{}\"}} {}",
-                label, label, percentile, value
+                label, label, percentile, entry
             ));
         }
-        for (percentile, value) in &self.request_percentiles {
+        for (percentile, entry) in &self.request_percentiles {
             let label = "response_latency";
             data.push(format!(
                 "# TYPE {} gauge\n{}{{percentile=\"{}\"}} {}",
-                label, label, percentile, value
+                label, label, percentile, entry
             ));
         }
         data.sort();
