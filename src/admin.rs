@@ -423,7 +423,7 @@ impl Snapshot {
                 ));
             }
         }
-        for (gauge, entry) in &self.counters {
+        for (gauge, entry) in &self.gauges {
             if let Some(description) = entry.description {
                 data.push(format!(
                     "# HELP {} {}\n# TYPE {} gauge\n{} {}",
