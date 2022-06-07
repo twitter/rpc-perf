@@ -303,6 +303,14 @@ pub enum Verb {
     Lrange,
     /// Trims the elements of the list sotred at the key
     Ltrim,
+    /// Increments key by 1
+    Incr,
+    /// Decrments key by 1
+    Decr,
+    /// Appends value to the key
+    Append,
+    /// Prepends the value to the key
+    Prepend,
 }
 
 #[derive(Deserialize, Copy, Clone)]

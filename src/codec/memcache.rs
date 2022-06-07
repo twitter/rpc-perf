@@ -56,6 +56,42 @@ impl Memcache {
         let _ = buf.write_all(&key);
         let _ = buf.write_all(b"\r\n");
     }
+
+    fn incr(rng: &mut SmallRng, keyspace: &Keyspace, buf: &mut Session) {
+        let key = keyspace.generate_key(rng);
+        let _ = buf.write_all(b"incr ");
+        let _ = buf.write_all(&key);
+        let _ = buf.write_all(b" 1 noreply");
+        let _ = buf.write_all(b"\r\n");
+    }
+
+    fn decr(rng: &mut SmallRng, keyspace: &Keyspace, buf: &mut Session) {
+        let key = keyspace.generate_key(rng);
+        let _ = buf.write_all(b"decr ");
+        let _ = buf.write_all(&key);
+        let _ = buf.write_all(b" 1 noreply");
+        let _ = buf.write_all(b"\r\n");
+    }
+
+    fn append(rng: &mut SmallRng, keyspace: &Keyspace, buf: &mut Session) {
+        let key = keyspace.generate_key(rng);
+        let value = keyspace.generate_value(rng).unwrap_or_else(|| b"".to_vec());
+        let _ = buf.write_all(b"append ");
+        let _ = buf.write_all(&key);
+        let _ = buf.write_all(format!(" 0 0 {}\r\n", value.len()).as_bytes());
+        let _ = buf.write_all(&value);
+        let _ = buf.write_all(b"\r\n");
+    }
+
+    fn prepend(rng: &mut SmallRng, keyspace: &Keyspace, buf: &mut Session) {
+        let key = keyspace.generate_key(rng);
+        let value = keyspace.generate_value(rng).unwrap_or_else(|| b"".to_vec());
+        let _ = buf.write_all(b"prepend ");
+        let _ = buf.write_all(&key);
+        let _ = buf.write_all(format!(" 0 0 {}\r\n", value.len()).as_bytes());
+        let _ = buf.write_all(&value);
+        let _ = buf.write_all(b"\r\n");
+    }
 }
 
 impl Codec for Memcache {
@@ -69,6 +105,10 @@ impl Codec for Memcache {
             }
             Verb::Set => Self::set(&mut self.rng, keyspace, buf),
             Verb::Delete => Self::delete(&mut self.rng, keyspace, buf),
+            Verb::Incr => Self::incr(&mut self.rng, keyspace, buf),
+            Verb::Decr => Self::decr(&mut self.rng, keyspace, buf),
+            Verb::Append => Self::append(&mut self.rng, keyspace, buf),
+            Verb::Prepend => Self::prepend(&mut self.rng, keyspace, buf),
             _ => {
                 unimplemented!()
             }
