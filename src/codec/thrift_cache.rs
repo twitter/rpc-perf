@@ -3,6 +3,7 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 use super::thrift;
+use std::io::BufRead;
 
 use crate::codec::*;
 use crate::config::*;
@@ -577,6 +578,7 @@ impl Codec for ThriftCache {
             match length.checked_add(4_u32) {
                 Some(b) => {
                     if b == bytes {
+                        buffer.consume(b as usize);
                         Ok(())
                     } else {
                         Err(ParseError::Incomplete)
