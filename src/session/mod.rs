@@ -308,7 +308,8 @@ impl Write for Session {
 
     fn flush(&mut self) -> Result<(), std::io::Error> {
         SESSION_SEND.increment();
-        match self.stream.write((self.write_buffer).borrow()) {
+        let content: &[u8] = self.write_buffer.borrow();
+        match self.stream.write(content) {
             Ok(0) => Ok(()),
             Ok(bytes) => {
                 // let flushed_bytes = bytes;

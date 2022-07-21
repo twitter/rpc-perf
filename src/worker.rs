@@ -309,7 +309,7 @@ impl Worker {
     /// Handle writing to the session
     fn do_write(&mut self, token: Token) -> Result<(), Error> {
         let session = get_session_mut!(self, token)?;
-        if !session.write_pending() > 0 {
+        if session.write_pending() > 0 {
             session.flush()?;
         }
         Ok(())
