@@ -38,6 +38,7 @@ pub struct Worker {
     tls: Option<SslConnector>,
     connect_heatmap: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>,
     request_heatmap: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>,
+    pipeline: usize,
 }
 
 impl Worker {
@@ -48,6 +49,7 @@ impl Worker {
         let sessions = Slab::with_capacity(connections);
         let mut connect_queue = VecDeque::with_capacity(connections);
         let ready_queue = VecDeque::with_capacity(connections);
+        let pipeline = config.connection().pipeline();
 
         // initialize sessions
         for endpoint in config.endpoints() {
@@ -95,6 +97,7 @@ impl Worker {
             codec,
             connect_heatmap: None,
             request_heatmap: None,
+            pipeline,
         })
     }
 
@@ -190,8 +193,8 @@ impl Worker {
     }
 
     /// Check if the session is connecting
-    fn is_connecting(&mut self, token: Token) -> Result<bool, Error> {
-        let session = get_session_mut!(self, token)?;
+    fn is_connecting(&self, token: Token) -> Result<bool, Error> {
+        let session = get_session!(self, token)?;
         Ok(session.is_connecting())
     }
 
@@ -203,8 +206,8 @@ impl Worker {
     }
 
     /// Check if the session is handshaking
-    fn is_handshaking(&mut self, token: Token) -> Result<bool, Error> {
-        let session = get_session_mut!(self, token)?;
+    fn is_handshaking(&self, token: Token) -> Result<bool, Error> {
+        let session = get_session!(self, token)?;
         Ok(session.is_handshaking())
     }
 
@@ -233,10 +236,13 @@ impl Worker {
     }
 
     /// Generate and send a request over the session
-    fn send_request(&mut self, token: Token) -> Result<(), Error> {
+    fn send_request(&mut self, token: Token, count: usize) -> Result<(), Error> {
         let session = get_session_mut!(self, token)?;
-        REQUEST.increment();
-        self.codec.encode(session);
+        for _ in 0..count {
+            REQUEST.increment();
+            self.codec.encode(session);
+        }
+        session.set_outstanding(count);
         session.set_timestamp(Instant::now());
         let _ = session.flush();
         if session.write_pending() > 0 {
@@ -257,28 +263,31 @@ impl Worker {
             }
             Ok(_) => {
                 // request parsing
-                let response = self.codec.decode(session);
-                match response {
-                    Ok(()) => {
-                        RESPONSE.increment();
-                        // let now = now_precise();
-                        // let elapsed = now - session.timestamp();
-                        // let us = elapsed.as_nanos() as u64 / 1_000;
-                        // RESPONSE_LATENCY.increment(now, us, 1);
-                        if let Some(ref heatmap) = self.request_heatmap {
-                            let now = Instant::now();
-                            let elapsed = now - session.timestamp();
-                            let us = elapsed.as_nanos() as u64 / 1_000;
-                            heatmap.increment(now, us, 1);
+                while session.outstanding() > 0 {
+                    let response = self.codec.decode(session);
+                    match response {
+                        Ok(()) => {
+                            session.set_outstanding(session.outstanding() - 1);
+                            RESPONSE.increment();
+                            if let Some(ref heatmap) = self.request_heatmap {
+                                let now = Instant::now();
+                                let elapsed = now - session.timestamp();
+                                let us = elapsed.as_nanos() as u64 / 1_000;
+                                heatmap.increment(now, us, 1);
+                            }
                         }
-                        self.ready_queue.push_back(token);
-                        Ok(())
+                        Err(e) => match e {
+                            ParseError::Incomplete => {
+                                return Ok(());
+                            }
+                            _ => {
+                                return Err(Error::from(std::io::ErrorKind::InvalidData));
+                            }
+                        },
                     }
-                    Err(e) => match e {
-                        ParseError::Incomplete => Ok(()),
-                        _ => self.disconnect(token),
-                    },
                 }
+                self.ready_queue.push_back(token);
+                Ok(())
             }
             Err(e) => {
                 match e.kind() {
@@ -309,6 +318,7 @@ impl Worker {
     /// Starts the worker event loop. Typically used in a child thread.
     pub fn run(&mut self) {
         let mut events = Events::with_capacity(1024);
+        let mut credits = 0;
 
         loop {
             if let Some((addr, ssl_session)) = self.connect_queue.pop_front() {
@@ -340,13 +350,19 @@ impl Worker {
                 if reconnect {
                     let _ = self.disconnect(token);
                 } else {
-                    let request = if let Some(r) = &self.request_ratelimit {
-                        r.try_wait().is_ok()
+                    if let Some(r) = &self.request_ratelimit {
+                        while r.try_wait().is_ok() {
+                            credits += 1;
+                            if credits == self.pipeline {
+                                break;
+                            }
+                        }
                     } else {
-                        true
+                        credits = self.pipeline;
                     };
-                    if request {
-                        if self.send_request(token).is_ok() {
+                    if credits == self.pipeline {
+                        credits = 0;
+                        if self.send_request(token, self.pipeline).is_ok() {
                             // yay, we sent a request
                         } else if self.disconnect(token).is_ok() {
                             REQUEST_EX.increment();

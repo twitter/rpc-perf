@@ -39,6 +39,8 @@ pub struct Session {
     interest: Interest,
     /// A timestamp which is used to calculate response latency
     timestamp: Instant,
+    /// the number of outstanding responses
+    outstanding: usize,
 }
 
 impl std::fmt::Debug for Session {
@@ -93,6 +95,7 @@ impl Session {
             max_capacity,
             interest: Interest::WRITABLE,
             timestamp: Instant::now(),
+            outstanding: 0,
         }
     }
 
@@ -222,6 +225,14 @@ impl Session {
 
     pub fn ssl_session(&self) -> Option<SslSession> {
         self.stream.ssl_session()
+    }
+
+    pub fn set_outstanding(&mut self, count: usize) {
+        self.outstanding = count;
+    }
+
+    pub fn outstanding(&self) -> usize {
+        self.outstanding
     }
 }
 

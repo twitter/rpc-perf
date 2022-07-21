@@ -168,7 +168,10 @@ pub struct Connection {
     reconnect: Option<usize>,
     #[serde(default = "default_nodelay")]
     tcp_nodelay: bool,
+    #[allow(dead_code)]
     timeout: Option<usize>,
+    #[serde(default = "one")]
+    pipeline: usize,
 }
 
 impl Default for Connection {
@@ -180,6 +183,7 @@ impl Default for Connection {
             reconnect: None,
             tcp_nodelay: false,
             timeout: None,
+            pipeline: 1,
         }
     }
 }
@@ -207,6 +211,10 @@ impl Connection {
 
     pub fn tcp_nodelay(&self) -> bool {
         self.tcp_nodelay
+    }
+
+    pub fn pipeline(&self) -> usize {
+        self.pipeline
     }
 }
 
@@ -371,22 +379,13 @@ impl Value {
     }
 }
 
-#[derive(Deserialize, Copy, Clone)]
+#[derive(Deserialize, Copy, Clone, Default)]
 #[serde(deny_unknown_fields)]
 pub struct Request {
+    #[allow(dead_code)]
     timeout: Option<usize>,
     ratelimit: Option<usize>,
     ratelimit_model: Option<RatelimitModel>,
-}
-
-impl Default for Request {
-    fn default() -> Self {
-        Self {
-            ratelimit: None,
-            ratelimit_model: None,
-            timeout: None,
-        }
-    }
 }
 
 impl Request {
