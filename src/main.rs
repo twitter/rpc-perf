@@ -8,7 +8,6 @@ extern crate rustcommon_logger;
 use backtrace::Backtrace;
 use clap::{App, Arg};
 use rpc_perf::Builder;
-use rustcommon_logger::{Level, Logger};
 
 fn main() {
     // custom panic hook to terminate whole process after unwinding
@@ -31,13 +30,6 @@ fn main() {
         .about("Measure RPC performance using synthetic traffic")
         .arg(Arg::with_name("CONFIG").help("Configuration file").index(1))
         .get_matches();
-
-    // initialize logging
-    Logger::new()
-        .label("rpc-perf")
-        .level(Level::Info)
-        .init()
-        .expect("Failed to initialize logger");
 
     // launch
     Builder::new(matches.value_of("CONFIG")).spawn().wait()

@@ -14,7 +14,9 @@ use mio::{Events, Poll, Token};
 use mpmc::Queue;
 use rand::{Rng, RngCore, SeedableRng};
 use rand_distr::Alphanumeric;
-use rustcommon_logger::{Level, Logger};
+use rustcommon_logger::MultiLogBuilder;
+use rustcommon_logger::Stdout;
+use rustcommon_logger::{LevelFilter, LogBuilder};
 use rustcommon_ratelimiter::Ratelimiter;
 use slab::Slab;
 use std::io::Read;
@@ -36,11 +38,18 @@ use std::sync::Arc;
 // TODO(bmartin): this should be split up into a library and binary
 fn main() {
     // initialize logging
-    Logger::new()
-        .label("rpc-replay")
-        .level(Level::Info)
-        .init()
-        .expect("Failed to initialize logger");
+    let log = LogBuilder::new()
+        .output(Box::new(Stdout::new()))
+        .log_queue_depth(1024)
+        .single_message_size(4096)
+        .build()
+        .expect("failed to initialize log");
+
+    let log = MultiLogBuilder::new()
+        .level_filter(LevelFilter::Info)
+        .default(log)
+        .build()
+        .start();
 
     // process command line arguments
     // TODO(bmartin): consider moving to a file based config
@@ -191,7 +200,7 @@ fn main() {
     )));
 
     // spawn admin
-    let mut admin = Admin::for_replay(None);
+    let mut admin = Admin::for_replay(None, log);
     admin.set_request_heatmap(request_heatmap.clone());
     let _admin_thread = std::thread::spawn(move || admin.run());
 
