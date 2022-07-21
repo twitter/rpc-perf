@@ -18,6 +18,9 @@ mod session;
 mod time;
 mod worker;
 
+use rustcommon_logger::MultiLogBuilder;
+use rustcommon_logger::Stdout;
+use rustcommon_logger::{LevelFilter, LogBuilder};
 pub use crate::admin::Admin;
 pub use crate::config::Config;
 pub use crate::metrics::*;
@@ -41,6 +44,19 @@ pub struct Builder {
 impl Builder {
     /// Create a new runtime builder from the given config
     pub fn new(config: Option<&str>) -> Self {
+        let log = LogBuilder::new()
+            .output(Box::new(Stdout::new()))
+            .log_queue_depth(1024)
+            .single_message_size(4096)
+            .build()
+            .expect("failed to initialize log");
+
+        let log = MultiLogBuilder::new()
+            .level_filter(LevelFilter::Info)
+            .default(log)
+            .build()
+            .start();
+
         let config = Config::new(config);
 
         let config = Arc::new(config);
@@ -100,7 +116,7 @@ impl Builder {
             workers.push(worker);
         }
 
-        let mut admin = Admin::new(config);
+        let mut admin = Admin::new(config, log);
         admin.set_connect_heatmap(connect_heatmap);
         admin.set_reconnect_ratelimit(reconnect_ratelimit);
         admin.set_request_heatmap(request_heatmap);

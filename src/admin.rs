@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
+use rustcommon_logger::Drain;
 use crate::metrics::*;
 use crate::Arc;
 use crate::Config;
@@ -23,10 +24,11 @@ pub struct Admin {
     request_heatmap: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>,
     request_ratelimit: Option<Arc<Ratelimiter>>,
     server: Option<Server>,
+    log: Box<dyn Drain>,
 }
 
 impl Admin {
-    pub fn new(config: Arc<Config>) -> Self {
+    pub fn new(config: Arc<Config>, log: Box<dyn Drain>) -> Self {
         let snapshot = Snapshot::new(None, None);
         let server = config
             .general()
@@ -41,10 +43,11 @@ impl Admin {
             request_heatmap: None,
             request_ratelimit: None,
             server,
+            log,
         }
     }
 
-    pub fn for_replay(admin_addr: Option<SocketAddr>) -> Self {
+    pub fn for_replay(admin_addr: Option<SocketAddr>, log: Box<dyn Drain>) -> Self {
         let snapshot = Snapshot::new(None, None);
         let server = admin_addr.map(|admin_addr| Server::http(admin_addr).unwrap());
 
@@ -56,6 +59,7 @@ impl Admin {
             request_heatmap: None,
             request_ratelimit: None,
             server,
+            log,
         }
     }
 
@@ -86,6 +90,7 @@ impl Admin {
 
         loop {
             while Instant::now() < next {
+                let _ = self.log.flush();
                 snapshot =
                     Snapshot::new(self.connect_heatmap.as_ref(), self.request_heatmap.as_ref());
                 if let Some(ref server) = self.server {
