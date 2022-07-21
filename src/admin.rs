@@ -2,12 +2,12 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use rustcommon_logger::Drain;
 use crate::metrics::*;
 use crate::Arc;
 use crate::Config;
 use rustcommon_heatmap::AtomicHeatmap;
 use rustcommon_heatmap::AtomicU64;
+use rustcommon_logger::Drain;
 use rustcommon_ratelimiter::Ratelimiter;
 use std::collections::HashMap;
 use std::time::Instant;

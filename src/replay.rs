@@ -7,9 +7,6 @@
 #[macro_use]
 extern crate rustcommon_logger;
 
-use rustcommon_logger::MultiLogBuilder;
-use rustcommon_logger::{LevelFilter, LogBuilder};
-use rustcommon_logger::Stdout;
 use boring::ssl::*;
 use boring::x509::X509;
 use clap::{App, Arg};
@@ -17,6 +14,9 @@ use mio::{Events, Poll, Token};
 use mpmc::Queue;
 use rand::{Rng, RngCore, SeedableRng};
 use rand_distr::Alphanumeric;
+use rustcommon_logger::MultiLogBuilder;
+use rustcommon_logger::Stdout;
+use rustcommon_logger::{LevelFilter, LogBuilder};
 use rustcommon_ratelimiter::Ratelimiter;
 use slab::Slab;
 use std::io::Read;
@@ -39,17 +39,17 @@ use std::sync::Arc;
 fn main() {
     // initialize logging
     let log = LogBuilder::new()
-            .output(Box::new(Stdout::new()))
-            .log_queue_depth(1024)
-            .single_message_size(4096)
-            .build()
-            .expect("failed to initialize log");
+        .output(Box::new(Stdout::new()))
+        .log_queue_depth(1024)
+        .single_message_size(4096)
+        .build()
+        .expect("failed to initialize log");
 
     let log = MultiLogBuilder::new()
-            .level_filter(LevelFilter::Info)
-            .default(log)
-            .build()
-            .start();
+        .level_filter(LevelFilter::Info)
+        .default(log)
+        .build()
+        .start();
 
     // process command line arguments
     // TODO(bmartin): consider moving to a file based config
