@@ -27,6 +27,8 @@ poolsize = 25
 # set a rate for reconnecting. existing sessions will be closed and reopened to
 # generate the reconnects
 reconnect = 5
+# the number of requests to pipeline together into a single transmission
+# pipeline = 1
 
 [request]
 # set a global ratelimit for requests

@@ -24,6 +24,8 @@ endpoints = [
 # the number of connections to each endpoint from each thread, the total number
 # of connections to each endpoint is: poolsize * threads
 poolsize = 25
+# the number of requests to pipeline together into a single transmission
+# pipeline = 1
 
 [request]
 # set a global ratelimit for requests

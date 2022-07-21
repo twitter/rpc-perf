@@ -15,3 +15,17 @@ macro_rules! get_session_mut {
         }
     };
 }
+
+#[macro_export(local_inner_macros)]
+macro_rules! get_session {
+    ($self:ident, $token:ident) => {
+        if let Some(session) = $self.sessions.get($token.0) {
+            Ok(session)
+        } else {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "no such session",
+            ))
+        }
+    };
+}
