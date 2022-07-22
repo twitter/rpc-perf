@@ -10,8 +10,7 @@ use crate::*;
 use rand::rngs::SmallRng;
 use rand::SeedableRng;
 
-use std::cmp::Ordering;
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, Write};
 use std::str;
 
 pub enum Mode {
@@ -175,29 +174,26 @@ impl Codec for Redis {
         // no-copy borrow as a slice
         let buf: &[u8] = (*buffer).buffer();
 
-        let end = &buf[buf.len() - 2..buf.len()];
-
-        // All complete responses end in CRLF
-        if end != b"\r\n" {
+        if buf.len() < 1 {
             return Err(ParseError::Incomplete);
         }
 
         let first_char = &buf[0..1];
         match str::from_utf8(first_char) {
             Ok("+") => {
-                // simple string
-                if buf.len() < 5 {
-                    Err(ParseError::Incomplete)
-                } else {
-                    let msg = &buf[1..buf.len() - 2];
+                // simple string response
+                let mut lines = buf.windows(2);
+                if let Some(line_end) = lines.position(|w| w == b"\r\n") {
+                    let msg = &buf[1..line_end];
                     match str::from_utf8(msg) {
                         Ok("OK") | Ok("PONG") => {
-                            let response_end = buf.len();
-                            let _ = buffer.consume(response_end);
+                            let _ = buffer.consume(line_end + 2);
                             Ok(())
                         }
                         _ => Err(ParseError::Unknown),
                     }
+                } else {
+                    Err(ParseError::Incomplete)
                 }
             }
             Ok("-") => {
@@ -206,52 +202,50 @@ impl Codec for Redis {
             }
             Ok(":") => {
                 // numeric response
-                let msg = &buf[1..buf.len() - 2];
-                match str::from_utf8(msg) {
-                    Ok(msg) => match msg.parse::<i64>() {
-                        Ok(_) => {
-                            let response_end = buf.len();
-                            let _ = buffer.consume(response_end);
-                            Ok(())
-                        }
+                let mut lines = buf.windows(2);
+                if let Some(line_end) = lines.position(|w| w == b"\r\n") {
+                    let msg = &buf[1..line_end];
+                    match str::from_utf8(msg) {
+                        Ok(msg) => match msg.parse::<i64>() {
+                            Ok(_) => {
+                                let _ = buffer.consume(line_end + 2);
+                                Ok(())
+                            }
+                            Err(_) => Err(ParseError::Unknown),
+                        },
                         Err(_) => Err(ParseError::Unknown),
-                    },
-                    Err(_) => Err(ParseError::Unknown),
+                    }
+                } else {
+                    Err(ParseError::Incomplete)
                 }
             }
             Ok("$") => {
                 // bulk string
-                let msg = &buf[1..buf.len() - 2];
-                match str::from_utf8(msg) {
-                    Ok("-1") => {
-                        let response_end = buf.len();
-                        let _ = buffer.consume(response_end);
-                        Ok(())
-                    }
-                    Ok(_) => {
-                        let reader = BufReader::new(buf);
-                        let mut lines = reader.lines();
-                        let mut line = lines.next().unwrap().unwrap();
-                        let _ = line.remove(0);
-                        match line.parse::<usize>() {
-                            Ok(expected) => {
-                                // data len = buf.len() - line.len() - 2x CRLF - 1
-                                let have = buf.len() - line.len() - 5;
-                                match have.cmp(&expected) {
-                                    Ordering::Less => Err(ParseError::Incomplete),
-                                    Ordering::Equal => {
-                                        let response_end = buf.len();
-                                        let _ = buffer.consume(response_end);
-                                        metrics::RESPONSE_HIT.increment();
-                                        Ok(())
-                                    }
-                                    Ordering::Greater => Err(ParseError::Error),
-                                }
+                let mut lines = buf.windows(2);
+                if let Some(line_end) = lines.position(|w| w == b"\r\n") {
+                    let msg = &buf[1..line_end];
+                    match str::from_utf8(msg) {
+                        Ok("-1") => {
+                            let _ = buffer.consume(line_end + 2);
+                            Ok(())
+                        }
+                        Ok(n) => {
+                            let len = n.parse::<usize>().map_err(|_| ParseError::Unknown)?;
+                            let response_end = len + line_end + 2;
+                            if response_end <= buf.len() {
+                                metrics::RESPONSE_HIT.increment();
+                                let _ = buffer.consume(response_end);
+                                Ok(())
+                            } else {
+                                Err(ParseError::Incomplete)
                             }
-                            Err(_) => Err(ParseError::Unknown),
+                        }
+                        Err(_) => {
+                            Err(ParseError::Unknown)
                         }
                     }
-                    Err(_) => Err(ParseError::Unknown),
+                } else {
+                    Err(ParseError::Incomplete)
                 }
             }
             Ok("*") => {
