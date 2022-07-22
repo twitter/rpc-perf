@@ -240,9 +240,7 @@ impl Codec for Redis {
                                 Err(ParseError::Incomplete)
                             }
                         }
-                        Err(_) => {
-                            Err(ParseError::Unknown)
-                        }
+                        Err(_) => Err(ParseError::Unknown),
                     }
                 } else {
                     Err(ParseError::Incomplete)
