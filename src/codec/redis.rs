@@ -231,7 +231,7 @@ impl Codec for Redis {
                         }
                         Ok(n) => {
                             let len = n.parse::<usize>().map_err(|_| ParseError::Unknown)?;
-                            let response_end = len + line_end + 2;
+                            let response_end = len + line_end + 4;
                             if response_end <= buf.len() {
                                 metrics::RESPONSE_HIT.increment();
                                 let _ = buffer.consume(response_end);
