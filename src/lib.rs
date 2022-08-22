@@ -23,12 +23,9 @@ pub use crate::config::Config;
 pub use crate::metrics::*;
 pub use crate::session::{Session, TcpStream};
 pub use crate::time::*;
-use rustcommon_logger::MultiLogBuilder;
-use rustcommon_logger::Stdout;
-use rustcommon_logger::{LevelFilter, LogBuilder};
 
-use rustcommon_heatmap::AtomicHeatmap;
-use rustcommon_heatmap::AtomicU64;
+use rustcommon_heatmap::{AtomicHeatmap, AtomicU64};
+use rustcommon_logger::{File, LogBuilder, MultiLogBuilder, Output, Stdout};
 use rustcommon_ratelimiter::Ratelimiter;
 
 use std::sync::Arc;
@@ -44,22 +41,37 @@ pub struct Builder {
 impl Builder {
     /// Create a new runtime builder from the given config
     pub fn new(config: Option<&str>) -> Self {
-        let log = LogBuilder::new()
-            .output(Box::new(Stdout::new()))
-            .log_queue_depth(1024)
-            .single_message_size(4096)
-            .build()
-            .expect("failed to initialize log");
-
-        let log = MultiLogBuilder::new()
-            .level_filter(LevelFilter::Info)
-            .default(log)
-            .build()
-            .start();
-
         let config = Config::new(config);
 
         let config = Arc::new(config);
+
+        let log_level = config.debug().log_level();
+
+        let debug_output: Box<dyn Output> = if let Some(file) = config.debug().log_file() {
+            let backup = config
+                .debug()
+                .log_backup()
+                .unwrap_or(format!("{}.old", file));
+            Box::new(
+                File::new(&file, &backup, config.debug().log_max_size())
+                    .expect("failed to open debug log file"),
+            )
+        } else {
+            Box::new(Stdout::new())
+        };
+
+        let log = LogBuilder::new()
+            .output(debug_output)
+            .log_queue_depth(config.debug().log_queue_depth())
+            .single_message_size(config.debug().log_single_message_size())
+            .build()
+            .expect("failed to initialize debug log");
+
+        let log = MultiLogBuilder::new()
+            .level_filter(log_level.to_level_filter())
+            .default(log)
+            .build()
+            .start();
 
         let threads = config.general().threads() as u64;
 
