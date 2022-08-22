@@ -23,12 +23,9 @@ pub use crate::config::Config;
 pub use crate::metrics::*;
 pub use crate::session::{Session, TcpStream};
 pub use crate::time::*;
-use rustcommon_logger::MultiLogBuilder;
-use rustcommon_logger::Stdout;
-use rustcommon_logger::{LevelFilter, LogBuilder};
 
-use rustcommon_heatmap::AtomicHeatmap;
-use rustcommon_heatmap::AtomicU64;
+use rustcommon_heatmap::{AtomicHeatmap, AtomicU64};
+use rustcommon_logger::{LogBuilder, MultiLogBuilder, Stdout};
 use rustcommon_ratelimiter::Ratelimiter;
 
 use std::sync::Arc;
@@ -44,6 +41,12 @@ pub struct Builder {
 impl Builder {
     /// Create a new runtime builder from the given config
     pub fn new(config: Option<&str>) -> Self {
+        let config = Config::new(config);
+
+        let config = Arc::new(config);
+
+        let log_level = config.debug().log_level();
+
         let log = LogBuilder::new()
             .output(Box::new(Stdout::new()))
             .log_queue_depth(1024)
@@ -52,14 +55,10 @@ impl Builder {
             .expect("failed to initialize log");
 
         let log = MultiLogBuilder::new()
-            .level_filter(LevelFilter::Info)
+            .level_filter(log_level.to_level_filter())
             .default(log)
             .build()
             .start();
-
-        let config = Config::new(config);
-
-        let config = Arc::new(config);
 
         let threads = config.general().threads() as u64;
 

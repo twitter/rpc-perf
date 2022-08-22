@@ -89,6 +89,7 @@ impl Admin {
             Snapshot::new(self.connect_heatmap.as_ref(), self.request_heatmap.as_ref());
 
         loop {
+            rustcommon_time::refresh_clock();
             while Instant::now() < next {
                 let _ = self.log.flush();
                 snapshot =

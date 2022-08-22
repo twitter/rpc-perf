@@ -3,6 +3,7 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 use core::time::Duration;
+use rustcommon_logger::Level;
 use serde_derive::*;
 use serde_json::Value as JsonValue;
 use std::io::Read;
@@ -14,6 +15,8 @@ use zookeeper::*;
 #[serde(deny_unknown_fields)]
 pub struct ConfigFile {
     general: General,
+    #[serde(default)]
+    debug: Debug,
     target: Target,
     #[serde(default)]
     connection: Connection,
@@ -26,6 +29,10 @@ pub struct ConfigFile {
 impl ConfigFile {
     pub fn general(&self) -> General {
         self.general.clone()
+    }
+
+    pub fn debug(&self) -> Debug {
+        self.debug.clone()
     }
 
     pub fn connection(&self) -> Connection {
@@ -147,6 +154,92 @@ impl General {
 
     pub fn admin(&self) -> Option<String> {
         self.admin.clone()
+    }
+}
+
+fn log_level() -> Level {
+    Level::Info
+}
+
+fn log_max_size() -> u64 {
+    1024 * 1024 * 1024
+}
+
+fn log_queue_depth() -> usize {
+    4096
+}
+
+fn log_single_message_size() -> usize {
+    1024
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Debug {
+    #[serde(with = "LevelDef")]
+    #[serde(default = "log_level")]
+    log_level: Level,
+    log_file: Option<String>,
+    log_backup: Option<String>,
+    #[serde(default = "log_max_size")]
+    log_max_size: u64,
+    #[serde(default = "log_queue_depth")]
+    log_queue_depth: usize,
+    #[serde(default = "log_single_message_size")]
+    log_single_message_size: usize,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+#[serde(remote = "Level")]
+#[serde(deny_unknown_fields)]
+enum LevelDef {
+    Error,
+    Warn,
+    Info,
+    Debug,
+    Trace,
+}
+
+// implementation
+impl Debug {
+    pub fn log_level(&self) -> Level {
+        self.log_level
+    }
+
+    pub fn log_file(&self) -> Option<String> {
+        self.log_file.clone()
+    }
+
+    pub fn log_backup(&self) -> Option<String> {
+        match &self.log_backup {
+            Some(path) => Some(path.clone()),
+            None => self.log_file.as_ref().map(|path| format!("{}.old", path)),
+        }
+    }
+
+    pub fn log_max_size(&self) -> u64 {
+        self.log_max_size
+    }
+
+    pub fn log_queue_depth(&self) -> usize {
+        self.log_queue_depth
+    }
+
+    pub fn log_single_message_size(&self) -> usize {
+        self.log_single_message_size
+    }
+}
+
+impl Default for Debug {
+    fn default() -> Self {
+        Self {
+            log_level: log_level(),
+            log_file: None,
+            log_backup: None,
+            log_max_size: log_max_size(),
+            log_queue_depth: log_queue_depth(),
+            log_single_message_size: log_single_message_size(),
+        }
     }
 }
 
