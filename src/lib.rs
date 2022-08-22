@@ -25,7 +25,7 @@ pub use crate::session::{Session, TcpStream};
 pub use crate::time::*;
 
 use rustcommon_heatmap::{AtomicHeatmap, AtomicU64};
-use rustcommon_logger::{LogBuilder, MultiLogBuilder, Stdout};
+use rustcommon_logger::{File, LogBuilder, MultiLogBuilder, Output, Stdout};
 use rustcommon_ratelimiter::Ratelimiter;
 
 use std::sync::Arc;
@@ -47,12 +47,25 @@ impl Builder {
 
         let log_level = config.debug().log_level();
 
+        let debug_output: Box<dyn Output> = if let Some(file) = config.debug().log_file() {
+            let backup = config
+                .debug()
+                .log_backup()
+                .unwrap_or(format!("{}.old", file));
+            Box::new(
+                File::new(&file, &backup, config.debug().log_max_size())
+                    .expect("failed to open debug log file"),
+            )
+        } else {
+            Box::new(Stdout::new())
+        };
+
         let log = LogBuilder::new()
-            .output(Box::new(Stdout::new()))
-            .log_queue_depth(1024)
-            .single_message_size(4096)
+            .output(debug_output)
+            .log_queue_depth(config.debug().log_queue_depth())
+            .single_message_size(config.debug().log_single_message_size())
             .build()
-            .expect("failed to initialize log");
+            .expect("failed to initialize debug log");
 
         let log = MultiLogBuilder::new()
             .level_filter(log_level.to_level_filter())
