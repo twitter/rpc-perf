@@ -132,7 +132,7 @@ impl Session {
         if interest == self.interest {
             return Ok(());
         }
-        debug!("reregister: {:?}", interest);
+        trace!("reregister: {:?}", interest);
         self.interest = interest;
         self.stream
             .reregister(poll.registry(), self.token, interest)
