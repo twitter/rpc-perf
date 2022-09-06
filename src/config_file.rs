@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
+use rustcommon_waterfall::{Palette, Scale};
 use core::time::Duration;
 use rustcommon_logger::Level;
 use serde_derive::*;
@@ -17,6 +18,8 @@ pub struct ConfigFile {
     general: General,
     #[serde(default)]
     debug: Debug,
+    #[serde(default)]
+    waterfall: Waterfall,
     target: Target,
     #[serde(default)]
     connection: Connection,
@@ -53,6 +56,10 @@ impl ConfigFile {
 
     pub fn target(&self) -> Target {
         self.target.clone()
+    }
+
+    pub fn waterfall(&self) -> Waterfall {
+        self.waterfall.clone()
     }
 
     pub fn load_from_file(filename: &str) -> Self {
@@ -592,5 +599,66 @@ impl Target {
             }
             ret
         }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+#[serde(remote = "Palette")]
+#[serde(deny_unknown_fields)]
+enum PaletteDef {
+    Classic,
+    Ironbow,
+}
+
+fn palette() -> Palette {
+    Palette::Ironbow
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+#[serde(remote = "Scale")]
+#[serde(deny_unknown_fields)]
+enum ScaleDef {
+    Linear,
+    Logarithmic,
+}
+
+fn scale() -> Scale {
+    Scale::Linear
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct Waterfall {
+    file: Option<String>,
+    #[serde(with = "PaletteDef")]
+    #[serde(default = "palette")]
+    palette: Palette,
+    #[serde(with = "ScaleDef")]
+    #[serde(default = "scale")]
+    scale: Scale,
+}
+
+impl Default for Waterfall {
+    fn default() -> Self {
+        Self {
+            file: None,
+            palette: palette(),
+            scale: scale(),
+        }
+    }
+}
+
+impl Waterfall {
+    pub fn file(&self) -> Option<String> {
+        self.file.clone()
+    }
+
+    pub fn palette(&self) -> Palette {
+        self.palette
+    }
+
+    pub fn scale(&self) -> Scale {
+        self.scale
     }
 }

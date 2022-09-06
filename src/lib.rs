@@ -113,6 +113,17 @@ impl Builder {
             Duration::from_millis(1000),
         )));
 
+        let request_waterfall = if config.waterfall().file().is_some() && config.general().windows().is_some() {
+            Some(Arc::new(AtomicHeatmap::<u64, AtomicU64>::new(
+                1_000_000_000,
+                3,
+                Duration::from_secs(config.general().interval().as_secs() * config.general().windows().unwrap() as u64),
+                Duration::from_millis(1000),
+            )))
+        } else {
+            None
+        };
+
         for endpoint in config.endpoints() {
             info!("endpoint: {}", endpoint);
         }
@@ -125,6 +136,7 @@ impl Builder {
             worker.set_request_ratelimit(request_ratelimit.clone());
             worker.set_connect_heatmap(connect_heatmap.clone());
             worker.set_request_heatmap(request_heatmap.clone());
+            worker.set_request_waterfall(request_waterfall.clone());
             workers.push(worker);
         }
 
@@ -133,6 +145,7 @@ impl Builder {
         admin.set_reconnect_ratelimit(reconnect_ratelimit);
         admin.set_request_heatmap(request_heatmap);
         admin.set_request_ratelimit(request_ratelimit);
+        admin.set_request_waterfall(request_waterfall);
 
         Self { admin, workers }
     }
