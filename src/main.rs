@@ -20,7 +20,7 @@ fn main() {
     // parse command line options load configuration
     let matches = App::new(env!("CARGO_BIN_NAME"))
         .version(env!("CARGO_PKG_VERSION"))
-        .version_short("v")
+        .version_short('v')
         .long_about(
             "rpc-perf is used to generate synthetic traffic and measure the \
             performance characteristics of a server. It is primarily used to \
