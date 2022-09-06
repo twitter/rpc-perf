@@ -10,7 +10,7 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ ubuntu-20.04, macos-10.15 ]
+        os: [ ubuntu-20.04, macos-11 ]
         profile: [ release, debug ]
     name: build-${{ matrix.os }}-${{ matrix.profile }}
     runs-on: ${{ matrix.os }}
@@ -47,7 +47,7 @@ jobs:
   check:
     strategy:
       matrix:
-        os: [ ubuntu-20.04, macos-10.15 ]
+        os: [ ubuntu-20.04, macos-11 ]
     name: check-${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
@@ -102,7 +102,7 @@ jobs:
 
   memcache-smoketest:
     name: memcache smoketest
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     services:
       memcached:
         image: memcached
@@ -118,7 +118,7 @@ jobs:
 
   exposition-smoketest:
     name: exposition smoketest
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     services:
       memcached:
         image: memcached
@@ -136,7 +136,7 @@ jobs:
 
   redis-smoketest:
     name: redis smoketest
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     services:
       redis:
         image: redis
@@ -152,7 +152,7 @@ jobs:
 
   redis-resp-smoketest:
     name: redis resp smoketest
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     services:
       redis:
         image: redis
@@ -168,7 +168,7 @@ jobs:
 
   pelikan-pingserver-smoketest:
     name: pelikan pingserver smoketest
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
         with:
@@ -199,7 +199,7 @@ jobs:
 
   pelikan-segcache-smoketest:
     name: pelikan segcache smoketest
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
         with:

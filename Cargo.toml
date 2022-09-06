@@ -17,32 +17,32 @@ name = "rpc-replay"
 path = "src/replay.rs"
 
 [dependencies]
-backtrace = "0.3.56"
+backtrace = "0.3.66"
 boring = "2.0.0"
-chrono = "0.4.19"
-clap = "2.33.3"
-crc = "2.1.0"
+chrono = "0.4.22"
+clap = "3.2.20"
+crc = "3.0.0"
 json = "0.12.4"
-mio = { version = "0.8.0", features = ["os-poll", "net"] }
+mio = { version = "0.8.4", features = ["os-poll", "net"] }
 mpmc = "0.1.6"
-rand = { version = "0.8.0", features = ["small_rng"] }
+rand = { version = "0.8.5", features = ["small_rng"] }
 rand_xoshiro = { version = "0.6.0" }
-rand_distr = "0.4.0"
-rtrb = "0.2.0"
+rand_distr = "0.4.3"
+rtrb = "0.2.2"
 rustcommon-heatmap = { git = "https://github.com/twitter/rustcommon", rev = "807b9f7" }
 rustcommon-logger = { git = "https://github.com/twitter/rustcommon", rev = "807b9f7" }
 rustcommon-ratelimiter = { git = "https://github.com/twitter/rustcommon", rev = "807b9f7" }
 rustcommon-metrics = { git = "https://github.com/twitter/rustcommon", rev = "807b9f7", features = ["heatmap"] }
 rustcommon-time = { git = "https://github.com/twitter/rustcommon", rev = "807b9f7" }
-serde = "1.0.130"
-serde_derive = "1.0.130"
-serde_json = "1.0.72"
-slab = "0.4.2"
-strum = "0.20.0"
-strum_macros = "0.20.1"
+serde = "1.0.144"
+serde_derive = "1.0.144"
+serde_json = "1.0.85"
+slab = "0.4.7"
+strum = "0.24.1"
+strum_macros = "0.24.3"
 sysconf = "0.3.4"
-thiserror = "1.0.31"
-tiny_http = "0.9.0"
-toml = "0.5.8"
-zookeeper = "0.6.0"
-zstd = "0.9.0"
+thiserror = "1.0.34"
+tiny_http = "0.11.0"
+toml = "0.5.9"
+zookeeper = "0.6.1"
+zstd = "0.11.2"
