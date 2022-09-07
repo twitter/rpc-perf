@@ -113,16 +113,20 @@ impl Builder {
             Duration::from_millis(1000),
         )));
 
-        let request_waterfall = if config.waterfall().file().is_some() && config.general().windows().is_some() {
-            Some(Arc::new(AtomicHeatmap::<u64, AtomicU64>::new(
-                1_000_000_000,
-                3,
-                Duration::from_secs(config.general().interval().as_secs() * config.general().windows().unwrap() as u64),
-                Duration::from_millis(1000),
-            )))
-        } else {
-            None
-        };
+        let request_waterfall =
+            if config.waterfall().file().is_some() && config.general().windows().is_some() {
+                Some(Arc::new(AtomicHeatmap::<u64, AtomicU64>::new(
+                    1_000_000_000,
+                    3,
+                    Duration::from_secs(
+                        config.general().interval().as_secs()
+                            * config.general().windows().unwrap() as u64,
+                    ),
+                    Duration::from_millis(1000),
+                )))
+            } else {
+                None
+            };
 
         for endpoint in config.endpoints() {
             info!("endpoint: {}", endpoint);

@@ -2,7 +2,6 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use rustcommon_waterfall::WaterfallBuilder;
 use crate::metrics::*;
 use crate::Arc;
 use crate::Config;
@@ -10,6 +9,7 @@ use rustcommon_heatmap::AtomicHeatmap;
 use rustcommon_heatmap::AtomicU64;
 use rustcommon_logger::Drain;
 use rustcommon_ratelimiter::Ratelimiter;
+use rustcommon_waterfall::WaterfallBuilder;
 use std::collections::HashMap;
 use std::time::Instant;
 
@@ -262,7 +262,8 @@ impl Admin {
             {
                 if window >= max_window as u64 {
                     if let Some(ref heatmap) = self.request_waterfall {
-                        if let Some(file) = self.config.as_ref().and_then(|c| c.waterfall().file()) {
+                        if let Some(file) = self.config.as_ref().and_then(|c| c.waterfall().file())
+                        {
                             let config = self.config.as_ref().unwrap();
                             let scale = config.waterfall().scale();
                             let palette = config.waterfall().palette();

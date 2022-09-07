@@ -2,9 +2,9 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use rustcommon_waterfall::{Palette, Scale};
 use core::time::Duration;
 use rustcommon_logger::Level;
+use rustcommon_waterfall::{Palette, Scale};
 use serde_derive::*;
 use serde_json::Value as JsonValue;
 use std::io::Read;
