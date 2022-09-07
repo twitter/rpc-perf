@@ -15,6 +15,7 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub struct Config {
     general: General,
     debug: Debug,
+    waterfall: Waterfall,
     connection: Connection,
     request: Request,
     tls: Option<Tls>,
@@ -171,6 +172,7 @@ impl Config {
         Self {
             general: config_file.general(),
             debug: config_file.debug(),
+            waterfall: config_file.waterfall(),
             tls: config_file.tls(),
             connection: config_file.connection(),
             request: config_file.request(),
@@ -186,6 +188,10 @@ impl Config {
 
     pub fn debug(&self) -> &Debug {
         &self.debug
+    }
+
+    pub fn waterfall(&self) -> &Waterfall {
+        &self.waterfall
     }
 
     pub fn tls(&self) -> Option<&Tls> {

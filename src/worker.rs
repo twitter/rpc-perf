@@ -38,6 +38,7 @@ pub struct Worker {
     tls: Option<SslConnector>,
     connect_heatmap: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>,
     request_heatmap: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>,
+    request_waterfall: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>,
     pipeline: usize,
 }
 
@@ -97,6 +98,7 @@ impl Worker {
             codec,
             connect_heatmap: None,
             request_heatmap: None,
+            request_waterfall: None,
             pipeline,
         })
     }
@@ -126,6 +128,11 @@ impl Worker {
     /// Provide a heatmap for recording request latency
     pub fn set_request_heatmap(&mut self, heatmap: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>) {
         self.request_heatmap = heatmap;
+    }
+
+    /// Provide a heatmap for recording request latencies into the waterfall
+    pub fn set_request_waterfall(&mut self, heatmap: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>) {
+        self.request_waterfall = heatmap;
     }
 
     /// Internal function to connect the session
@@ -274,6 +281,9 @@ impl Worker {
                                 let elapsed = now - session.timestamp();
                                 let us = elapsed.as_nanos() as u64 / 1_000;
                                 heatmap.increment(now, us, 1);
+                                if let Some(ref waterfall) = self.request_waterfall {
+                                    waterfall.increment(now, elapsed.as_nanos() as u64, 1);
+                                }
                             }
                         }
                         Err(e) => match e {

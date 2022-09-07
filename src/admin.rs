@@ -9,6 +9,7 @@ use rustcommon_heatmap::AtomicHeatmap;
 use rustcommon_heatmap::AtomicU64;
 use rustcommon_logger::Drain;
 use rustcommon_ratelimiter::Ratelimiter;
+use rustcommon_waterfall::WaterfallBuilder;
 use std::collections::HashMap;
 use std::time::Instant;
 
@@ -23,6 +24,7 @@ pub struct Admin {
     reconnect_ratelimit: Option<Arc<Ratelimiter>>,
     request_heatmap: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>,
     request_ratelimit: Option<Arc<Ratelimiter>>,
+    request_waterfall: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>,
     server: Option<Server>,
     log: Box<dyn Drain>,
 }
@@ -42,6 +44,7 @@ impl Admin {
             reconnect_ratelimit: None,
             request_heatmap: None,
             request_ratelimit: None,
+            request_waterfall: None,
             server,
             log,
         }
@@ -58,6 +61,7 @@ impl Admin {
             reconnect_ratelimit: None,
             request_heatmap: None,
             request_ratelimit: None,
+            request_waterfall: None,
             server,
             log,
         }
@@ -77,6 +81,10 @@ impl Admin {
 
     pub fn set_request_ratelimit(&mut self, ratelimiter: Option<Arc<Ratelimiter>>) {
         self.request_ratelimit = ratelimiter;
+    }
+
+    pub fn set_request_waterfall(&mut self, heatmap: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>) {
+        self.request_waterfall = heatmap;
     }
 
     pub fn run(mut self) {
@@ -253,6 +261,26 @@ impl Admin {
                 .and_then(|config| config.general().windows())
             {
                 if window >= max_window as u64 {
+                    if let Some(ref heatmap) = self.request_waterfall {
+                        if let Some(file) = self.config.as_ref().and_then(|c| c.waterfall().file())
+                        {
+                            let config = self.config.as_ref().unwrap();
+                            let scale = config.waterfall().scale();
+                            let palette = config.waterfall().palette();
+
+                            WaterfallBuilder::new(&file)
+                                .label(100, "100ns")
+                                .label(1000, "1us")
+                                .label(10000, "10us")
+                                .label(100000, "100us")
+                                .label(1000000, "1ms")
+                                .label(10000000, "10ms")
+                                .label(100000000, "100ms")
+                                .scale(scale)
+                                .palette(palette)
+                                .build(&heatmap.load());
+                        }
+                    }
                     break;
                 }
             }

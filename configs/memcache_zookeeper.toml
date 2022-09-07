@@ -25,6 +25,14 @@ log_backup = "rpc-perf.log.old"
 # option to '0' to disable log rotation.
 log_max_size = 1073741824
 
+[waterfall]
+# specify an optional path for a request latency waterfall
+# file = "waterfall.png"
+# choose a palette for rendering the waterfall: classic, ironbow
+palette = "ironbow"
+# choose a scale for rendering the waterfall: linear, logarithmic
+scale = "logarithmic"
+
 [target]
 # connect to the provided zookeeper server
 zk_server = "zookeeper"
