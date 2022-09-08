@@ -628,12 +628,19 @@ fn scale() -> Scale {
     Scale::Linear
 }
 
+fn resolution() -> u64 {
+    // one second in milliseconds
+    1000
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Waterfall {
     file: Option<String>,
     #[serde(with = "PaletteDef")]
     #[serde(default = "palette")]
     palette: Palette,
+    #[serde(default = "resolution")]
+    resolution: u64,
     #[serde(with = "ScaleDef")]
     #[serde(default = "scale")]
     scale: Scale,
@@ -644,6 +651,7 @@ impl Default for Waterfall {
         Self {
             file: None,
             palette: palette(),
+            resolution: resolution(),
             scale: scale(),
         }
     }
@@ -656,6 +664,10 @@ impl Waterfall {
 
     pub fn palette(&self) -> Palette {
         self.palette
+    }
+
+    pub fn resolution(&self) -> u64 {
+        self.resolution
     }
 
     pub fn scale(&self) -> Scale {
