@@ -32,6 +32,8 @@ log_max_size = 1073741824
 palette = "ironbow"
 # choose a scale for rendering the waterfall: linear, logarithmic
 scale = "logarithmic"
+# choose the resolution for the time axis (in milliseconds)
+resolution = 1000
 
 [target]
 # connect to the provided zookeeper server

@@ -122,7 +122,7 @@ impl Builder {
                         config.general().interval().as_secs()
                             * config.general().windows().unwrap() as u64,
                     ),
-                    Duration::from_millis(1000),
+                    Duration::from_millis(config.waterfall().resolution()),
                 )))
             } else {
                 None
