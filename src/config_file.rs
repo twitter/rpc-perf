@@ -325,6 +325,8 @@ pub struct Keyspace {
     length: usize,
     #[serde(default = "one")]
     weight: usize,
+    #[serde(default = "u32::max_value")]
+    cardinality: u32,
     commands: Vec<Command>,
     #[serde(default)]
     inner_keys: Vec<InnerKey>,
@@ -345,6 +347,10 @@ impl Keyspace {
 
     pub fn weight(&self) -> usize {
         self.weight
+    }
+
+    pub fn cardinality(&self) -> u32 {
+        self.cardinality
     }
 
     pub fn inner_keys(&self) -> Vec<InnerKey> {
@@ -437,6 +443,8 @@ pub struct InnerKey {
     length: usize,
     #[serde(default = "one")]
     weight: usize,
+    #[serde(default = "u32::max_value")]
+    cardinality: u32,
     #[serde(default = "alphanumeric")]
     field_type: FieldType,
 }
@@ -450,6 +458,10 @@ impl InnerKey {
         self.length
     }
 
+    pub fn cardinality(&self) -> u32 {
+        self.cardinality
+    }
+
     pub fn field_type(&self) -> FieldType {
         self.field_type
     }
@@ -461,6 +473,8 @@ pub struct Value {
     length: usize,
     #[serde(default = "one")]
     weight: usize,
+    #[serde(default = "u32::max_value")]
+    cardinality: u32,
     #[serde(default = "alphanumeric")]
     field_type: FieldType,
 }
@@ -472,6 +486,10 @@ impl Value {
 
     pub fn length(&self) -> usize {
         self.length
+    }
+
+    pub fn cardinality(&self) -> u32 {
+        self.cardinality
     }
 
     pub fn field_type(&self) -> FieldType {
