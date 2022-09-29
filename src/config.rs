@@ -28,6 +28,7 @@ pub struct Config {
 pub struct Keyspace {
     length: usize,
     weight: usize,
+    cardinality: u32,
     commands: Vec<Command>,
     command_dist: WeightedAliasIndex<usize>,
     inner_keys: Vec<InnerKey>,
@@ -44,16 +45,28 @@ impl Keyspace {
         self.length
     }
 
+    pub fn cardinality(&self) -> u32 {
+        self.cardinality
+    }
+
+    // TODO(aetimmes): implement cardinality for Alphanumeric fields
     pub fn generate_key(&self, rng: &mut SmallRng) -> Vec<u8> {
         match self.key_type {
             FieldType::Alphanumeric => rng
                 .sample_iter(&Alphanumeric)
                 .take(self.length())
                 .collect::<Vec<u8>>(),
-            FieldType::U32 => format!("{:010}", &rng.gen::<u32>()).as_bytes().to_vec(),
+            FieldType::U32 => format!(
+                "{:0>len$}",
+                &rng.gen_range(0u32..self.cardinality()),
+                len = self.length()
+            )
+            .as_bytes()
+            .to_vec(),
         }
     }
 
+    //#TODO(atimmes): implement cardinality for Alphanumeric fields
     pub fn generate_inner_key(&self, rng: &mut SmallRng) -> Option<Vec<u8>> {
         if let Some(ref dist) = self.inner_key_dist {
             let idx = dist.sample(rng);
@@ -63,7 +76,13 @@ impl Keyspace {
                     .sample_iter(&Alphanumeric)
                     .take(conf.length())
                     .collect::<Vec<u8>>(),
-                FieldType::U32 => format!("{:010}", &rng.gen::<u32>()).as_bytes().to_vec(),
+                FieldType::U32 => format!(
+                    "{:0>len$}",
+                    &rng.gen_range(0u32..conf.cardinality()),
+                    len = conf.length()
+                )
+                .as_bytes()
+                .to_vec(),
             };
             Some(inner_key)
         } else {
@@ -71,6 +90,7 @@ impl Keyspace {
         }
     }
 
+    //#TODO(atimmes): implement cardinality for Alphanumeric fields
     pub fn generate_value(&self, rng: &mut SmallRng) -> Option<Vec<u8>> {
         if let Some(ref value_dist) = self.value_dist {
             let value_idx = value_dist.sample(rng);
@@ -80,7 +100,13 @@ impl Keyspace {
                     .sample_iter(&Alphanumeric)
                     .take(value_conf.length())
                     .collect::<Vec<u8>>(),
-                FieldType::U32 => format!("{:010}", &rng.gen::<u32>()).as_bytes().to_vec(),
+                FieldType::U32 => format!(
+                    "{:0>len$}",
+                    &rng.gen_range(0u32..value_conf.cardinality()),
+                    len = value_conf.length()
+                )
+                .as_bytes()
+                .to_vec(),
             };
             Some(value)
         } else {
@@ -149,6 +175,7 @@ impl Config {
             let keyspace = Keyspace {
                 length: k.length(),
                 weight: k.weight(),
+                cardinality: k.cardinality(),
                 commands: k.commands(),
                 command_dist,
                 inner_keys: k.inner_keys(),

@@ -59,7 +59,8 @@ commands = [
 	{ verb = "hset", weight = 2 },
 	{ verb = "hdel", weight = 1 },
 ]
-# the length of the key in bytes, keyspace will be: 52^N keys
+# the length of the key in bytes, for alphanumeric fields, the keyspace will
+# be: 52^N keys
 length = 3
 # controls how values will be generated, multiple lengths with varying weights
 # can be specified here
