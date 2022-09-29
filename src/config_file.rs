@@ -94,6 +94,10 @@ fn one() -> usize {
     1
 }
 
+fn u32_max() -> u32 {
+    u32::MAX;
+}
+
 fn default_nodelay() -> bool {
     false
 }
@@ -101,6 +105,7 @@ fn default_nodelay() -> bool {
 fn alphanumeric() -> FieldType {
     FieldType::Alphanumeric
 }
+
 
 #[derive(Deserialize, Clone, Copy, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
@@ -325,7 +330,7 @@ pub struct Keyspace {
     length: usize,
     #[serde(default = "one")]
     weight: usize,
-    #[serde(default = "u32::max_value")]
+    #[serde(default = "u32_max")]
     cardinality: u32,
     commands: Vec<Command>,
     #[serde(default)]
@@ -443,7 +448,7 @@ pub struct InnerKey {
     length: usize,
     #[serde(default = "one")]
     weight: usize,
-    #[serde(default = "u32::max_value")]
+    #[serde(default = "u32_max")]
     cardinality: u32,
     #[serde(default = "alphanumeric")]
     field_type: FieldType,
@@ -473,7 +478,7 @@ pub struct Value {
     length: usize,
     #[serde(default = "one")]
     weight: usize,
-    #[serde(default = "u32::max_value")]
+    #[serde(default = "u32_max")]
     cardinality: u32,
     #[serde(default = "alphanumeric")]
     field_type: FieldType,
