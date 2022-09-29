@@ -49,7 +49,7 @@ impl Keyspace {
         self.cardinality
     }
 
-    //TODO(aetimmes): implement cardinality for Alphanumeric fields
+    // TODO(aetimmes): implement cardinality for Alphanumeric fields
     pub fn generate_key(&self, rng: &mut SmallRng) -> Vec<u8> {
         match self.key_type {
             FieldType::Alphanumeric => rng
