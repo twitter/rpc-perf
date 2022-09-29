@@ -106,7 +106,6 @@ fn alphanumeric() -> FieldType {
     FieldType::Alphanumeric
 }
 
-
 #[derive(Deserialize, Clone, Copy, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
