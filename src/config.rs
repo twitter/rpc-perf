@@ -56,7 +56,13 @@ impl Keyspace {
                 .sample_iter(&Alphanumeric)
                 .take(self.length())
                 .collect::<Vec<u8>>(),
-            FieldType::U32 => format!("{:0>len$}", &rng.gen_range(0u32..self.cardinality()), len=self.length()).as_bytes().to_vec(),
+            FieldType::U32 => format!(
+                "{:0>len$}",
+                &rng.gen_range(0u32..self.cardinality()),
+                len = self.length()
+            )
+            .as_bytes()
+            .to_vec(),
         }
     }
 
@@ -70,7 +76,13 @@ impl Keyspace {
                     .sample_iter(&Alphanumeric)
                     .take(conf.length())
                     .collect::<Vec<u8>>(),
-                FieldType::U32 => format!("{:0>len$}", &rng.gen_range(0u32..conf.cardinality()), len=conf.length()).as_bytes().to_vec(),
+                FieldType::U32 => format!(
+                    "{:0>len$}",
+                    &rng.gen_range(0u32..conf.cardinality()),
+                    len = conf.length()
+                )
+                .as_bytes()
+                .to_vec(),
             };
             Some(inner_key)
         } else {
@@ -88,7 +100,13 @@ impl Keyspace {
                     .sample_iter(&Alphanumeric)
                     .take(value_conf.length())
                     .collect::<Vec<u8>>(),
-                FieldType::U32 => format!("{:0>len$}", &rng.gen_range(0u32..value_conf.cardinality()), len=value_conf.length()).as_bytes().to_vec(),
+                FieldType::U32 => format!(
+                    "{:0>len$}",
+                    &rng.gen_range(0u32..value_conf.cardinality()),
+                    len = value_conf.length()
+                )
+                .as_bytes()
+                .to_vec(),
             };
             Some(value)
         } else {
