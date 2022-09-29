@@ -95,7 +95,7 @@ fn one() -> usize {
 }
 
 fn u32_max() -> u32 {
-    u32::MAX;
+    u32::MAX
 }
 
 fn default_nodelay() -> bool {
