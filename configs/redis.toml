@@ -59,9 +59,12 @@ commands = [
 	{ verb = "set", weight = 2 },
 	{ verb = "delete", weight = 1 },
 ]
-# the length of the key in bytes, for alphanumeric fields, the keyspace will
-# be: 52^N keys
-length = 3
+# sets the length of the key, in bytes
+length = 32
+# sets the number of keys that will be generated
+cardinality = 10_000_000
+# sets the distribution across the keyspace: uniform, zipf
+key_distribution = { "model" = "zipf" }
 # controls how values will be generated, multiple lengths with varying weights
 # can be specified here
 values = [ { length = 16 } ]
@@ -70,3 +73,4 @@ ttl = 0
 # controls the cardinality of commands which operate on more than one item in
 # a single request, eg: the number of keys in a `get` request
 batch_size = 1
+

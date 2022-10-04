@@ -6,8 +6,10 @@ use crate::config_file::*;
 use rand::rngs::SmallRng;
 use rand::Rng;
 use rand_distr::Alphanumeric;
+use rand_distr::Uniform;
 use rand_distr::{Distribution, WeightedAliasIndex};
 use std::net::SocketAddr;
+use zipf::ZipfDistribution;
 
 pub const NAME: &str = env!("CARGO_PKG_NAME");
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -25,6 +27,21 @@ pub struct Config {
 }
 
 #[derive(Clone)]
+pub enum KeyDistribution {
+    Uniform(Uniform<usize>),
+    Zipf(ZipfDistribution),
+}
+
+impl KeyDistribution {
+    pub fn sample(&self, rng: &mut SmallRng) -> usize {
+        match self {
+            Self::Uniform(d) => d.sample(rng),
+            Self::Zipf(d) => d.sample(rng),
+        }
+    }
+}
+
+#[derive(Clone)]
 pub struct Keyspace {
     length: usize,
     weight: usize,
@@ -38,6 +55,7 @@ pub struct Keyspace {
     ttl: usize,
     key_type: FieldType,
     batch_size: usize,
+    key_distribution: KeyDistribution,
 }
 
 impl Keyspace {
@@ -58,7 +76,7 @@ impl Keyspace {
                 .collect::<Vec<u8>>(),
             FieldType::U32 => format!(
                 "{:0>len$}",
-                &rng.gen_range(0u32..self.cardinality()),
+                self.key_distribution.sample(rng) as u32,
                 len = self.length()
             )
             .as_bytes()
@@ -172,6 +190,27 @@ impl Config {
                 Some(WeightedAliasIndex::new(value_weights).unwrap())
             };
 
+            let key_distribution = match k.key_distribution {
+                None => KeyDistribution::Uniform(Uniform::new(0, k.cardinality() as usize)),
+                Some(ref kd) => match kd.model {
+                    KeyDistributionModel::Uniform => {
+                        KeyDistribution::Uniform(Uniform::new(0, k.cardinality() as usize))
+                    }
+                    KeyDistributionModel::Zipf => {
+                        let exponent = kd
+                            .parameters
+                            .get("exponent")
+                            .unwrap_or(&"1.0".to_owned())
+                            .parse::<f64>()
+                            .expect("bad exponent for zipf distribution");
+                        KeyDistribution::Zipf(
+                            ZipfDistribution::new(k.cardinality() as usize, exponent)
+                                .expect("bad zipf config"),
+                        )
+                    }
+                },
+            };
+
             let keyspace = Keyspace {
                 length: k.length(),
                 weight: k.weight(),
@@ -185,6 +224,7 @@ impl Config {
                 ttl: k.ttl(),
                 key_type: k.key_type(),
                 batch_size: k.batch_size(),
+                key_distribution,
             };
             keyspaces.push(keyspace);
         }

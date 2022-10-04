@@ -7,6 +7,7 @@ use rustcommon_logger::Level;
 use rustcommon_waterfall::{Palette, Scale};
 use serde_derive::*;
 use serde_json::Value as JsonValue;
+use std::collections::HashMap;
 use std::io::Read;
 use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
@@ -104,6 +105,10 @@ fn default_nodelay() -> bool {
 
 fn alphanumeric() -> FieldType {
     FieldType::Alphanumeric
+}
+
+fn empty_map() -> HashMap<String, String> {
+    HashMap::new()
 }
 
 #[derive(Deserialize, Clone, Copy, Eq, PartialEq)]
@@ -323,6 +328,23 @@ impl Connection {
 }
 
 #[derive(Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum KeyDistributionModel {
+    Uniform,
+    Zipf,
+}
+
+#[derive(Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct KeyDistribution {
+    pub(crate) model: KeyDistributionModel,
+
+    #[serde(serialize_with = "toml::ser::tables_last")]
+    #[serde(default = "empty_map")]
+    pub(crate) parameters: HashMap<String, String>,
+}
+
+#[derive(Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct Keyspace {
     #[serde(default = "one")]
@@ -342,6 +364,7 @@ pub struct Keyspace {
     key_type: FieldType,
     #[serde(default = "one")]
     batch_size: usize,
+    pub(crate) key_distribution: Option<KeyDistribution>,
 }
 
 impl Keyspace {
