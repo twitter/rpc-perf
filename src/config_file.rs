@@ -107,6 +107,10 @@ fn alphanumeric() -> FieldType {
     FieldType::Alphanumeric
 }
 
+fn empty_map() -> HashMap<String, String> {
+    HashMap::new()
+}
+
 #[derive(Deserialize, Clone, Copy, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
@@ -336,6 +340,7 @@ pub struct KeyDistribution {
     pub(crate) model: KeyDistributionModel,
 
     #[serde(serialize_with = "toml::ser::tables_last")]
+    #[serde(default = "empty_map")]
     pub(crate) parameters: HashMap<String, String>,
 }
 
