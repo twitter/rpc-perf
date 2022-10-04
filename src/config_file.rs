@@ -324,6 +324,7 @@ impl Connection {
 }
 
 #[derive(Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
 pub enum KeyDistributionModel {
     Uniform,
     Zipf,
