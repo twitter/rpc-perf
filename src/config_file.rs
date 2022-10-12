@@ -64,15 +64,26 @@ impl ConfigFile {
     }
 
     pub fn load_from_file(filename: &str) -> Self {
-        let mut file = std::fs::File::open(filename).expect("failed to open workload file");
+        let mut file = match std::fs::File::open(filename) {
+            Ok(c) => c,
+            Err(error) => {
+                eprintln!("error loading config file: {filename}\n{error}");
+                std::process::exit(1);
+            }
+        };
         let mut content = String::new();
-        file.read_to_string(&mut content).expect("failed to read");
+        match file.read_to_string(&mut content) {
+            Ok(_) => {}
+            Err(error) => {
+                eprintln!("error reading config file: {filename}\n{error}");
+                std::process::exit(1);
+            }
+        }
         let toml = toml::from_str(&content);
         match toml {
             Ok(toml) => toml,
-            Err(e) => {
-                println!("Failed to parse TOML config: {}", filename);
-                println!("{}", e);
+            Err(error) => {
+                eprintln!("Failed to parse TOML config: {filename}\n{error}");
                 std::process::exit(1);
             }
         }

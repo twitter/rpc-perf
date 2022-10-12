@@ -2,9 +2,6 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-#[macro_use]
-extern crate rustcommon_logger;
-
 use backtrace::Backtrace;
 use clap::{App, Arg};
 use rpc_perf::Builder;
@@ -12,8 +9,8 @@ use rpc_perf::Builder;
 fn main() {
     // custom panic hook to terminate whole process after unwinding
     std::panic::set_hook(Box::new(|s| {
-        error!("{}", s);
-        println!("{:?}", Backtrace::new());
+        eprintln!("{}", s);
+        eprintln!("{:?}", Backtrace::new());
         std::process::exit(101);
     }));
 
