@@ -73,7 +73,7 @@ impl ConfigFile {
         };
         let mut content = String::new();
         match file.read_to_string(&mut content) {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(error) => {
                 eprintln!("error reading config file: {filename}\n{error}");
                 std::process::exit(1);
